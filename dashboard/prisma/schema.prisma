@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String?
+  companyName String?
+  companionName String?
+  personality   String?
+  onboardingCompleted Boolean @default(false)
+  /// Optional external customer identifier for migration compatibility.
+  stripeCustomerId String? @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  licenses  License[]
+  payments  PendingPayment[]
+  badges    UserBadge[]
+  emails    WelcomeEmail[]
+  sentEmails SentEmail[]
+}
+
+model License {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  userId      String
+  features    String
+  domain      String?
+  plan        String   @default("free")
+  expiresAt   DateTime
+  activatedAt DateTime?
+  widgetTooltipText String?
+  widgetPosition    String   @default("bottom-right")
+  widgetSize        String   @default("medium")
+  widgetZIndex      Int?
+  widgetCustomCss   String?
+  widgetThemeMode   String   @default("auto")
+  forcedMood        String?
+  forcedMoodUntil   DateTime?
+  /// Optional payment order identifier kept for backward compatibility.
+  paidOrderId       String?  @unique
+  /// Optional checkout session identifier kept for backward compatibility.
+  stripeCheckoutSessionId String? @unique
+  lemonSqueezyId String? @unique
+  lemonSqueezySubscriptionId String? @unique
+  lemonSqueezyVariantId String?
+  lemonSqueezySubscriptionStatus String?
+  lemonSqueezyCustomerPortalUrl String?
+  /// Optional hex overrides for preset orb gradient (#RRGGBB).
+  themeAccentHex    String?
+  themeDeepHex      String?
+  /// Public URL path or absolute URL for custom orb background (PNG/SVG)
+  themeImageUrl String?
+  /// Preset id: default | ocean | sunset | neon | forest
+  themePreset   String   @default("default")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moodEvents  MoodEvent[]
+  complianceReports ComplianceReport[]
+  lemonWebhookEvents LemonSqueezyWebhookEvent[]
+  collaborativeRoom CollaborativeRoom?
+}
+
+model LemonSqueezyWebhookEvent {
+  id          String   @id @default(cuid())
+  eventName   String
+  lemonEventId String?
+  licenseId   String?
+  payload     String
+  receivedAt  DateTime @default(now())
+
+  license License? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+
+  @@index([licenseId, receivedAt])
+  @@index([eventName, receivedAt])
+  @@unique([lemonEventId])
+}
+
+model PendingPayment {
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+  userId    String
+  plan      String
+  amountUsd Int
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Anonymous widget mood telemetry (GDPR: mood + domain + license link only).
+model MoodEvent {
+  id         String   @id @default(cuid())
+  licenseId  String
+  mood       String
+  domain     String?
+  messageSnippet String?
+  timestamp  DateTime
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  license    License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@index([licenseId, timestamp])
+  @@index([licenseId, mood, acknowledgedAt, timestamp])
+}
+
+model ComplianceReport {
+  id          String   @id @default(cuid())
+  licenseId   String
+  generatedAt DateTime @default(now())
+  data        String
+
+  license License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@index([licenseId, generatedAt])
+}
+
+model CollaborativeRoom {
+  id        String   @id @default(cuid())
+  licenseId String   @unique
+  mood      String   @default("neutral")
+  updatedAt DateTime @updatedAt
+
+  license   License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  icon        String
+  condition   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  awardedAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+}
+
+model WelcomeEmail {
+  id        String   @id @default(cuid())
+  userId    String
+  subject   String
+  body      String
+  sentAt    DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Demo outreach emails queued from the dashboard (swap provider in lib/outreach-send.ts).
+model SentEmail {
+  id              String   @id @default(cuid())
+  userId          String
+  recipientEmail  String
+  subject         String
+  body            String
+  sentAt          DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sentAt])
+}

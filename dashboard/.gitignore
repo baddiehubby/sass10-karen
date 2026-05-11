@@ -55,3 +55,5 @@ dashboard/public/widget/livingface-widget.js
 # uploaded license orb assets (keep folder via .gitkeep)
 /public/license-themes/*
 !/public/license-themes/.gitkeep
+
+.vercel

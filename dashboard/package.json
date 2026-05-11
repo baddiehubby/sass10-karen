@@ -19,9 +19,12 @@
     "bcryptjs": "^3.0.3",
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.4.8",
+    "framer-motion": "^11.18.0",
     "gray-matter": "^4.0.3",
     "jose": "^5.0.0",
     "jspdf": "^4.2.1",
+    "@react-three/drei": "^9.117.3",
+    "@react-three/fiber": "^8.17.10",
     "next": "^14.2.0",
     "next-auth": "^4.24.0",
     "next-mdx-remote": "^6.0.0",
@@ -30,6 +33,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0",
+    "three": "^0.172.0",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
@@ -38,6 +42,7 @@
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
+    "@types/three": "^0.172.0",
     "esbuild": "^0.25.5",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",

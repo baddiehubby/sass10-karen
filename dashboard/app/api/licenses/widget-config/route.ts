@@ -1,11 +1,9 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-const POSITIONS = new Set(["top-left", "top-right", "bottom-left", "bottom-right"]);
-const SIZES = new Set(["small", "medium", "large"]);
-const THEME_MODES = new Set(["auto", "light", "dark"]);
+import { widgetConfigPostSchema } from "@/lib/validation";
 
 function normalizeCss(input: string | undefined) {
   if (!input) return null;
@@ -18,30 +16,20 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = (await req.json()) as {
-    licenseKey?: string;
-    tooltipText?: string;
-    position?: string;
-    size?: string;
-    zIndex?: number | null;
-    customCss?: string;
-    themeMode?: string;
-  };
-  const licenseKey = (body.licenseKey || "").trim();
-  if (!licenseKey) return NextResponse.json({ error: "licenseKey required" }, { status: 400 });
+  const parsed = await parseJsonBody(req, widgetConfigPostSchema);
+  if (!parsed.ok) return parsed.response;
 
-  const position = (body.position || "bottom-right").trim().toLowerCase();
-  const size = (body.size || "medium").trim().toLowerCase();
-  if (!POSITIONS.has(position)) return NextResponse.json({ error: "Invalid position" }, { status: 400 });
-  if (!SIZES.has(size)) return NextResponse.json({ error: "Invalid size" }, { status: 400 });
-  const themeMode = (body.themeMode || "auto").trim().toLowerCase();
-  if (!THEME_MODES.has(themeMode)) return NextResponse.json({ error: "Invalid themeMode" }, { status: 400 });
+  const body = parsed.data;
+  const licenseKey = body.licenseKey.trim();
+  const position = body.position ?? "bottom-right";
+  const size = body.size ?? "medium";
+  const themeMode = body.themeMode ?? "auto";
 
   let zIndex: number | null = null;
   if (body.zIndex !== undefined && body.zIndex !== null && String(body.zIndex).trim() !== "") {
-    const parsed = Number(body.zIndex);
-    if (!Number.isFinite(parsed)) return NextResponse.json({ error: "Invalid zIndex" }, { status: 400 });
-    zIndex = Math.max(1, Math.min(2147483647, Math.round(parsed)));
+    const parsedZ = Number(body.zIndex);
+    if (!Number.isFinite(parsedZ)) return NextResponse.json({ error: "Invalid zIndex" }, { status: 400 });
+    zIndex = Math.max(1, Math.min(2147483647, Math.round(parsedZ)));
   }
 
   const license = await prisma.license.findFirst({
@@ -57,7 +45,7 @@ export async function POST(req: Request) {
       widgetPosition: position,
       widgetSize: size,
       widgetZIndex: zIndex,
-      widgetCustomCss: normalizeCss(body.customCss),
+      widgetCustomCss: normalizeCss(body.customCss ?? undefined),
       widgetThemeMode: themeMode,
     },
     select: {

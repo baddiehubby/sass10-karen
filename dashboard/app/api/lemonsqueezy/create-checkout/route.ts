@@ -1,22 +1,19 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { lemonRequest, getLemonStoreId, getLemonVariantIdByTier } from "@/lib/lemonsqueezy";
 import { prisma } from "@/lib/prisma";
+import { lemonCheckoutBodySchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { tier?: string };
-  try {
-    body = (await req.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-  const tier = (body.tier || "").toLowerCase();
-  if (tier !== "pro" && tier !== "agency") return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
+  const parsed = await parseJsonBody(req, lemonCheckoutBodySchema);
+  if (!parsed.ok) return parsed.response;
 
+  const { tier } = parsed.data;
   const storeId = getLemonStoreId();
   const variantId = getLemonVariantIdByTier(tier);
   if (!storeId || !variantId) {

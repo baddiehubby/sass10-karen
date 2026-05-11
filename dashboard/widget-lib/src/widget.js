@@ -1,8 +1,9 @@
 /* Buddy AI — emotional intelligence embed (Living Face widget bundle) */
 (function initLivingFaceWidget() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
-  if (window.__HQ_LIVING_FACE_WIDGET__) return;
-  window.__HQ_LIVING_FACE_WIDGET__ = true;
+
+  const WIDGET_CSS_VERSION = "1.0.0";
+  const WIDGET_CSS_SRI = "sha384-KF6Gx04c2wtVgMYfTGfQkuN8LjsoygUuAei5kOnSTLsWeyLt5HEI5F1dDgUTfF/T";
 
   const FREE_FEATURES = {
     customTheme: false,
@@ -55,9 +56,10 @@
   }
 
   const scriptEl = detectCurrentScript();
-  const LICENSE_KEY = scriptEl?.getAttribute("data-hq-key") || "";
-  const apiBaseRaw = scriptEl?.getAttribute("data-hq-api") || "https://yourdomain.com";
-  const API_BASE = apiBaseRaw.replace(/\/$/, "");
+  const cfg = {
+    licenseKey: (scriptEl?.getAttribute("data-hq-key") || "").trim(),
+    apiBase: (scriptEl?.getAttribute("data-hq-api") || "https://yourdomain.com").replace(/\/$/, ""),
+  };
   const SCRIPT_POS = (scriptEl?.getAttribute("data-hq-position") || "").trim().toLowerCase();
   const ALLOW_SCRIPT_POS = new Set(["bottom-right", "bottom-left", "top-right", "top-left"]);
 
@@ -186,6 +188,58 @@
     return extractLatestBySelectors() || extractLatestByHeuristic() || { text: "", platform: null };
   }
 
+  function reportTamperAttempt(payload) {
+    const body = {
+      type: String((payload && payload.type) || "widget").slice(0, 80),
+      detail: String((payload && payload.detail) || "").slice(0, 2000),
+      path: window.location && window.location.pathname ? String(window.location.pathname).slice(0, 500) : "",
+    };
+    fetch(`${cfg.apiBase}/api/security/tamper-attempt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      mode: "cors",
+      keepalive: true,
+    }).catch(function () {});
+  }
+
+  let buddyConsoleGuardInstalled = false;
+  function installConsoleTamperGuard() {
+    if (buddyConsoleGuardInstalled) return;
+    buddyConsoleGuardInstalled = true;
+    const nativeLog = console.log.bind(console);
+    function wrappedLog() {
+      return nativeLog.apply(console, arguments);
+    }
+    wrappedLog.__buddyAiLog = true;
+    console.log = wrappedLog;
+    window.setInterval(function () {
+      if (console.log !== wrappedLog && !(console.log && console.log.__buddyAiLog)) {
+        reportTamperAttempt({ type: "console_log_replaced", detail: "instrumentation" });
+      }
+    }, 20000);
+  }
+
+  function installPostMessageGuard() {
+    window.addEventListener(
+      "message",
+      function (ev) {
+        if (ev.origin !== "https://app.buddieai.com") return;
+        if (!ev.data || typeof ev.data !== "object") return;
+      },
+      false,
+    );
+  }
+
+  function appendWidgetStylesheet(shadow) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = `${cfg.apiBase}/widget/buddy-widget.css?v=${WIDGET_CSS_VERSION}`;
+    link.crossOrigin = "anonymous";
+    link.setAttribute("integrity", WIDGET_CSS_SRI);
+    shadow.appendChild(link);
+  }
+
   function createWidgetDom() {
     const host = document.createElement("div");
     host.id = "hq-livingface-container";
@@ -198,173 +252,9 @@
     host.style.pointerEvents = "none";
 
     const shadow = host.attachShadow({ mode: "open" });
-    shadow.innerHTML = `
-      <style>
-        :host { all: initial; }
-        .root {
-          position: relative;
-          width: 80px;
-          height: 80px;
-          pointer-events: auto;
-          font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-        }
-        .ring {
-          position: absolute;
-          inset: -6px;
-          border-radius: 999px;
-          border: 1px solid rgba(148, 163, 184, 0.35);
-          box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
-          animation: lfSpin 10s linear infinite;
-        }
-        .orb {
-          position: absolute;
-          inset: 0;
-          border-radius: 999px;
-          overflow: hidden;
-          background: radial-gradient(circle at 28% 20%, #c7d2fe 0%, #6366f1 40%, #312e81 100%);
-          box-shadow: inset 0 -10px 20px rgba(15, 23, 42, 0.35);
-          transform-origin: center center;
-          will-change: transform, filter, background;
-          transition: background 240ms ease, filter 240ms ease;
-        }
-        .orb.hq-orb-image {
-          background-color: #0f172a;
-          background-size: cover;
-          background-position: center;
-          background-repeat: no-repeat;
-        }
-        .face {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 2;
-        }
-        .brow-wrap {
-          position: absolute;
-          top: 24px;
-          left: 18px;
-          right: 18px;
-          display: flex;
-          justify-content: space-between;
-          transition: transform 220ms ease;
-        }
-        .eye {
-          width: 14px;
-          height: 14px;
-          border-radius: 999px;
-          background: rgba(15, 23, 42, 0.45);
-          transform-origin: center center;
-          transition: transform 220ms ease;
-        }
-        .eye.heart-eye {
-          width: 16px;
-          height: 16px;
-          background: transparent;
-          clip-path: path("M8 14 C8 14,0 9,0 4 C0 1.5,2 0,4 0 C5.5 0,7 1.1,8 2.6 C9 1.1,10.5 0,12 0 C14 0,16 1.5,16 4 C16 9,8 14,8 14 Z");
-          background-color: #ef4444;
-        }
-        .mouth-wrap {
-          position: absolute;
-          left: 50%;
-          bottom: 20px;
-          transform: translateX(-50%);
-          width: 34px;
-          height: 18px;
-          opacity: 0.9;
-        }
-        .mouth { width: 100%; height: 100%; }
-        .mouth path {
-          stroke: rgba(15, 23, 42, 0.65);
-          stroke-width: 2.6;
-          stroke-linecap: round;
-          fill: transparent;
-        }
-        .tooltip {
-          position: absolute;
-          bottom: 92px;
-          right: -8px;
-          max-width: 220px;
-          padding: 7px 10px;
-          border-radius: 8px;
-          background: rgba(2, 6, 23, 0.92);
-          border: 1px solid rgba(148, 163, 184, 0.25);
-          color: #e2e8f0;
-          font-size: 11px;
-          line-height: 1.2;
-          white-space: nowrap;
-          opacity: 0;
-          transform: translateY(3px);
-          transition: opacity 180ms ease, transform 180ms ease;
-          pointer-events: none;
-        }
-        .sound-toggle {
-          position: absolute;
-          top: -6px;
-          left: -6px;
-          width: 22px;
-          height: 22px;
-          border-radius: 999px;
-          border: 1px solid rgba(148, 163, 184, 0.35);
-          background: rgba(15, 23, 42, 0.78);
-          color: #e2e8f0;
-          font-size: 10px;
-          display: none;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          pointer-events: auto;
-        }
-        .reaction-emoji {
-          position: absolute;
-          top: -12px;
-          right: -10px;
-          font-size: 16px;
-          opacity: 0;
-          transform: translateY(6px);
-          transition: all 180ms ease;
-        }
-        .reaction-emoji.show {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        .mini-confetti {
-          position: absolute;
-          inset: -4px;
-          pointer-events: none;
-        }
-        .mini-dot {
-          position: absolute;
-          width: 4px;
-          height: 6px;
-          border-radius: 2px;
-          opacity: 0;
-          animation: none;
-        }
-        .mini-confetti.run .mini-dot {
-          animation: lfConfetti 760ms ease-out forwards;
-        }
-        @keyframes lfConfetti {
-          from { opacity: 1; transform: translate(0, 0) rotate(0deg); }
-          to { opacity: 0; transform: translate(var(--x), var(--y)) rotate(360deg); }
-        }
-        .upgrade {
-          color: #93c5fd;
-          margin-left: 6px;
-          text-decoration: underline;
-          pointer-events: auto;
-          cursor: pointer;
-        }
-        .root:hover .tooltip {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        @keyframes lfSpin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      </style>
+    appendWidgetStylesheet(shadow);
+    const tpl = document.createElement("template");
+    tpl.innerHTML = `
       <div class="root" aria-label="Buddy AI companion">
         <button class="sound-toggle" aria-label="Toggle widget sound">🔈</button>
         <div class="ring"></div>
@@ -384,11 +274,12 @@
         </div>
         <div class="tooltip">
           <span class="tip-text">Buddy AI companion • neutral</span>
-          <a class="upgrade" href="${API_BASE}/pricing" target="_blank" rel="noopener noreferrer">Upgrade</a>
+          <a class="upgrade" href="${cfg.apiBase}/pricing" target="_blank" rel="noopener noreferrer">Upgrade</a>
         </div>
         <div class="reaction-emoji">🤫</div>
       </div>
     `;
+    shadow.appendChild(tpl.content);
 
     return {
       host,
@@ -419,7 +310,7 @@
     if (!key) return { valid: false, features: FREE_FEATURES };
     try {
       const domain = encodeURIComponent(window.location.hostname);
-      const res = await fetch(`${API_BASE}/api/licenses/verify?key=${encodeURIComponent(key)}&domain=${domain}`, {
+      const res = await fetch(`${cfg.apiBase}/api/licenses/verify?key=${encodeURIComponent(key)}&domain=${domain}`, {
         method: "GET",
       });
       const data = await res.json();
@@ -441,7 +332,7 @@
     if (!key) return null;
     try {
       const domain = encodeURIComponent(window.location.hostname);
-      const res = await fetch(`${API_BASE}/api/licenses/theme?key=${encodeURIComponent(key)}&domain=${domain}`, {
+      const res = await fetch(`${cfg.apiBase}/api/licenses/theme?key=${encodeURIComponent(key)}&domain=${domain}`, {
         method: "GET",
       });
       const data = await res.json();
@@ -541,7 +432,7 @@
 
     async function syncCollaborativeMood(mood) {
       if (state.plan !== "agency" || !state.licenseId) return;
-      fetch(`${API_BASE}/api/widget/mood`, {
+      fetch(`${cfg.apiBase}/api/widget/mood`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseId: state.licenseId, mood, ttlSeconds: 120 }),
@@ -551,7 +442,7 @@
     async function pollCollaborativeMood() {
       if (state.plan !== "agency" || !state.licenseId) return;
       try {
-        const res = await fetch(`${API_BASE}/api/widget/mood?licenseId=${encodeURIComponent(state.licenseId)}`, {
+        const res = await fetch(`${cfg.apiBase}/api/widget/mood?licenseId=${encodeURIComponent(state.licenseId)}`, {
           method: "GET",
         });
         const data = await res.json();
@@ -800,12 +691,12 @@
     }
 
     function sendAnalyticsMoodEvent(mood) {
-      if (!LICENSE_KEY) return;
-      fetch(`${API_BASE}/api/analytics/event`, {
+      if (!cfg.licenseKey) return;
+      fetch(`${cfg.apiBase}/api/analytics/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          licenseKey: LICENSE_KEY,
+          licenseKey: cfg.licenseKey,
           domain: window.location.hostname,
           mood,
           timestamp: new Date().toISOString(),
@@ -888,8 +779,8 @@
     }
 
     async function refreshLicenseState() {
-      if (!LICENSE_KEY) return;
-      const result = await verifyLicenseKey(LICENSE_KEY);
+      if (!cfg.licenseKey) return;
+      const result = await verifyLicenseKey(cfg.licenseKey);
       state.licenseValid = result.valid;
       state.plan = result.plan || "free";
       state.licenseId = result.licenseId || "";
@@ -904,8 +795,8 @@
         state.moodOverride = null;
         state.moodOverrideUntil = 0;
       }
-      if (state.features.customTheme && LICENSE_KEY) {
-        const theme = await fetchRemoteTheme(LICENSE_KEY);
+      if (state.features.customTheme && cfg.licenseKey) {
+        const theme = await fetchRemoteTheme(cfg.licenseKey);
         applyRemoteThemePayload(theme);
       } else {
         applyRemoteThemePayload(null);
@@ -946,9 +837,29 @@
     processLatestMessage();
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start, { once: true });
-  } else {
-    start();
+  let buddyBootStarted = false;
+  function bootBuddyWidget(opts) {
+    if (buddyBootStarted) return;
+    buddyBootStarted = true;
+    if (opts && typeof opts === "object") {
+      if (opts.licenseKey != null && String(opts.licenseKey).trim() !== "")
+        cfg.licenseKey = String(opts.licenseKey).trim();
+      if (opts.apiBase != null && String(opts.apiBase).trim() !== "")
+        cfg.apiBase = String(opts.apiBase).replace(/\/$/, "");
+    }
+    installConsoleTamperGuard();
+    installPostMessageGuard();
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", start, { once: true });
+    } else {
+      start();
+    }
   }
+
+  window.BuddyAI = window.BuddyAI && typeof window.BuddyAI === "object" ? window.BuddyAI : {};
+  window.BuddyAI.init = function initBuddyWidget(opts) {
+    bootBuddyWidget(opts || {});
+  };
+
+  window.BuddyAI.init({});
 })();

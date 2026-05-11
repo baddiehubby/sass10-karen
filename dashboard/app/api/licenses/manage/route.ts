@@ -1,17 +1,19 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { getFeatureByPlan } from "@/lib/feature-plans";
 import { prisma } from "@/lib/prisma";
+import { licenseManageBodySchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = (await req.json()) as { licenseId?: string; plan?: string };
-  const licenseId = body.licenseId;
-  const plan = (body.plan || "free").toLowerCase();
-  if (!licenseId) return NextResponse.json({ error: "Missing licenseId" }, { status: 400 });
+  const parsed = await parseJsonBody(req, licenseManageBodySchema);
+  if (!parsed.ok) return parsed.response;
+
+  const { licenseId, plan } = parsed.data;
 
   const license = await prisma.license.findUnique({ where: { id: licenseId } });
   if (!license || license.userId !== session.user.id) {

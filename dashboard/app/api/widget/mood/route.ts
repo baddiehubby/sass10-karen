@@ -1,28 +1,14 @@
 import { NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api-json";
 import { prisma } from "@/lib/prisma";
-
-const ALLOWED_MOODS = new Set(["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "angry"]);
+import { widgetMoodPostSchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
-  let body: {
-    licenseKey?: string;
-    licenseId?: string;
-    mood?: string;
-    ttlSeconds?: number;
-  };
-  try {
-    body = (await req.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-  const licenseKey = (body.licenseKey || "").trim();
-  const licenseId = (body.licenseId || "").trim();
-  const mood = (body.mood || "").trim().toLowerCase();
-  const ttlSeconds = Math.max(5, Math.min(3600, Number(body.ttlSeconds || 60)));
+  const parsed = await parseJsonBody(req, widgetMoodPostSchema);
+  if (!parsed.ok) return parsed.response;
 
-  if ((!licenseKey && !licenseId) || !ALLOWED_MOODS.has(mood)) {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
-  }
+  const { licenseKey, licenseId, mood } = parsed.data;
+  const ttlSeconds = parsed.data.ttlSeconds ?? 60;
 
   const license = await prisma.license.findFirst({
     where: licenseKey ? { key: licenseKey } : { id: licenseId },

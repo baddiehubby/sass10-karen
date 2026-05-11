@@ -1,9 +1,11 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { fillTemplate, OUTREACH_TEMPLATES } from "@/lib/outreach-templates";
 import { sendOutreachEmail } from "@/lib/outreach-send";
 import { prisma } from "@/lib/prisma";
+import { outreachSendBodySchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -16,23 +18,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: {
-    templateId?: string;
-    recipientName?: string;
-    company?: string;
-    recipientEmail?: string;
-    painPoint?: string;
-  };
-  try {
-    body = (await req.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, outreachSendBodySchema);
+  if (!parsed.ok) return parsed.response;
 
-  const email = (body.recipientEmail || "").trim().toLowerCase();
-  if (!email || !email.includes("@")) {
-    return NextResponse.json({ error: "Invalid recipient email" }, { status: 400 });
-  }
+  const body = parsed.data;
+  const email = body.recipientEmail;
 
   const tpl = OUTREACH_TEMPLATES.find((t) => t.id === body.templateId);
   if (!tpl) {
@@ -40,9 +30,9 @@ export async function POST(req: Request) {
   }
 
   const vars = {
-    name: (body.recipientName || "").trim(),
-    company: (body.company || "").trim(),
-    pain_point: (body.painPoint || "").trim(),
+    name: body.recipientName || "",
+    company: body.company || "",
+    pain_point: body.painPoint || "",
   };
 
   const subject = fillTemplate(tpl.subject, vars);

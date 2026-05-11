@@ -1,21 +1,18 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { alertsAckBodySchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { eventId?: string };
-  try {
-    body = (await req.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, alertsAckBodySchema);
+  if (!parsed.ok) return parsed.response;
 
-  const eventId = (body.eventId || "").trim();
-  if (!eventId) return NextResponse.json({ error: "eventId required" }, { status: 400 });
+  const { eventId } = parsed.data;
 
   const event = await prisma.moodEvent.findUnique({
     where: { id: eventId },

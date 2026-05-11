@@ -1,7 +1,9 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { euComplianceReportBodySchema } from "@/lib/validation";
 
 const TRACKED_MOODS = ["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "angry"] as const;
 
@@ -9,12 +11,10 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { licenseId?: string };
-  try {
-    body = (await req.json()) as typeof body;
-  } catch {
-    body = {};
-  }
+  const parsed = await parseJsonBody(req, euComplianceReportBodySchema);
+  if (!parsed.ok) return parsed.response;
+
+  const body = parsed.data;
 
   const licenses = await prisma.license.findMany({
     where: { userId: session.user.id },

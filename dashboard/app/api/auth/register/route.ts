@@ -1,19 +1,14 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api-json";
 import { prisma } from "@/lib/prisma";
+import { registerBodySchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as { email?: string; password?: string; name?: string };
-  const email = body.email?.trim().toLowerCase();
-  const password = body.password?.trim();
-  const name = body.name?.trim() || null;
+  const parsed = await parseJsonBody(req, registerBodySchema);
+  if (!parsed.ok) return parsed.response;
 
-  if (!email || !password || password.length < 6) {
-    return NextResponse.json(
-      { error: "Email and password (min 6 chars) are required." },
-      { status: 400 },
-    );
-  }
+  const { email, password, name } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {

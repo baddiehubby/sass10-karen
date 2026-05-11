@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+@keyframes animate-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(0, -14px) scale(1.03);
+  }
+}
+
+.animate-float {
+  animation: animate-float 16s ease-in-out infinite;
+}
+
 :root {
   --background: #020617;
   --foreground: #e2e8f0;

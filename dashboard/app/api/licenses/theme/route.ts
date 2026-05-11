@@ -1,9 +1,11 @@
 import type { License } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPresetCss, mergePresetWithHex } from "@/lib/theme-presets";
+import { licenseThemePostSchema } from "@/lib/validation";
 
 function corsHeaders() {
   return {
@@ -105,26 +107,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
   }
 
-  let body: {
-    licenseKey?: string;
-    preset?: string;
-    reset?: boolean;
-    accentHex?: string | null;
-    deepHex?: string | null;
-  };
-  try {
-    body = (await req.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400, headers: corsHeaders() });
+  const parsed = await parseJsonBody(req, licenseThemePostSchema);
+  if (!parsed.ok) {
+    const r = parsed.response;
+    for (const [k, v] of Object.entries(corsHeaders())) r.headers.set(k, v);
+    return r;
   }
 
-  const licenseKey = (body.licenseKey || "").trim();
-  if (!licenseKey) {
-    return NextResponse.json({ error: "licenseKey required" }, { status: 400, headers: corsHeaders() });
-  }
+  const body = parsed.data;
 
   const license = await prisma.license.findFirst({
-    where: { key: licenseKey, userId: session.user.id },
+    where: { key: body.licenseKey.trim(), userId: session.user.id },
   });
   if (!license) {
     return NextResponse.json({ error: "License not found" }, { status: 404, headers: corsHeaders() });

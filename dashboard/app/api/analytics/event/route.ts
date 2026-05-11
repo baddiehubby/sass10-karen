@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { checkAnalyticsRateLimit } from "@/lib/analytics-rate-limit";
 import { awardBadgeByName } from "@/lib/badges";
+import { parseJsonBody } from "@/lib/api-json";
 import { prisma } from "@/lib/prisma";
-
-const ALLOWED_MOODS = new Set(["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "angry"]);
+import { analyticsEventBodySchema } from "@/lib/validation";
 
 function corsHeaders() {
   return {
@@ -22,34 +22,21 @@ function clientIp(req: Request): string {
   return "unknown";
 }
 
-function sanitizeDomain(d: string | undefined): string | null {
-  if (!d) return null;
-  const s = d.trim().toLowerCase().slice(0, 253);
-  if (!/^[a-z0-9.-]+$/.test(s)) return null;
-  return s;
-}
-
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders() });
 }
 
 export async function POST(req: Request) {
-  let body: { licenseKey?: string; domain?: string; mood?: string; timestamp?: string; messageSnippet?: string };
-  try {
-    body = (await req.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400, headers: corsHeaders() });
+  const parsed = await parseJsonBody(req, analyticsEventBodySchema);
+  if (!parsed.ok) {
+    const r = parsed.response;
+    for (const [k, v] of Object.entries(corsHeaders())) {
+      r.headers.set(k, v);
+    }
+    return r;
   }
 
-  const licenseKey = (body.licenseKey || "").trim();
-  const mood = (body.mood || "").trim().toLowerCase();
-  const domain = sanitizeDomain(body.domain);
-  const messageSnippet = typeof body.messageSnippet === "string" ? body.messageSnippet.trim().slice(0, 280) : null;
-  const tsRaw = body.timestamp;
-
-  if (!licenseKey || !mood || !ALLOWED_MOODS.has(mood)) {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400, headers: corsHeaders() });
-  }
+  const { licenseKey, domain, mood, timestamp: tsRaw, messageSnippet } = parsed.data;
 
   const ip = clientIp(req);
   if (!checkAnalyticsRateLimit(licenseKey, ip)) {
@@ -63,36 +50,16 @@ export async function POST(req: Request) {
 
   let at = new Date();
   if (tsRaw) {
-    const parsed = new Date(tsRaw);
-    if (!Number.isNaN(parsed.getTime())) at = parsed;
-  }
-
-  const plan = (license.plan || "free").toLowerCase();
-  if (plan === "free") {
-    const d = new Date(at);
-    const dayStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-    const dayEnd = new Date(dayStart);
-    dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
-    const countToday = await prisma.moodEvent.count({
-      where: {
-        licenseId: license.id,
-        timestamp: { gte: dayStart, lt: dayEnd },
-      },
-    });
-    if (countToday >= 10) {
-      return NextResponse.json(
-        { error: "Buddy free tier: 10 mood events per day. Upgrade for unlimited." },
-        { status: 429, headers: corsHeaders() },
-      );
-    }
+    const parsedTs = new Date(tsRaw);
+    if (!Number.isNaN(parsedTs.getTime())) at = parsedTs;
   }
 
   await prisma.moodEvent.create({
     data: {
       licenseId: license.id,
       mood,
-      domain,
-      messageSnippet,
+      domain: domain ?? null,
+      messageSnippet: messageSnippet ?? null,
       timestamp: at,
     },
   });

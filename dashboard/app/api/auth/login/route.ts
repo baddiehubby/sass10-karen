@@ -1,15 +1,14 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
+import { parseJsonBody } from "@/lib/api-json";
 import { prisma } from "@/lib/prisma";
+import { loginBodySchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as { email?: string; password?: string };
-  const email = body.email?.trim().toLowerCase();
-  const password = body.password?.trim();
+  const parsed = await parseJsonBody(req, loginBodySchema);
+  if (!parsed.ok) return parsed.response;
 
-  if (!email || !password) {
-    return NextResponse.json({ error: "Missing credentials." }, { status: 400 });
-  }
+  const { email, password } = parsed.data;
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {

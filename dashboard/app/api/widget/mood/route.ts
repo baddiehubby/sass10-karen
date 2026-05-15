@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { parseJsonBody } from "@/lib/api-json";
+import { parseJsonBody, parseQuery } from "@/lib/api-json";
 import { prisma } from "@/lib/prisma";
-import { widgetMoodPostSchema } from "@/lib/validation";
+import { widgetMoodGetQuerySchema, widgetMoodPostSchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, widgetMoodPostSchema);
@@ -36,11 +36,9 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const licenseId = (url.searchParams.get("licenseId") || "").trim();
-  if (!licenseId) {
-    return NextResponse.json({ error: "Missing licenseId" }, { status: 400 });
-  }
+  const parsed = parseQuery(req, widgetMoodGetQuerySchema);
+  if (!parsed.ok) return parsed.response;
+  const { licenseId } = parsed.data;
   const room = await prisma.collaborativeRoom.findUnique({
     where: { licenseId },
     select: { mood: true, updatedAt: true },

@@ -1,7 +1,9 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseQuery } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { alertsQuerySchema } from "@/lib/validation";
 
 const CONCERNING_MOODS = ["concerned", "angry"];
 
@@ -9,9 +11,9 @@ export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const url = new URL(req.url);
-  const includeAcknowledged = url.searchParams.get("includeAcknowledged") === "1";
-  const take = Math.max(1, Math.min(200, Number(url.searchParams.get("take") || "80")));
+  const parsed = parseQuery(req, alertsQuerySchema);
+  if (!parsed.ok) return parsed.response;
+  const { includeAcknowledged, take } = parsed.data;
 
   const events = await prisma.moodEvent.findMany({
     where: {

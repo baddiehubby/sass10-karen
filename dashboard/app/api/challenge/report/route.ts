@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
+import { parseQuery } from "@/lib/api-json";
 import { buildChallengeReportPayload, renderChallengeReportPdf } from "@/lib/challenge-report-pdf";
 import { CHALLENGE_SAMPLE_MOOD_COUNTS } from "@/lib/challenge-sample";
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { challengeReportQuerySchema } from "@/lib/validation";
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const licenseId = url.searchParams.get("licenseId")?.trim();
-  const mode = url.searchParams.get("mode")?.trim();
+  const parsed = parseQuery(req, challengeReportQuerySchema);
+  if (!parsed.ok) return parsed.response;
+  const { licenseId, mode } = parsed.data;
   const session = await getServerSession(authOptions);
 
   let companionName = "Buddy";

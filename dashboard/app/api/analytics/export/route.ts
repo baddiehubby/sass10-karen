@@ -1,7 +1,9 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseQuery } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { analyticsExportQuerySchema } from "@/lib/validation";
 
 function csvEscape(s: string) {
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -14,12 +16,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { searchParams } = new URL(req.url);
-  const licenseId = searchParams.get("licenseId")?.trim();
-  const format = (searchParams.get("format") || "csv").toLowerCase();
-  if (!licenseId) {
-    return NextResponse.json({ error: "licenseId required" }, { status: 400 });
-  }
+  const parsed = parseQuery(req, analyticsExportQuerySchema);
+  if (!parsed.ok) return parsed.response;
+  const { licenseId, format } = parsed.data;
 
   const license = await prisma.license.findFirst({
     where: { id: licenseId, userId: session.user.id },

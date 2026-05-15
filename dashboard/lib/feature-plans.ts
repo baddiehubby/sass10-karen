@@ -39,6 +39,12 @@ export const PLAN_PRICE_USD: Record<"pro" | "agency", number> = {
 };
 
 export function getFeatureByPlan(plan: string): FeatureFlags {
-  if (plan === "pro" || plan === "premium" || plan === "agency") return PLAN_FEATURES[plan];
+  const normalized = plan.trim().toLowerCase();
+  if (normalized === "starter" || normalized === "pro" || normalized === "premium") {
+    return PLAN_FEATURES.pro;
+  }
+  if (normalized === "agency" || normalized === "enterprise") {
+    return PLAN_FEATURES.agency;
+  }
   return PLAN_FEATURES.free;
 }

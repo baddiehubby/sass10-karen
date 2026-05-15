@@ -1,11 +1,11 @@
 import type { License } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { parseJsonBody } from "@/lib/api-json";
+import { parseJsonBody, parseQuery } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPresetCss, mergePresetWithHex } from "@/lib/theme-presets";
-import { licenseThemePostSchema } from "@/lib/validation";
+import { licenseThemeGetQuerySchema, licenseThemePostSchema } from "@/lib/validation";
 
 function corsHeaders() {
   return {
@@ -50,13 +50,9 @@ async function loadLicense(key: string, domain: string): Promise<LoadLicenseResu
 
 /** Public: theme config for embed widget (requires valid license + customTheme feature). */
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const key = (url.searchParams.get("key") || "").trim();
-  const domain = (url.searchParams.get("domain") || "").trim().toLowerCase();
-
-  if (!key) {
-    return NextResponse.json({ ok: false, reason: "missing_key" }, { status: 400, headers: corsHeaders() });
-  }
+  const parsed = parseQuery(req, licenseThemeGetQuerySchema);
+  if (!parsed.ok) return parsed.response;
+  const { key, domain } = parsed.data;
 
   const result = await loadLicense(key, domain);
   if (!result.ok) {

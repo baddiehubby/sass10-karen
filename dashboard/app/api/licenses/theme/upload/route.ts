@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { themeUploadFormSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -16,10 +17,16 @@ export async function POST(req: Request) {
   }
 
   const form = await req.formData();
-  const licenseKey = String(form.get("licenseKey") || "").trim();
+  const formParsed = themeUploadFormSchema.safeParse({
+    licenseKey: String(form.get("licenseKey") || "").trim(),
+  });
+  if (!formParsed.success) {
+    return NextResponse.json(formParsed.error.flatten(), { status: 400 });
+  }
+  const { licenseKey } = formParsed.data;
   const file = form.get("file");
-  if (!licenseKey || !(file instanceof File)) {
-    return NextResponse.json({ error: "licenseKey and file required" }, { status: 400 });
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: "file required" }, { status: 400 });
   }
 
   const license = await prisma.license.findFirst({

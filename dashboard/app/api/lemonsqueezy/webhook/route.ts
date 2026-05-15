@@ -3,6 +3,7 @@ import { getFeatureByPlan } from "@/lib/feature-plans";
 import { planByVariantId, verifyLemonSignature } from "@/lib/lemonsqueezy";
 import { generateLicenseKey } from "@/lib/license";
 import { prisma } from "@/lib/prisma";
+import { lemonWebhookMetaSchema } from "@/lib/validation";
 
 type LemonPayload = {
   meta?: {
@@ -46,12 +47,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  let payload: LemonPayload;
+  let raw: unknown;
   try {
-    payload = JSON.parse(rawBody) as LemonPayload;
+    raw = JSON.parse(rawBody) as unknown;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return NextResponse.json({ error: "Expected a JSON object" }, { status: 400 });
+  }
+
+  const validated = lemonWebhookMetaSchema.safeParse(raw);
+  if (!validated.success) {
+    return NextResponse.json(validated.error.flatten(), { status: 400 });
+  }
+
+  const payload = validated.data as LemonPayload;
 
   const eventName = asString(payload.meta?.event_name);
   const subscriptionId = asString(payload.data?.id);

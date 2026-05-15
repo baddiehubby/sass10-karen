@@ -1,15 +1,17 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseQuery } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { dpiaExportQuerySchema } from "@/lib/validation";
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const url = new URL(req.url);
-  const licenseId = (url.searchParams.get("licenseId") || "").trim();
-  if (!licenseId) return NextResponse.json({ error: "licenseId required" }, { status: 400 });
+  const parsed = parseQuery(req, dpiaExportQuerySchema);
+  if (!parsed.ok) return parsed.response;
+  const { licenseId } = parsed.data;
 
   const license = await prisma.license.findFirst({
     where: { id: licenseId, userId: session.user.id },

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { parseQuery } from "@/lib/api-json";
 import { prisma } from "@/lib/prisma";
+import { licenseVerifyQuerySchema } from "@/lib/validation";
 
 function corsHeaders() {
   return {
@@ -17,16 +19,9 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const key = (url.searchParams.get("key") || "").trim();
-  const domain = (url.searchParams.get("domain") || "").trim().toLowerCase();
-
-  if (!key) {
-    return NextResponse.json(
-      { valid: false, reason: "Missing key", features: null },
-      { status: 400, headers: corsHeaders() },
-    );
-  }
+  const parsed = parseQuery(req, licenseVerifyQuerySchema);
+  if (!parsed.ok) return parsed.response;
+  const { key, domain } = parsed.data;
 
   const license = await prisma.license.findUnique({ where: { key } });
   if (!license) {

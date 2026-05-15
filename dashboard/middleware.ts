@@ -7,6 +7,8 @@ const middlewareSecret = process.env.NEXTAUTH_SECRET;
 /** In-memory fixed-window rate limits (per Edge instance). */
 const rateBucket = new Map<string, { count: number; resetAt: number }>();
 
+const WINDOW_MS = 60_000;
+
 function pruneBuckets(now: number) {
   if (rateBucket.size < 5000) return;
   for (const [k, v] of rateBucket.entries()) {
@@ -38,28 +40,38 @@ function applySecurityHeaders(res: NextResponse) {
   h.set("X-Content-Type-Options", "nosniff");
   h.set("X-Frame-Options", "DENY");
   h.set("X-XSS-Protection", "1; mode=block");
+  h.set("Content-Security-Policy", "default-src 'self'");
+  h.set("Strict-Transport-Security", "max-age=31536000");
   h.set("Referrer-Policy", "strict-origin-when-cross-origin");
   h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  h.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
-  h.set(
-    "Content-Security-Policy",
-    [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel-scripts.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com data:",
-      "img-src 'self' data: blob: https:",
-      "connect-src 'self' https: wss:",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join("; "),
-  );
+}
+
+/** Public widget / auth endpoints (no session JWT). */
+const PUBLIC_API_PREFIXES = [
+  "/api/auth",
+  "/api/licenses/verify",
+  "/api/licenses/theme",
+  "/api/widget/mood",
+  "/api/analytics/event",
+  "/api/security/tamper-attempt",
+  "/api/lemonsqueezy/webhook",
+  "/api/challenge/report",
+  "/api/dev/widget",
+  "/api/extensions/stats",
+];
+
+function isPublicApi(pathname: string) {
+  return PUBLIC_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function withCorsForWidgetApis(req: NextRequest, res: NextResponse) {
   const p = req.nextUrl.pathname;
-  if (p.startsWith("/api/analytics/event") || p.startsWith("/api/licenses/verify") || p.startsWith("/api/security/tamper-attempt")) {
+  if (
+    p.startsWith("/api/analytics/event") ||
+    p.startsWith("/api/licenses/verify") ||
+    p.startsWith("/api/security/tamper-attempt") ||
+    p.startsWith("/api/extensions/stats")
+  ) {
     res.headers.set("Access-Control-Allow-Origin", "*");
     res.headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
     res.headers.set("Access-Control-Allow-Headers", "Content-Type");
@@ -67,53 +79,20 @@ function withCorsForWidgetApis(req: NextRequest, res: NextResponse) {
   return res;
 }
 
-/** NextAuth + public integration endpoints (no session JWT required). */
-const PUBLIC_API_PREFIXES = [
-  "/api/auth",
-  "/api/licenses/verify",
-  "/api/widget/mood",
-  "/api/analytics/event",
-  "/api/challenge/report",
-  "/api/lemonsqueezy/webhook",
-  "/api/dev/widget",
-  "/api/security/tamper-attempt",
-];
-
-function isPublicApi(pathname: string) {
-  return PUBLIC_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-}
-
-function isStrictAuthRoute(pathname: string) {
-  return pathname === "/api/auth/register" || pathname === "/api/auth/login";
-}
-
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const ip = clientIp(req);
 
   if (pathname.startsWith("/api/")) {
-    const authWindow = 60_000;
-    const strictKey = `auth:${ip}:${pathname}`;
-    const generalKey = `api:${ip}`;
+    const rateKey = pathname.startsWith("/api/auth/")
+      ? `auth:${ip}:${pathname}`
+      : `api:${ip}:${pathname}`;
 
-    if (isStrictAuthRoute(pathname)) {
-      if (!allowRate(strictKey, 5, authWindow)) {
-        const res = NextResponse.json({ error: "Too many requests" }, { status: 429 });
-        applySecurityHeaders(res);
-        return withCorsForWidgetApis(req, res);
-      }
-    } else if (pathname.startsWith("/api/auth/")) {
-      if (!allowRate(`session:${ip}`, 300, authWindow)) {
-        const res = NextResponse.json({ error: "Too many requests" }, { status: 429 });
-        applySecurityHeaders(res);
-        return withCorsForWidgetApis(req, res);
-      }
-    } else {
-      if (!allowRate(generalKey, 60, authWindow)) {
-        const res = NextResponse.json({ error: "Too many requests" }, { status: 429 });
-        applySecurityHeaders(res);
-        return withCorsForWidgetApis(req, res);
-      }
+    const max = pathname.startsWith("/api/auth/") ? 5 : 60;
+    if (!allowRate(rateKey, max, WINDOW_MS)) {
+      const res = NextResponse.json({ error: "Too many requests" }, { status: 429 });
+      applySecurityHeaders(res);
+      return withCorsForWidgetApis(req, res);
     }
 
     if (!isPublicApi(pathname)) {
@@ -129,31 +108,7 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/dashboard")) {
     const token = await getToken({ req, secret: middlewareSecret });
     if (!token) {
-      const login = new URL("/login", req.url);
-      login.searchParams.set("callbackUrl", pathname);
-      const res = NextResponse.redirect(login);
-      applySecurityHeaders(res);
-      return res;
-    }
-
-    if (
-      pathname !== "/onboarding" &&
-      !pathname.startsWith("/api/") &&
-      token.onboardingCompleted === false &&
-      req.cookies.get("hq_onboarding_done")?.value !== "1"
-    ) {
-      const res = NextResponse.redirect(new URL("/onboarding", req.url));
-      applySecurityHeaders(res);
-      return res;
-    }
-  }
-
-  if (pathname === "/onboarding" || pathname === "/emotional-wellness") {
-    const token = await getToken({ req, secret: middlewareSecret });
-    if (!token) {
-      const login = new URL("/login", req.url);
-      login.searchParams.set("callbackUrl", pathname);
-      const res = NextResponse.redirect(login);
+      const res = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       applySecurityHeaders(res);
       return res;
     }
@@ -165,10 +120,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/api/:path*",
-    "/dashboard/:path*",
-    "/onboarding",
-    "/emotional-wellness",
-  ],
+  matcher: ["/api/:path*", "/dashboard/:path*"],
 };

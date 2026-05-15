@@ -2,8 +2,11 @@
 (function initLivingFaceWidget() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
-  const WIDGET_CSS_VERSION = "1.0.0";
-  const WIDGET_CSS_SRI = "sha384-KF6Gx04c2wtVgMYfTGfQkuN8LjsoygUuAei5kOnSTLsWeyLt5HEI5F1dDgUTfF/T";
+  const WIDGET_CSS_CDN = "https://cdn.buddieai.com/widget/v1.0.0/styles.css";
+  /* Regenerate integrity hash when styles.css changes on the CDN. */
+  const WIDGET_CSS_SRI = "sha384-PLACEHOLDER_REPLACE_WHEN_CSS_CHANGES";
+  const TAMPER_REPORT_URL = "https://api.buddieai.com/api/security/tamper-attempt";
+  const TRUSTED_POST_MESSAGE_ORIGIN = "https://app.buddieai.com";
 
   const FREE_FEATURES = {
     customTheme: false,
@@ -59,6 +62,8 @@
   const cfg = {
     licenseKey: (scriptEl?.getAttribute("data-hq-key") || "").trim(),
     apiBase: (scriptEl?.getAttribute("data-hq-api") || "https://yourdomain.com").replace(/\/$/, ""),
+    verifyDomain: (scriptEl?.getAttribute("data-hq-domain") || "").trim().toLowerCase(),
+    cssHref: (scriptEl?.getAttribute("data-hq-css") || "").trim(),
   };
   const SCRIPT_POS = (scriptEl?.getAttribute("data-hq-position") || "").trim().toLowerCase();
   const ALLOW_SCRIPT_POS = new Set(["bottom-right", "bottom-left", "top-right", "top-left"]);
@@ -194,7 +199,7 @@
       detail: String((payload && payload.detail) || "").slice(0, 2000),
       path: window.location && window.location.pathname ? String(window.location.pathname).slice(0, 500) : "",
     };
-    fetch(`${cfg.apiBase}/api/security/tamper-attempt`, {
+    fetch(TAMPER_REPORT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -209,23 +214,29 @@
     buddyConsoleGuardInstalled = true;
     const nativeLog = console.log.bind(console);
     function wrappedLog() {
+      for (let i = 0; i < arguments.length; i += 1) {
+        const arg = arguments[i];
+        if (typeof arg === "string" && arg.toLowerCase().indexOf("buddy-ai") !== -1) {
+          reportTamperAttempt({ type: "console_probe", detail: "buddy-ai string in console.log" });
+          break;
+        }
+      }
       return nativeLog.apply(console, arguments);
     }
-    wrappedLog.__buddyAiLog = true;
     console.log = wrappedLog;
-    window.setInterval(function () {
-      if (console.log !== wrappedLog && !(console.log && console.log.__buddyAiLog)) {
-        reportTamperAttempt({ type: "console_log_replaced", detail: "instrumentation" });
-      }
-    }, 20000);
+  }
+
+  function isTrustedPostMessage(ev) {
+    if (ev.origin !== TRUSTED_POST_MESSAGE_ORIGIN) return false;
+    if (!ev.data || typeof ev.data !== "object" || Array.isArray(ev.data)) return false;
+    return Object.prototype.hasOwnProperty.call(ev.data, "type") && Object.prototype.hasOwnProperty.call(ev.data, "payload");
   }
 
   function installPostMessageGuard() {
     window.addEventListener(
       "message",
       function (ev) {
-        if (ev.origin !== "https://app.buddieai.com") return;
-        if (!ev.data || typeof ev.data !== "object") return;
+        if (!isTrustedPostMessage(ev)) return;
       },
       false,
     );
@@ -234,7 +245,7 @@
   function appendWidgetStylesheet(shadow) {
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = `${cfg.apiBase}/widget/buddy-widget.css?v=${WIDGET_CSS_VERSION}`;
+    link.href = cfg.cssHref || WIDGET_CSS_CDN;
     link.crossOrigin = "anonymous";
     link.setAttribute("integrity", WIDGET_CSS_SRI);
     shadow.appendChild(link);
@@ -309,7 +320,7 @@
   async function verifyLicenseKey(key) {
     if (!key) return { valid: false, features: FREE_FEATURES };
     try {
-      const domain = encodeURIComponent(window.location.hostname);
+      const domain = encodeURIComponent(cfg.verifyDomain || window.location.hostname);
       const res = await fetch(`${cfg.apiBase}/api/licenses/verify?key=${encodeURIComponent(key)}&domain=${domain}`, {
         method: "GET",
       });
@@ -331,7 +342,7 @@
   async function fetchRemoteTheme(key) {
     if (!key) return null;
     try {
-      const domain = encodeURIComponent(window.location.hostname);
+      const domain = encodeURIComponent(cfg.verifyDomain || window.location.hostname);
       const res = await fetch(`${cfg.apiBase}/api/licenses/theme?key=${encodeURIComponent(key)}&domain=${domain}`, {
         method: "GET",
       });
@@ -846,6 +857,11 @@
         cfg.licenseKey = String(opts.licenseKey).trim();
       if (opts.apiBase != null && String(opts.apiBase).trim() !== "")
         cfg.apiBase = String(opts.apiBase).replace(/\/$/, "");
+      if (opts.verifyDomain != null && String(opts.verifyDomain).trim() !== "")
+        cfg.verifyDomain = String(opts.verifyDomain).trim().toLowerCase();
+      if (opts.domain != null && String(opts.domain).trim() !== "")
+        cfg.verifyDomain = String(opts.domain).trim().toLowerCase();
+      if (opts.cssHref != null && String(opts.cssHref).trim() !== "") cfg.cssHref = String(opts.cssHref).trim();
     }
     installConsoleTamperGuard();
     installPostMessageGuard();
@@ -856,10 +872,13 @@
     }
   }
 
-  window.BuddyAI = window.BuddyAI && typeof window.BuddyAI === "object" ? window.BuddyAI : {};
-  window.BuddyAI.init = function initBuddyWidget(opts) {
-    bootBuddyWidget(opts || {});
+  window.BuddyAI = {
+    init: function initBuddyWidget(config) {
+      bootBuddyWidget(config && typeof config === "object" ? config : {});
+    },
   };
 
-  window.BuddyAI.init({});
+  if (scriptEl?.getAttribute("data-hq-manual-init") !== "true") {
+    window.BuddyAI.init({});
+  }
 })();

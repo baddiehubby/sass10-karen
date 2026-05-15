@@ -1,9 +1,11 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { parseQuery } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { getFeatureByPlan } from "@/lib/feature-plans";
 import { generateLicenseKey } from "@/lib/license";
 import { prisma } from "@/lib/prisma";
+import { licenseGenerateQuerySchema } from "@/lib/validation";
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -11,10 +13,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const url = new URL(req.url);
-  const plan = (url.searchParams.get("plan") || "free").toLowerCase();
-  const domain = url.searchParams.get("domain")?.trim() || null;
-  const expiresDays = Math.max(1, Number(url.searchParams.get("days") || "30"));
+  const parsed = parseQuery(req, licenseGenerateQuerySchema);
+  if (!parsed.ok) return parsed.response;
+  const { plan, domain, days: expiresDays } = parsed.data;
 
   const features = getFeatureByPlan(plan);
   const license = await prisma.license.create({

@@ -194,9 +194,9 @@ export const euComplianceReportBodySchema = z.object({
 export const lemonCheckoutBodySchema = z.object({
   tier: z
     .string()
-    .max(10)
+    .max(12)
     .transform((s) => s.trim().toLowerCase())
-    .pipe(z.enum(["pro", "agency"])),
+    .pipe(z.enum(["starter", "agency", "enterprise"])),
 });
 
 export const licenseThemePostSchema = z.object({

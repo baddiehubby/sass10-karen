@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFeatureByPlan } from "@/lib/feature-plans";
-import { planByVariantId, verifyLemonSignature } from "@/lib/lemonsqueezy";
+import { planByVariantId, verifyLemonSignature, type LemonPaidPlan } from "@/lib/lemonsqueezy";
 import { generateLicenseKey } from "@/lib/license";
 import { prisma } from "@/lib/prisma";
 import { lemonWebhookMetaSchema } from "@/lib/validation";
@@ -29,13 +29,21 @@ function asString(input: unknown): string {
   return typeof input === "string" ? input.trim() : "";
 }
 
-function resolveExpiryDate(attrs: LemonPayload["data"] extends infer _ ? any : never): Date {
+function resolveExpiryDate(attrs: NonNullable<LemonPayload["data"]>["attributes"]): Date {
   const dateText = asString(attrs?.renews_at) || asString(attrs?.ends_at);
   if (dateText) {
     const parsed = new Date(dateText);
     if (!Number.isNaN(parsed.getTime())) return parsed;
   }
   return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+}
+
+function tierFromMetadata(custom: Record<string, unknown> | undefined, variantPlan: LemonPaidPlan | "free"): LemonPaidPlan | "free" {
+  const tier = asString(custom?.tier).toLowerCase();
+  if (tier === "starter" || tier === "agency" || tier === "enterprise" || tier === "pro") {
+    return tier === "pro" ? "starter" : (tier as LemonPaidPlan);
+  }
+  return variantPlan === "free" ? "free" : variantPlan;
 }
 
 export const dynamic = "force-dynamic";
@@ -74,16 +82,17 @@ export async function POST(req: Request) {
   const customerPortalUrl = asString(attrs.urls?.customer_portal) || null;
   const userIdFromMetadata = asString(payload.meta?.custom_data?.user_id);
   const email = asString(attrs.user_email).toLowerCase();
-  const plan = planByVariantId(variantId);
+  const variantPlan = planByVariantId(variantId);
+  const plan = tierFromMetadata(payload.meta?.custom_data, variantPlan);
 
   const lemonEventId = [eventName, subscriptionId, asString(attrs.updated_at) || String(Date.now())].join(":");
 
   if (!eventName || !subscriptionId) {
-    return NextResponse.json({ ok: true, ignored: true });
+    return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
   }
 
   const existingEvent = await prisma.lemonSqueezyWebhookEvent.findUnique({ where: { lemonEventId } });
-  if (existingEvent) return NextResponse.json({ ok: true, duplicate: true });
+  if (existingEvent) return NextResponse.json({ ok: true, duplicate: true }, { status: 200 });
 
   let targetLicenseId: string | null = null;
   let targetUserId = userIdFromMetadata;
@@ -104,7 +113,10 @@ export async function POST(req: Request) {
 
   if (!targetLicenseId && targetUserId) {
     const existingUserLicense = await prisma.license.findFirst({
-      where: { userId: targetUserId, plan: { in: ["pro", "agency"] } },
+      where: {
+        userId: targetUserId,
+        plan: { in: ["starter", "pro", "agency", "enterprise"] },
+      },
       orderBy: { createdAt: "desc" },
       select: { id: true },
     });
@@ -120,7 +132,7 @@ export async function POST(req: Request) {
           payload: rawBody,
         },
       });
-      return NextResponse.json({ ok: true, ignored: true });
+      return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
     }
 
     const expiresAt = resolveExpiryDate(attrs);
@@ -166,7 +178,7 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { status: 200 });
   }
 
   if (eventName === "subscription_cancelled") {
@@ -190,7 +202,7 @@ export async function POST(req: Request) {
         licenseId: targetLicenseId || undefined,
       },
     });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { status: 200 });
   }
 
   await prisma.lemonSqueezyWebhookEvent.create({
@@ -201,5 +213,5 @@ export async function POST(req: Request) {
       licenseId: targetLicenseId || undefined,
     },
   });
-  return NextResponse.json({ ok: true, ignored: true });
+  return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
 }

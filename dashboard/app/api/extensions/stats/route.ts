@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseQuery } from "@/lib/api-json";
-import { checkAnalyticsRateLimit } from "@/lib/analytics-rate-limit";
+import { checkExtensionStatsRateLimit } from "@/lib/analytics-rate-limit";
 import { prisma } from "@/lib/prisma";
 import { extensionStatsQuerySchema } from "@/lib/validation";
 
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   const { licenseKey } = parsed.data;
 
   const rateLimitKey = licenseKey;
-  if (!checkAnalyticsRateLimit(`extension-stats:${rateLimitKey}`, clientIp(req))) {
+  if (!checkExtensionStatsRateLimit(`extension-stats:${rateLimitKey}`, clientIp(req))) {
     return NextResponse.json({ error: "Rate limited" }, { status: 429, headers: corsHeaders() });
   }
 

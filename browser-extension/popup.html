@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Buddy AI – Emotional Safety</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero" aria-label="Buddy AI license status">
+        <div class="orb-wrap" aria-hidden="true">
+          <div class="orb"></div>
+        </div>
+        <div>
+          <p class="eyebrow">Buddy AI</p>
+          <h1>Emotional Safety</h1>
+        </div>
+        <span id="statusBadge" class="badge badge-idle">Inactive</span>
+      </section>
+
+      <section class="panel">
+        <label for="licenseKey">License key</label>
+        <div class="input-row">
+          <input id="licenseKey" type="password" autocomplete="off" placeholder="HQ-..." />
+          <button id="saveButton" type="button">Save</button>
+        </div>
+        <p id="statusText" class="status-text">Enter your Buddy AI license key to activate the orb.</p>
+      </section>
+
+      <section class="stats-grid" aria-label="Today">
+        <div class="stat-card">
+          <span class="stat-label">Moods today</span>
+          <strong id="moodsToday">-</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Platforms</span>
+          <strong>3</strong>
+        </div>
+      </section>
+
+      <a class="signup-link" href="https://app.buddieai.com/pricing" target="_blank" rel="noreferrer">
+        Start or manage your 14-day trial
+      </a>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

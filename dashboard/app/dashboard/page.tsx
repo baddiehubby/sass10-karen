@@ -30,8 +30,20 @@ function formatFeatures(features: unknown) {
 }
 
 function planLabel(plan: string) {
-  if (plan === "free") return "Buddy";
-  return plan;
+  if (plan === "free") return "Expired";
+  if (plan === "pro") return "Starter";
+  return plan.charAt(0).toUpperCase() + plan.slice(1);
+}
+
+function subscriptionStatusLabel(status: string | null, expiresAt: Date) {
+  const s = (status || "").trim().toLowerCase();
+  if (expiresAt.getTime() < Date.now()) return { label: "Expired", tone: "text-rose-300 border-rose-500/40 bg-rose-500/10" };
+  if (s === "active" || s === "on_trial") return { label: "Active", tone: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10" };
+  if (s === "past_due") return { label: "Past due", tone: "text-amber-300 border-amber-500/40 bg-amber-500/10" };
+  if (s === "cancelled" || s === "expired") return { label: "Cancelled", tone: "text-rose-300 border-rose-500/40 bg-rose-500/10" };
+  if (s === "paused") return { label: "Paused", tone: "text-slate-300 border-slate-500/40 bg-slate-500/10" };
+  if (!s || s === "free") return { label: "Trial", tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
+  return { label: s.replace(/_/g, " "), tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
 }
 
 export default async function DashboardPage() {
@@ -143,16 +155,16 @@ export default async function DashboardPage() {
 
       <div className="mt-8 flex flex-wrap gap-3">
         <a
-          href="/api/licenses/generate?plan=free&days=30"
+          href="/api/licenses/generate?plan=starter&days=14"
           className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 backdrop-blur hover:bg-white/10"
         >
-          Generate Buddy license
+          Start 14-day trial license
         </a>
         <Link
           href="/pricing"
           className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-900/30 hover:bg-indigo-500"
         >
-          Upgrade via pricing
+          Subscribe via Lemon Squeezy
         </Link>
         <Link
           href="/dashboard/messages"
@@ -208,14 +220,26 @@ export default async function DashboardPage() {
                   </td>
                 </tr>
               ) : (
-                licenses.map((license) => (
+                licenses.map((license) => {
+                  const sub = subscriptionStatusLabel(license.lemonSqueezySubscriptionStatus, license.expiresAt);
+                  return (
                   <tr key={license.id} className="border-t border-slate-800">
                     <td className="px-4 py-3 capitalize text-slate-200">{planLabel(license.plan)}</td>
                     <td className="px-4 py-3 font-mono text-xs">{license.key}</td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex rounded-full border border-indigo-400/40 bg-indigo-500/10 px-2 py-0.5 text-xs capitalize text-indigo-200">
-                        {license.lemonSqueezySubscriptionStatus || "free"}
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs capitalize ${sub.tone}`}>
+                        {sub.label}
                       </span>
+                      {license.lemonSqueezyCustomerPortalUrl ? (
+                        <a
+                          className="mt-2 block text-xs text-emerald-300 hover:underline"
+                          href={license.lemonSqueezyCustomerPortalUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open customer portal →
+                        </a>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 text-slate-300">{formatFeatures(license.features)}</td>
                     <td className="px-4 py-3 text-slate-300">{new Date(license.expiresAt).toLocaleDateString()}</td>
@@ -227,42 +251,17 @@ export default async function DashboardPage() {
                         >
                           Theme
                         </Link>
-                        <a
-                          className="rounded border border-slate-700 px-2 py-1 text-xs"
-                          href={`/api/licenses/manage?licenseId=${license.id}&plan=free`}
+                        <Link
+                          className="rounded border border-violet-500/50 px-2 py-1 text-xs text-violet-200"
+                          href="/pricing"
                         >
-                          Buddy
-                        </a>
-                        <a
-                          className="rounded border border-slate-700 px-2 py-1 text-xs"
-                          href={`/api/licenses/manage?licenseId=${license.id}&plan=pro`}
-                        >
-                          Pro
-                        </a>
-                        <a
-                          className="rounded border border-slate-700 px-2 py-1 text-xs"
-                          href={`/api/licenses/manage?licenseId=${license.id}&plan=agency`}
-                        >
-                          Agency
-                        </a>
-                        {license.lemonSqueezyCustomerPortalUrl ? (
-                          <a
-                            className="rounded border border-emerald-500/50 px-2 py-1 text-xs text-emerald-200"
-                            href={license.lemonSqueezyCustomerPortalUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Manage subscription
-                          </a>
-                        ) : (
-                          <span className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-400">
-                            Manage via support
-                          </span>
-                        )}
+                          Upgrade
+                        </Link>
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -284,10 +283,10 @@ export default async function DashboardPage() {
               <CopyEmbedCodeButton embedCode={activeEmbedScript} />
             ) : (
               <a
-                href="/api/licenses/generate?plan=free&days=30"
+                href="/api/licenses/generate?plan=starter&days=14"
                 className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
               >
-                Generate a license key
+                Start 14-day trial license
               </a>
             )}
           </div>

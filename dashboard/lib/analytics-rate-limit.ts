@@ -1,7 +1,8 @@
 type Bucket = { count: number; resetAt: number };
 
 const WINDOW_MS = 60_000;
-const MAX_PER_WINDOW = 120;
+const DEFAULT_MAX_PER_WINDOW = 120;
+const EXTENSION_STATS_MAX = 60;
 
 const store: Map<string, Bucket> =
   typeof globalThis !== "undefined"
@@ -15,7 +16,11 @@ function prune(now: number) {
 }
 
 /** Returns true if request is allowed, false if rate limited. */
-export function checkAnalyticsRateLimit(key: string, clientIp: string): boolean {
+export function checkAnalyticsRateLimit(
+  key: string,
+  clientIp: string,
+  maxPerWindow = DEFAULT_MAX_PER_WINDOW,
+): boolean {
   const now = Date.now();
   prune(now);
   const rlKey = `${key}::${clientIp}`;
@@ -24,7 +29,11 @@ export function checkAnalyticsRateLimit(key: string, clientIp: string): boolean 
     store.set(rlKey, { count: 1, resetAt: now + WINDOW_MS });
     return true;
   }
-  if (b.count >= MAX_PER_WINDOW) return false;
+  if (b.count >= maxPerWindow) return false;
   b.count += 1;
   return true;
+}
+
+export function checkExtensionStatsRateLimit(key: string, clientIp: string): boolean {
+  return checkAnalyticsRateLimit(key, clientIp, EXTENSION_STATS_MAX);
 }

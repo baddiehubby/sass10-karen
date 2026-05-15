@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build:widget": "node widget-lib/build.js",
-    "build:extension": "node scripts/copy-extension-widget.mjs",
+    "build:extension": "npm run build:widget && node scripts/copy-extension-widget.mjs",
     "prebuild": "npm run build:widget && node scripts/copy-widget.mjs",
     "dev": "next dev",
     "build": "next build",

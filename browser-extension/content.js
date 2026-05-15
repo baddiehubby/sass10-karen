@@ -3,6 +3,13 @@
   const SCRIPT_ID = "buddy-ai-extension-widget-script";
   const INIT_SCRIPT_ID = "buddy-ai-extension-init-script";
   const ALLOWED_HOSTS = new Set(["chat.openai.com", "chatgpt.com", "claude.ai", "gemini.google.com"]);
+
+  const PLATFORM =
+    window.location.hostname === "claude.ai"
+      ? "claude"
+      : window.location.hostname === "gemini.google.com"
+        ? "gemini"
+        : "chatgpt";
   const CHAT_SURFACE_SELECTORS = [
     '[data-message-author-role="assistant"]',
     '[data-testid*="assistant"]',
@@ -53,7 +60,7 @@
       lastInjectedKey = licenseKey;
       window.dispatchEvent(
         new CustomEvent("buddy-ai-extension-ready", {
-          detail: { platform: window.location.hostname },
+          detail: { platform: PLATFORM, host: window.location.hostname },
         }),
       );
     });

@@ -79,8 +79,8 @@ async function paintStoredState() {
 
   const verified = await verifyLicense(licenseKey);
   if (!verified) {
-    setBadge("invalid", "Invalid");
-    els.text.textContent = "Invalid key. Check your Buddy AI license and try again.";
+    setBadge("invalid", "Invalid key");
+    els.text.textContent = "Invalid key. Get a trial at app.buddieai.com/dashboard.";
     await chrome.storage.local.set({ buddyLicenseStatus: "invalid", buddyMoodEventsToday: 0 });
     els.moods.textContent = "0";
     return;
@@ -142,8 +142,8 @@ async function saveLicense() {
       els.text.textContent = "Active. Buddy AI will appear in ChatGPT, Claude, and Gemini.";
       els.moods.textContent = Number(stats.totalMoodsToday || 0).toLocaleString();
     } else {
-      setBadge("invalid", "Invalid");
-      els.text.textContent = "Invalid key. Check your Buddy AI license and try again.";
+      setBadge("invalid", "Invalid key");
+      els.text.textContent = "Invalid key. Get a trial at app.buddieai.com/dashboard.";
       els.moods.textContent = "0";
     }
 

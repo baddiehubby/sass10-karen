@@ -5,7 +5,7 @@ const DEFAULTS = {
   buddyMoodEventsToday: 0,
 };
 
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   const existing = await chrome.storage.local.get(Object.keys(DEFAULTS));
   const updates = {};
 
@@ -15,6 +15,10 @@ chrome.runtime.onInstalled.addListener(async () => {
 
   if (Object.keys(updates).length > 0) {
     await chrome.storage.local.set(updates);
+  }
+
+  if (details.reason === "install") {
+    console.info("[Buddy AI] Extension installed — open the popup to add your license key.");
   }
 });
 

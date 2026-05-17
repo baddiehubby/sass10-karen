@@ -1,7 +1,6 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type LoginCardProps = {
@@ -9,42 +8,34 @@ type LoginCardProps = {
 };
 
 export function LoginCard({ nextAuthUrl }: LoginCardProps) {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const nextAuthConfigured = Boolean(nextAuthUrl);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
     setLoading(true);
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-    setLoading(false);
+    setError("");
 
-    if (result?.error) {
-      setError("Invalid credentials.");
-      return;
+    const form = e.currentTarget;
+    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
+
+    try {
+      const response = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (response?.error) {
+        setError("Invalid email or password");
+      } else {
+        window.location.href = "/dashboard";
+      }
+    } finally {
+      setLoading(false);
     }
-    router.push("/dashboard");
-  }
-
-  async function onGoogleSignIn() {
-    setError(null);
-    const callbackFromQuery =
-      typeof window !== "undefined"
-        ? new URL(window.location.href).searchParams.get("callbackUrl") || "/dashboard"
-        : "/dashboard";
-    console.info("[auth] Continue with Google redirect", {
-      nextAuthUrl: nextAuthUrl || "missing",
-      callbackUrl: callbackFromQuery,
-    });
-    await signIn("google", { callbackUrl: callbackFromQuery });
   }
 
   return (
@@ -61,7 +52,7 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
 
         <button
           type="button"
-          onClick={onGoogleSignIn}
+          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
           className="mt-5 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/15"
         >
           Continue with Google
@@ -73,30 +64,29 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
           <span className="h-px flex-1 bg-white/10" />
         </div>
 
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <input
+            name="email"
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
             placeholder="Email"
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             required
           />
           <input
+            name="password"
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
             placeholder="Password"
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             required
           />
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
           <button
             type="submit"
             disabled={loading}
             className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-indigo-900/25 hover:bg-indigo-500 disabled:opacity-50"
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
       </div>

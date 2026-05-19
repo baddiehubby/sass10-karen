@@ -4,74 +4,68 @@ import { Suspense, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment, Float, MeshDistortMaterial, Sphere } from "@react-three/drei";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { Check, Shield, TrendingUp, Users, Zap } from "lucide-react";
+import { Check, Heart, Monitor, Shield, Sparkles, Zap } from "lucide-react";
 
 const PLANS = [
   {
-    name: "Starter",
-    price: 49,
+    name: "Buddy",
+    slug: "buddy",
+    price: 9,
     period: "month",
-    description: "For small businesses starting with AI compliance",
+    description: "Your personal AI companion on one device",
     features: [
-      "Emotional safety widget (1 domain)",
-      "Basic mood detection (5 emotions)",
-      "Monthly compliance reports",
-      "Email support",
-      "GDPR‑ready data handling",
+      "Hallucination detection",
+      "Basic mood tracking",
+      "1 device",
     ],
     cta: "Start 14‑Day Trial",
     popular: false,
   },
   {
-    name: "Agency",
-    price: 149,
+    name: "Buddy Pro",
+    slug: "buddy-pro",
+    price: 19,
     period: "month",
-    description: "For teams managing multiple client implementations",
+    description: "Emotional memory and sync across your AI tools",
     features: [
-      "Everything in Starter",
-      "Unlimited domains",
-      "Advanced mood analytics (12 emotions)",
-      "Real‑time compliance alerts",
-      "White‑label widget option",
-      "Priority support + SLA",
-      "Team seats (5 users)",
-      "API access",
+      "Emotional memory",
+      "Cross-platform sync",
+      "Priority companion responses",
+      "3 devices",
     ],
     cta: "Start 14‑Day Trial",
     popular: true,
   },
   {
-    name: "Enterprise",
-    price: 499,
+    name: "Buddy Family",
+    slug: "buddy-family",
+    price: 29,
     period: "month",
-    description: "For organizations requiring custom compliance workflows",
+    description: "Companion safety for everyone at home",
     features: [
-      "Everything in Agency",
-      "Custom emotion models",
-      "Dedicated compliance officer",
-      "On‑premise deployment option",
-      "Custom SLA & support",
-      "Unlimited team seats",
-      "Advanced audit trails",
-      "Quarterly compliance reviews",
+      "Everything in Pro",
+      "Family safety dashboard",
+      "Custom glow themes",
+      "Unlimited devices",
+      "Parental controls",
     ],
-    cta: "Contact Sales",
+    cta: "Start 14‑Day Trial",
     popular: false,
   },
 ];
 
 function PremiumOrb() {
-  const [mood, setMood] = useState<"secure" | "compliant" | "intelligent" | "trusted">("secure");
+  const [mood, setMood] = useState<"warm" | "purple" | "cyan" | "glow">("warm");
 
-  const moodConfig: Record<string, { color: string; distort: number; speed: number }> = {
-    secure: { color: "#10b981", distort: 0.2, speed: 1.5 },
-    compliant: { color: "#3b82f6", distort: 0.15, speed: 1 },
-    intelligent: { color: "#8b5cf6", distort: 0.25, speed: 2 },
-    trusted: { color: "#f59e0b", distort: 0.18, speed: 1.2 },
+  const moodConfig: Record<string, { color: string; distort: number; speed: number; ring: string }> = {
+    warm: { color: "#f59e0b", distort: 0.2, speed: 1.5, ring: "#fbbf24" },
+    purple: { color: "#a855f7", distort: 0.15, speed: 1, ring: "#c084fc" },
+    cyan: { color: "#22d3ee", distort: 0.25, speed: 2, ring: "#67e8f9" },
+    glow: { color: "#f472b6", distort: 0.18, speed: 1.2, ring: "#fb7185" },
   };
 
   useEffect(() => {
-    const moods: Array<typeof mood> = ["secure", "compliant", "intelligent", "trusted"];
+    const moods: Array<typeof mood> = ["warm", "purple", "cyan", "glow"];
     const interval = setInterval(() => {
       setMood((prev) => {
         const idx = moods.indexOf(prev);
@@ -111,8 +105,8 @@ function PremiumOrb() {
           <mesh rotation={[Math.PI / 2, 0, 0]}>
             <torusGeometry args={[1.7, 0.03, 24, 120]} />
             <meshStandardMaterial
-              color="#10b981"
-              emissive="#10b981"
+              color={config.ring}
+              emissive={config.ring}
               emissiveIntensity={3}
               transparent
               opacity={0.7}
@@ -122,8 +116,8 @@ function PremiumOrb() {
           <mesh rotation={[0, Math.PI / 2, 0]}>
             <torusGeometry args={[1.9, 0.02, 16, 100]} />
             <meshStandardMaterial
-              color="#3b82f6"
-              emissive="#3b82f6"
+              color={config.color}
+              emissive={config.color}
               emissiveIntensity={2}
               transparent
               opacity={0.5}
@@ -140,12 +134,12 @@ function PremiumOrb() {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="flex items-center justify-center gap-2">
-          <Shield className="h-4 w-4 text-emerald-400" />
+          <Sparkles className="h-4 w-4 text-amber-400" />
           <span className="text-sm font-medium text-slate-300">
-            {mood === "secure" && "End‑to‑end encrypted"}
-            {mood === "compliant" && "EU AI Act ready"}
-            {mood === "intelligent" && "Emotion‑aware AI"}
-            {mood === "trusted" && "Audit‑ready logs"}
+            {mood === "warm" && "Gentle warning when AI is wrong"}
+            {mood === "purple" && "Remembers how you felt"}
+            {mood === "cyan" && "Always on in your browser"}
+            {mood === "glow" && "Watching out for you"}
           </span>
         </div>
       </motion.div>
@@ -153,20 +147,11 @@ function PremiumOrb() {
   );
 }
 
-function LiveCounter() {
-  const [count, setCount] = useState(1247);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCount((prev) => prev + Math.floor(Math.random() * 3));
-    }, 8000);
-    return () => clearInterval(interval);
-  }, []);
-
+function CompanionTagline() {
   return (
     <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
-      <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-      <span>{count.toLocaleString()} businesses protecting their AI chats</span>
+      <div className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+      <span>Your always-on AI companion — watching out for you</span>
     </div>
   );
 }
@@ -181,7 +166,7 @@ export default function BuddyAIPremiumHomepage() {
         <div
           className="animate-float absolute h-[800px] w-[800px] rounded-full opacity-20 mix-blend-screen blur-[120px]"
           style={{
-            background: "radial-gradient(circle, #7c3aed 0%, transparent 70%)",
+            background: "radial-gradient(circle, #a855f7 0%, transparent 70%)",
             top: "-200px",
             right: "-200px",
           }}
@@ -189,7 +174,7 @@ export default function BuddyAIPremiumHomepage() {
         <div
           className="animate-float absolute h-[600px] w-[600px] rounded-full opacity-15 mix-blend-screen blur-[100px]"
           style={{
-            background: "radial-gradient(circle, #10b981 0%, transparent 70%)",
+            background: "radial-gradient(circle, #f59e0b 0%, transparent 70%)",
             bottom: "-100px",
             left: "-100px",
             animationDelay: "-5s",
@@ -208,11 +193,9 @@ export default function BuddyAIPremiumHomepage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-violet-400 bg-clip-text text-transparent">
-                Emotional Safety
+              <span className="bg-gradient-to-r from-amber-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
+                Your AI Sidekick That Keeps You Sane
               </span>
-              <br />
-              <span className="text-white">for Your AI Chat</span>
             </motion.h1>
 
             <motion.p
@@ -221,8 +204,8 @@ export default function BuddyAIPremiumHomepage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
-              The only compliance layer that detects emotional risk in real‑time.
-              <span className="font-medium text-rose-400"> Avoid EU AI Act fines</span> while building trust.
+              The friendly companion that glows when AI is wrong, remembers how you feel, and keeps you safe
+              across ChatGPT, Claude, and Gemini.
             </motion.p>
 
             <motion.div
@@ -231,7 +214,7 @@ export default function BuddyAIPremiumHomepage() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
             >
-              <LiveCounter />
+              <CompanionTagline />
             </motion.div>
 
             <motion.div
@@ -241,7 +224,7 @@ export default function BuddyAIPremiumHomepage() {
               transition={{ delay: 0.8 }}
             >
               <motion.a
-                href="/register?plan=agency"
+                href="/register?plan=buddy-pro"
                 className="group relative overflow-hidden rounded-full px-8 py-4 font-semibold text-white"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.98 }}
@@ -268,16 +251,16 @@ export default function BuddyAIPremiumHomepage() {
               transition={{ delay: 1.0 }}
             >
               <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-emerald-400" />
-                <span>EU AI Act Compliant</span>
+                <Shield className="h-4 w-4 text-amber-400" />
+                <span>Hallucination Detection Active</span>
               </div>
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-cyan-400" />
                 <span>21.5 KB Widget</span>
               </div>
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-violet-400" />
-                <span>Trusted by 1,200+ Teams</span>
+                <Heart className="h-4 w-4 text-fuchsia-400" />
+                <span>Real-time hallucination protection + emotional support</span>
               </div>
             </motion.div>
           </div>
@@ -286,9 +269,9 @@ export default function BuddyAIPremiumHomepage() {
         <section className="px-4 py-20">
           <div className="mx-auto max-w-6xl">
             <div className="mb-16 text-center">
-              <h2 className="mb-4 text-3xl font-bold md:text-4xl">Why Leading Teams Choose Buddy AI</h2>
+              <h2 className="mb-4 text-3xl font-bold md:text-4xl">Your AI Buddy, Always With You</h2>
               <p className="mx-auto max-w-2xl text-slate-300">
-                Not just another chat widget. A compliance‑first emotional intelligence layer.
+                Trust-first protection and emotional support — not another compliance checkbox.
               </p>
             </div>
 
@@ -296,24 +279,24 @@ export default function BuddyAIPremiumHomepage() {
               {[
                 {
                   icon: Shield,
-                  title: "Avoid Compliance Fines",
-                  desc: "Automated audit trails, DPIA exports, and real‑time alerts keep you aligned with EU AI Act requirements.",
-                  stat: "€20M",
-                  statLabel: "Max fine avoided",
+                  title: "Prevents AI Hallucinations",
+                  desc: "Your buddy glows with a gentle warning when ChatGPT or Claude confidently gets it wrong. Stay informed, not misled.",
+                  stat: "27%",
+                  statLabel: "of AI responses contain errors",
                 },
                 {
-                  icon: TrendingUp,
-                  title: "Increase User Trust",
-                  desc: "Detect emotional distress early and adapt responses. Users stay longer and convert higher.",
-                  stat: "+34%",
-                  statLabel: "Avg. session increase",
+                  icon: Heart,
+                  title: "Emotional Memory Across Sessions",
+                  desc: "Your buddy remembers how you felt yesterday and checks in today. Build a relationship, not just a chat.",
+                  stat: "37%",
+                  statLabel: "higher retention with companion avatars",
                 },
                 {
-                  icon: Zap,
-                  title: "Deploy in Minutes",
-                  desc: "21.5 KB vanilla JS widget. No framework required. Works with any chat platform.",
+                  icon: Monitor,
+                  title: "Always-On Browser Presence",
+                  desc: "A tiny, glowing companion that lives in the corner of your screen across all AI platforms. Never alone with AI.",
                   stat: "<5 min",
-                  statLabel: "Average setup time",
+                  statLabel: "setup",
                 },
               ].map((feat, i) => (
                 <motion.div
@@ -324,13 +307,13 @@ export default function BuddyAIPremiumHomepage() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
                 >
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-600/20 to-cyan-500/20">
-                    <feat.icon className="h-6 w-6 text-violet-400" />
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-600/20 to-fuchsia-500/20">
+                    <feat.icon className="h-6 w-6 text-amber-400" />
                   </div>
                   <h3 className="mb-3 text-xl font-semibold text-white">{feat.title}</h3>
                   <p className="mb-4 text-slate-300/90">{feat.desc}</p>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-emerald-400">{feat.stat}</span>
+                    <span className="text-2xl font-bold text-amber-400">{feat.stat}</span>
                     <span className="text-sm text-slate-400">{feat.statLabel}</span>
                   </div>
                 </motion.div>
@@ -342,9 +325,9 @@ export default function BuddyAIPremiumHomepage() {
         <section className="bg-slate-900/30 px-4 py-20">
           <div className="mx-auto max-w-6xl">
             <div className="mb-16 text-center">
-              <h2 className="mb-4 text-3xl font-bold md:text-4xl">Simple, Premium Pricing</h2>
+              <h2 className="mb-4 text-3xl font-bold md:text-4xl">Choose Your Buddy</h2>
               <p className="mx-auto max-w-2xl text-slate-300">
-                No free tier. No hidden fees. Enterprise‑grade emotional safety.
+                Companion plans that grow with you — from solo sidekick to family safety.
               </p>
             </div>
 
@@ -383,7 +366,7 @@ export default function BuddyAIPremiumHomepage() {
                     ))}
                   </ul>
                   <a
-                    href={`/register?plan=${plan.name.toLowerCase()}`}
+                    href={`/register?plan=${plan.slug}`}
                     className={`block w-full rounded-lg py-3 px-4 text-center font-semibold transition-all ${
                       plan.popular
                         ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90"
@@ -396,7 +379,13 @@ export default function BuddyAIPremiumHomepage() {
               ))}
             </div>
             <div className="mt-12 text-center text-sm text-slate-400">
-              <p>14‑day money‑back guarantee • No credit card required for trial • GDPR‑compliant data handling</p>
+              <p>14‑day money‑back guarantee • No credit card required for trial</p>
+              <p className="mt-2">
+                Enterprise compliance tools available —{" "}
+                <a href="/trust-center" className="text-amber-300 hover:text-amber-200">
+                  contact us
+                </a>
+              </p>
             </div>
           </div>
         </section>
@@ -409,9 +398,9 @@ export default function BuddyAIPremiumHomepage() {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
             >
-              <h2 className="mb-6 text-3xl font-bold md:text-4xl">Ready to Make Your AI Chat Emotionally Safe?</h2>
+              <h2 className="mb-6 text-3xl font-bold md:text-4xl">Ready to Meet Your AI Sidekick?</h2>
               <p className="mx-auto mb-8 max-w-2xl text-slate-300">
-                Join 1,200+ teams using Buddy AI to build trust, ensure compliance, and avoid costly fines.
+                Join thousands who trust Buddie AI to catch hallucinations, remember how they feel, and stay safe.
               </p>
               <motion.a
                 href="/register"
@@ -422,7 +411,11 @@ export default function BuddyAIPremiumHomepage() {
                 Start Your 14‑Day Trial <Zap className="h-5 w-5" />
               </motion.a>
               <p className="mt-6 text-sm text-slate-500">
-                No credit card required • Cancel anytime • EU AI Act compliant
+                No credit card required • Cancel anytime •{" "}
+                <a href="/trust-center" className="text-amber-400/80 hover:text-amber-300">
+                  Trust Center
+                </a>{" "}
+                for compliance tools
               </p>
             </motion.div>
           </div>
@@ -431,21 +424,25 @@ export default function BuddyAIPremiumHomepage() {
         <footer className="border-t border-slate-800 px-4 py-12">
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 md:flex-row">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-cyan-500">
-                <span className="text-sm font-bold text-white">B</span>
+              <div
+                className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-amber-500 via-fuchsia-500 to-cyan-400 shadow-lg shadow-amber-500/20"
+                aria-hidden
+              />
+              <div>
+                <span className="font-semibold text-white">Buddy AI</span>
+                <p className="text-xs text-slate-400">Your AI companion. Always watching out for you.</p>
               </div>
-              <span className="font-semibold text-white">Buddy AI</span>
             </div>
             <nav className="flex flex-wrap justify-center gap-6 text-sm">
-              {["Security", "Compliance", "Pricing", "Docs", "Contact"].map((item) => (
-                <a
-                  key={item}
-                  href={`/${item.toLowerCase()}`}
-                  className="text-slate-400 transition-colors hover:text-white"
-                >
-                  {item}
-                </a>
-              ))}
+              <a href="/trust-center" className="text-slate-400 transition-colors hover:text-white">
+                Trust Center
+              </a>
+              <a href="/pricing" className="text-slate-400 transition-colors hover:text-white">
+                Pricing
+              </a>
+              <a href="/docs" className="text-slate-400 transition-colors hover:text-white">
+                Docs
+              </a>
             </nav>
             <div className="text-sm text-slate-500">© {new Date().getFullYear()} Buddy AI. All rights reserved.</div>
           </div>

@@ -79,6 +79,9 @@ export default function RootLayout({
             <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 text-sm text-slate-400">
               <p>© {new Date().getFullYear()} Buddie AI</p>
               <div className="flex items-center gap-4">
+                <Link href="/trust-center" className="hover:text-white">
+                  Trust Center
+                </Link>
                 <Link href="/eu-ai-act" className="hover:text-white">
                   EU AI Act
                 </Link>

@@ -29,9 +29,15 @@ export async function parseJsonBody<T extends z.ZodTypeAny>(
 
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
+    const issues = parsed.error.issues;
+    const error =
+      issues.find((i) => i.path[0] === "email")?.message ||
+      issues.find((i) => i.path[0] === "password")?.message ||
+      issues.map((i) => i.message).join(" ") ||
+      "Invalid request";
     return {
       ok: false,
-      response: NextResponse.json(parsed.error.flatten(), { status: 400 }),
+      response: NextResponse.json({ error }, { status: 400 }),
     };
   }
   return { ok: true, data: parsed.data };

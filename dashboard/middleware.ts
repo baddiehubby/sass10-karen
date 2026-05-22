@@ -35,15 +35,18 @@ function clientIp(req: NextRequest): string {
   return req.headers.get("x-real-ip")?.trim() || req.ip || "unknown";
 }
 
-function applySecurityHeaders(res: NextResponse) {
+function applySecurityHeaders(res: NextResponse, opts?: { document?: boolean }) {
   const h = res.headers;
   h.set("X-Content-Type-Options", "nosniff");
   h.set("X-Frame-Options", "DENY");
   h.set("X-XSS-Protection", "1; mode=block");
-  h.set("Content-Security-Policy", "default-src 'self'");
   h.set("Strict-Transport-Security", "max-age=31536000");
   h.set("Referrer-Policy", "strict-origin-when-cross-origin");
   h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // Strict CSP breaks Next.js hydration on app pages; keep it for API JSON responses only.
+  if (!opts?.document) {
+    h.set("Content-Security-Policy", "default-src 'self'");
+  }
 }
 
 /** Public widget / auth endpoints (no session JWT). */
@@ -111,13 +114,13 @@ export async function middleware(req: NextRequest) {
       const login = new URL("/login", req.url);
       login.searchParams.set("callbackUrl", pathname);
       const res = NextResponse.redirect(login);
-      applySecurityHeaders(res);
+      applySecurityHeaders(res, { document: true });
       return res;
     }
   }
 
   const res = NextResponse.next();
-  applySecurityHeaders(res);
+  applySecurityHeaders(res, { document: true });
   return withCorsForWidgetApis(req, res);
 }
 

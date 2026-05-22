@@ -151,11 +151,27 @@ async function loadDashboardData(userId: string): Promise<{ ok: true; data: Dash
   }
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user) redirect("/login");
 
-  const loaded = await loadDashboardData(session.user.id);
+  let userId = session.user.id;
+  if (!userId && session.user.email) {
+    try {
+      const byEmail = await prisma.user.findUnique({
+        where: { email: session.user.email.toLowerCase() },
+        select: { id: true },
+      });
+      userId = byEmail?.id ?? "";
+    } catch (err) {
+      console.error("[dashboard] resolve user by email", err);
+    }
+  }
+  if (!userId) redirect("/login");
+
+  const loaded = await loadDashboardData(userId);
 
   if (!loaded.ok) {
     return (
@@ -214,6 +230,29 @@ export default async function DashboardPage() {
         Humanize your AI with a Buddy that feels alive — and a command center that translates those feelings into
         analytics. Emotional intelligence is not a smiley; it is the signal behind every conversation.
       </p>
+
+      {licenses.length === 0 ? (
+        <section className="mt-8 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-6 py-5">
+          <h2 className="text-lg font-semibold text-white">Get started with Buddy AI</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            You&apos;re signed in. Create a trial license or finish onboarding to embed your Buddy and unlock analytics.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <a
+              href="/api/licenses/generate?plan=starter&days=14"
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+            >
+              Start 14-day trial
+            </a>
+            <Link
+              href="/onboarding"
+              className="rounded-xl border border-white/20 px-4 py-2 text-sm text-slate-100 hover:bg-white/10"
+            >
+              Set up your Buddy
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-8 glass-panel p-6 ring-1 ring-indigo-500/20">
         <h2 className="text-lg font-semibold text-white">

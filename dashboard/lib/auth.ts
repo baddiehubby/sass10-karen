@@ -47,16 +47,21 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
-        const existing = await prisma.user.findUnique({ where: { email: user.email.toLowerCase() } });
-        if (!existing) {
-          await prisma.user.create({
-            data: {
-              email: user.email.toLowerCase(),
-              // OAuth users do not use password login by default.
-              password: await bcrypt.hash(Math.random().toString(36), 10),
-              name: user.name || user.email,
-            },
-          });
+        try {
+          const email = user.email.toLowerCase();
+          const existing = await prisma.user.findUnique({ where: { email } });
+          if (!existing) {
+            await prisma.user.create({
+              data: {
+                email,
+                password: await bcrypt.hash(Math.random().toString(36), 10),
+                name: user.name || user.email,
+              },
+            });
+          }
+        } catch (err) {
+          console.error("[auth] google signIn", err);
+          return false;
         }
       }
       return true;
@@ -101,13 +106,28 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
+        const email = (session.user.email || token.email || "").toString().toLowerCase();
+        let userId = typeof token.id === "string" ? token.id : "";
+        if (!userId && email) {
+          try {
+            const dbUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+            if (dbUser) userId = dbUser.id;
+          } catch (err) {
+            console.error("[auth] session resolve user id", err);
+          }
+        }
+        session.user.id = userId;
         (session.user as { onboardingCompleted?: boolean }).onboardingCompleted = Boolean(token.onboardingCompleted);
         (session.user as { companionName?: string }).companionName = String(token.companionName || "");
         (session.user as { personality?: string }).personality = String(token.personality || "");
         (session.user as { isAdmin?: boolean }).isAdmin = Boolean(token.isAdmin);
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (url.startsWith(baseUrl)) return url;
+      return `${baseUrl}/dashboard`;
     },
   },
   pages: {

@@ -111,4 +111,5 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   secret: authSecret,
+  debug: true,
 };

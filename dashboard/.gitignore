@@ -57,3 +57,4 @@ dashboard/public/widget/livingface-widget.js
 !/public/license-themes/.gitkeep
 
 .vercel
+.env*.local

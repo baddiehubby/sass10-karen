@@ -454,7 +454,7 @@ export default async function DashboardPage() {
                 key={badge.id}
                 className={`glass-panel p-4 ${unlocked ? "ring-1 ring-emerald-500/30" : "opacity-50 grayscale"}`}
               >
-                <p className="text-2xl">{badge.icon}</p>
+                <p className="text-2xl emoji-glyphs">{badge.icon}</p>
                 <h3 className="mt-2 font-semibold text-white">{badge.name}</h3>
                 <p className="mt-1 text-sm text-slate-300">{badge.description}</p>
               </article>

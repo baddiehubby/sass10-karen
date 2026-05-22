@@ -43,9 +43,12 @@ function applySecurityHeaders(res: NextResponse, opts?: { document?: boolean }) 
   h.set("Strict-Transport-Security", "max-age=31536000");
   h.set("Referrer-Policy", "strict-origin-when-cross-origin");
   h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  // Strict CSP breaks Next.js hydration on app pages; keep it for API JSON responses only.
+  // Strict default-src breaks Next.js pages; API routes get a minimal CSP. App pages rely on globals.css font stack.
   if (!opts?.document) {
-    h.set("Content-Security-Policy", "default-src 'self'");
+    h.set(
+      "Content-Security-Policy",
+      "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:;",
+    );
   }
 }
 

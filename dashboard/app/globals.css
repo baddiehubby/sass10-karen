@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* System emoji fonts — Inter/Geist lack emoji glyphs; without this, emoji render as blank squares. */
+* {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Segoe UI Symbol",
+    sans-serif;
+}
+
 @keyframes animate-float {
   0%,
   100% {
@@ -34,7 +49,18 @@ html.light {
 body {
   min-height: 100vh;
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Segoe UI Symbol",
+    sans-serif;
 }
 
 body.app-gradient {
@@ -591,6 +617,16 @@ html.light .glass-panel {
       inset 0 -18px 28px rgba(15, 23, 42, 0.38),
       0 0 44px rgba(245, 158, 11, 0.45);
   }
+}
+
+.emoji-glyphs {
+  font-family:
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Segoe UI Symbol",
+    "Noto Color Emoji",
+    sans-serif;
+  font-variant-emoji: emoji;
 }
 
 .buddy-type-line {

@@ -2,9 +2,8 @@
 (function initLivingFaceWidget() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
-  const WIDGET_CSS_CDN = "https://cdn.buddieai.com/widget/v1.0.0/styles.css";
-  /* Regenerate integrity hash when styles.css changes on the CDN. */
-  const WIDGET_CSS_SRI = "sha384-PLACEHOLDER_REPLACE_WHEN_CSS_CHANGES";
+  /** Default stylesheet — same origin as the widget script (not external CDN). */
+  const WIDGET_CSS_PATH = "/widget/buddy-widget.css";
   const TAMPER_REPORT_URL = "https://api.buddieai.com/api/security/tamper-attempt";
   const TRUSTED_POST_MESSAGE_ORIGIN = "https://app.buddieai.com";
 
@@ -259,12 +258,23 @@
     );
   }
 
+  function resolveWidgetCssHref() {
+    if (cfg.cssHref) return cfg.cssHref;
+    const scriptSrc = scriptEl?.src || "";
+    if (scriptSrc) {
+      try {
+        return new URL(WIDGET_CSS_PATH, scriptSrc).href;
+      } catch {
+        /* fall through */
+      }
+    }
+    return `${cfg.apiBase.replace(/\/$/, "")}${WIDGET_CSS_PATH}`;
+  }
+
   function appendWidgetStylesheet(shadow) {
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = cfg.cssHref || WIDGET_CSS_CDN;
-    link.crossOrigin = "anonymous";
-    link.setAttribute("integrity", WIDGET_CSS_SRI);
+    link.href = resolveWidgetCssHref();
     shadow.appendChild(link);
   }
 

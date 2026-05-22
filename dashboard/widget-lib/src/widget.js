@@ -23,6 +23,8 @@
       concerned: "#ef4444",
       excited: "#a855f7",
       sleepy: "#64748b",
+      zen: "#2dd4bf",
+      lit: "#fbbf24",
       deep: "#1e1b4b",
     },
     premium: {
@@ -32,9 +34,17 @@
       concerned: "#f43f5e",
       excited: "#8b5cf6",
       sleepy: "#475569",
+      zen: "#5eead4",
+      lit: "#fcd34d",
       deep: "#0f172a",
     },
   };
+
+  const DISPLAY_MOODS = ["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "zen", "lit"];
+  const ANALYTICS_MOODS = new Set(["neutral", "happy", "thinking", "concerned", "excited", "sleepy"]);
+  const PARTY_WORDS = ["party", "celebrate", "lit"];
+  const CHILL_WORDS = ["chill", "relax", "vibe"];
+  const TRIPPY_WORDS = ["trippy", "wild"];
 
   const HAPPY_WORDS = ["amazing", "awesome", "great", "love", "perfect", "thanks", "wow", "excellent"];
   const SAD_WORDS = ["wrong", "bad", "error", "fix", "broken", "hate", "terrible", "useless"];
@@ -100,6 +110,13 @@
     isHeartEyes: false,
     speechUtterance: null,
     lipSyncInterval: 0,
+    partyModeUntil: 0,
+    chillMode: false,
+    trippyMode: false,
+    trippyTimer: 0,
+    trippyLandMood: "neutral",
+    lastParticleSpawn: 0,
+    suppressBreathingRaf: false,
   };
 
   function normalizeText(text) {
@@ -268,21 +285,28 @@
     tpl.innerHTML = `
       <div class="root" aria-label="Buddy AI companion">
         <button class="sound-toggle" aria-label="Toggle widget sound">🔈</button>
-        <div class="ring"></div>
-        <div class="mini-confetti"></div>
-        <div class="orb">
-          <div class="face">
-            <div class="brow-wrap">
-              <div class="eye left-eye"></div>
-              <div class="eye right-eye"></div>
-            </div>
-            <div class="mouth-wrap">
-              <svg class="mouth" viewBox="0 0 34 18" preserveAspectRatio="none" aria-hidden="true">
-                <path class="mouth-path" d="M4 10 Q17 10 30 10"></path>
-              </svg>
+        <div class="aura-stack">
+          <div class="ring"></div>
+          <div class="particle-field"></div>
+          <div class="party-confetti"></div>
+          <div class="mini-confetti"></div>
+          <div class="orb" data-mood="neutral">
+            <div class="face">
+              <div class="brow-wrap">
+                <div class="eye left-eye"></div>
+                <div class="eye right-eye"></div>
+              </div>
+              <div class="mouth-wrap">
+                <svg class="mouth" viewBox="0 0 34 18" preserveAspectRatio="none" aria-hidden="true">
+                  <path class="mouth-path" d="M4 10 Q17 10 30 10"></path>
+                </svg>
+              </div>
             </div>
           </div>
+          <div class="smoke-ring"></div>
+          <div class="sparkle-burst"></div>
         </div>
+        <div class="orb-hotspot" aria-hidden="true" title="Say hi to Buddy"></div>
         <div class="tooltip">
           <span class="tip-text">Buddy AI companion • neutral</span>
           <a class="upgrade" href="${cfg.apiBase}/pricing" target="_blank" rel="noopener noreferrer">Upgrade</a>
@@ -308,7 +332,21 @@
       soundToggle: shadow.querySelector(".sound-toggle"),
       reactionEmoji: shadow.querySelector(".reaction-emoji"),
       confettiLayer: shadow.querySelector(".mini-confetti"),
+      partyConfetti: shadow.querySelector(".party-confetti"),
+      particleField: shadow.querySelector(".particle-field"),
+      auraStack: shadow.querySelector(".aura-stack"),
+      orbHotspot: shadow.querySelector(".orb-hotspot"),
+      smokeRing: shadow.querySelector(".smoke-ring"),
+      sparkleBurst: shadow.querySelector(".sparkle-burst"),
     };
+  }
+
+  function moodInTheme(themeName, mood) {
+    return Boolean(THEMES[themeName] && THEMES[themeName][mood]);
+  }
+
+  function analyticsSafeMood(mood) {
+    return ANALYTICS_MOODS.has(mood) ? mood : mood === "lit" ? "excited" : mood === "zen" ? "neutral" : "neutral";
   }
 
   function moodToMouthPath(curve) {
@@ -397,9 +435,184 @@
       ui.confettiLayer.classList.add("run");
     }
 
+    function triggerPartyConfetti() {
+      if (!ui.partyConfetti) return;
+      ui.partyConfetti.textContent = "";
+      const colors = ["#ff6bcb", "#67e8f9", "#c4b5fd", "#fbbf24", "#34d399", "#fb7185", "#a78bfa", "#22d3ee"];
+      const count = 32 + Math.floor(Math.random() * 9);
+      for (let i = 0; i < count; i += 1) {
+        const piece = document.createElement("span");
+        piece.className = "party-piece";
+        const w = 4 + Math.random() * 8;
+        const h = 4 + Math.random() * 10;
+        piece.style.width = `${w}px`;
+        piece.style.height = `${h}px`;
+        piece.style.background = colors[i % colors.length];
+        piece.style.setProperty("--cx", `${(Math.random() - 0.5) * 120}px`);
+        piece.style.setProperty("--cy", `${-40 - Math.random() * 90}px`);
+        piece.style.setProperty("--cr", `${Math.random() * 720 - 360}deg`);
+        piece.style.animationDelay = `${Math.random() * 0.25}s`;
+        ui.partyConfetti.appendChild(piece);
+      }
+      state.partyModeUntil = Date.now() + 3000;
+      window.setTimeout(() => {
+        if (ui.partyConfetti) ui.partyConfetti.textContent = "";
+      }, 3200);
+    }
+
+    function setChillMode(on) {
+      state.chillMode = Boolean(on);
+      if (ui.orb) ui.orb.classList.toggle("chill-mode", state.chillMode);
+      state.suppressBreathingRaf = state.chillMode;
+    }
+
+    function clearTrippyMode(landOn) {
+      window.clearInterval(state.trippyTimer);
+      state.trippyTimer = 0;
+      state.trippyMode = false;
+      if (ui.orb) ui.orb.classList.remove("trippy-mode");
+      const target = landOn && moodInTheme(state.themeName, landOn) ? landOn : "neutral";
+      applyMood(target, false);
+    }
+
+    function startTrippyCycle(landMood) {
+      state.trippyLandMood = landMood || "neutral";
+      state.trippyMode = true;
+      if (ui.orb) ui.orb.classList.add("trippy-mode");
+      let idx = 0;
+      window.clearInterval(state.trippyTimer);
+      state.trippyTimer = window.setInterval(() => {
+        const mood = DISPLAY_MOODS[idx % DISPLAY_MOODS.length];
+        idx += 1;
+        applyMood(mood, false);
+      }, 175);
+      window.setTimeout(() => clearTrippyMode(state.trippyLandMood), 2000);
+    }
+
+    function moodParticleColor(mood) {
+      const c = THEMES[state.themeName][mood] || THEMES[state.themeName].neutral;
+      return c;
+    }
+
+    function spawnFloatingParticle(burst) {
+      if (!ui.particleField) return;
+      const mood = state.mood;
+      const color = moodParticleColor(mood);
+      const el = document.createElement("span");
+      el.className = burst ? "particle particle-burst" : "particle";
+      const size = burst ? 5 + Math.random() * 4 : 3 + Math.random() * 2;
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.background = color;
+      el.style.left = `${35 + Math.random() * 30}%`;
+      el.style.top = `${40 + Math.random() * 25}%`;
+      if (burst) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 28 + Math.random() * 42;
+        el.style.setProperty("--bx", `${Math.cos(angle) * dist}px`);
+        el.style.setProperty("--by", `${Math.sin(angle) * dist}px`);
+      } else {
+        el.style.setProperty("--px", `${(Math.random() - 0.5) * 16}px`);
+        el.style.setProperty("--py", `${-32 - Math.random() * 48}px`);
+      }
+      ui.particleField.appendChild(el);
+      window.setTimeout(() => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, burst ? 900 : 2400);
+    }
+
+    function spawnParticleBurst() {
+      const n = 10 + Math.floor(Math.random() * 6);
+      for (let i = 0; i < n; i += 1) spawnFloatingParticle(true);
+    }
+
+    function triggerSparkleBurst() {
+      if (!ui.sparkleBurst) return;
+      ui.sparkleBurst.textContent = "";
+      for (let i = 0; i < 10; i += 1) {
+        const s = document.createElement("span");
+        s.className = "sparkle";
+        s.style.left = `${38 + Math.random() * 24}%`;
+        s.style.top = `${38 + Math.random() * 24}%`;
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 12 + Math.random() * 22;
+        s.style.setProperty("--sx", `${Math.cos(angle) * dist}px`);
+        s.style.setProperty("--sy", `${Math.sin(angle) * dist}px`);
+        ui.sparkleBurst.appendChild(s);
+      }
+      window.setTimeout(() => {
+        if (ui.sparkleBurst) ui.sparkleBurst.textContent = "";
+      }, 700);
+    }
+
+    function triggerSmokeRing() {
+      if (!ui.smokeRing) return;
+      ui.smokeRing.classList.remove("pop");
+      void ui.smokeRing.offsetWidth;
+      ui.smokeRing.classList.add("pop");
+      window.setTimeout(() => ui.smokeRing && ui.smokeRing.classList.remove("pop"), 750);
+    }
+
+    function syncOrbMoodClasses(mood) {
+      if (!ui.orb) return;
+      ui.orb.setAttribute("data-mood", mood);
+      DISPLAY_MOODS.forEach((m) => ui.orb.classList.remove(`mood-${m}`));
+      ui.orb.classList.add(`mood-${mood}`);
+      ui.orb.classList.toggle("party-mode", Date.now() < state.partyModeUntil);
+    }
+
+    function setupOrbInteraction() {
+      if (!ui.orbHotspot || !ui.root) return;
+      let wiggleTimer = 0;
+      ui.orbHotspot.addEventListener("mouseenter", () => {
+        ui.root.classList.add("orb-hover-intense");
+        ui.root.classList.add("orb-wiggle");
+        window.clearTimeout(wiggleTimer);
+        wiggleTimer = window.setTimeout(() => ui.root.classList.remove("orb-wiggle"), 480);
+      });
+      ui.orbHotspot.addEventListener("mouseleave", () => {
+        ui.root.classList.remove("orb-hover-intense");
+      });
+      ui.orbHotspot.addEventListener(
+        "touchstart",
+        () => {
+          ui.root.classList.add("orb-hover-intense", "orb-wiggle");
+        },
+        { passive: true },
+      );
+      ui.orbHotspot.addEventListener(
+        "touchend",
+        () => {
+          ui.root.classList.remove("orb-hover-intense", "orb-wiggle");
+        },
+        { passive: true },
+      );
+      ui.orbHotspot.addEventListener("click", () => {
+        if (ui.orb) {
+          ui.orb.classList.remove("pulse-click");
+          void ui.orb.offsetWidth;
+          ui.orb.classList.add("pulse-click");
+          window.setTimeout(() => ui.orb && ui.orb.classList.remove("pulse-click"), 520);
+        }
+        triggerSmokeRing();
+        triggerSparkleBurst();
+        spawnParticleBurst();
+        showReactionEmoji("✨", 900);
+      });
+    }
+
     function playMoodChime(mood) {
       if (!state.soundEnabled || !audioCtx) return;
-      const noteMap = { neutral: 261.63, happy: 329.63, thinking: 392, concerned: 220, excited: 440, sleepy: 246.94 };
+      const noteMap = {
+        neutral: 261.63,
+        happy: 329.63,
+        thinking: 392,
+        concerned: 220,
+        excited: 440,
+        sleepy: 246.94,
+        zen: 293.66,
+        lit: 466.16,
+      };
       const freq = noteMap[mood] || 261.63;
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -457,7 +670,7 @@
           method: "GET",
         });
         const data = await res.json();
-        if (res.ok && data.mood && data.mood !== state.mood && THEMES[state.themeName][data.mood]) {
+        if (res.ok && data.mood && data.mood !== state.mood && moodInTheme(state.themeName, data.mood)) {
           applyMood(String(data.mood), false);
         }
       } catch {
@@ -637,21 +850,44 @@
 
     function applyMood(nextMood, emitAnalytics) {
       if (emitAnalytics === undefined) emitAnalytics = true;
-      if (!THEMES[state.themeName][nextMood]) nextMood = "neutral";
+      if (!moodInTheme(state.themeName, nextMood)) nextMood = "neutral";
       const previousDisplayedMood = state.mood;
+      const moodChanged = previousDisplayedMood !== nextMood;
       state.mood = nextMood;
+      syncOrbMoodClasses(nextMood);
+
       const eyeScale = state.isBlinking
         ? 0.1
         : {
             neutral: 1,
-            happy: 0.8,
+            happy: 0.75,
             thinking: 0.6,
-            concerned: 0.9,
-            excited: 0.7,
+            concerned: 0.88,
+            excited: 0.65,
             sleepy: 0.3,
+            zen: 0.92,
+            lit: 0.7,
           }[nextMood];
-      const browTilt = { neutral: 0, happy: -5, thinking: 10, concerned: 8, excited: -10, sleepy: 0 }[nextMood];
-      const mouthCurve = { neutral: 0, happy: 15, thinking: -5, concerned: -10, excited: 20, sleepy: 0 }[nextMood];
+      const browTilt = {
+        neutral: 0,
+        happy: -5,
+        thinking: 10,
+        concerned: 14,
+        excited: -10,
+        sleepy: 0,
+        zen: -2,
+        lit: -8,
+      }[nextMood];
+      let mouthCurve = {
+        neutral: 0,
+        happy: 22,
+        thinking: -5,
+        concerned: -14,
+        excited: 20,
+        sleepy: 0,
+        zen: 6,
+        lit: 24,
+      }[nextMood];
       const color = THEMES[state.themeName][nextMood];
       const deep = THEMES[state.themeName].deep;
 
@@ -663,23 +899,25 @@
       ui.brows.style.transform = `rotate(${browTilt}deg)`;
 
       if (state.remoteTheme && state.remoteTheme.mode === "image") {
-        ui.orb.style.filter = `drop-shadow(0 0 14px ${color}55)`;
+        ui.orb.style.setProperty("--mood-glow", `${color}88`);
         if (ui.ring) {
-          ui.ring.style.borderColor = `${color}55`;
-          ui.ring.style.boxShadow = `0 0 18px ${color}44`;
+          ui.ring.style.opacity = "0.9";
         }
       } else if (state.remoteTheme && state.remoteTheme.mode === "css") {
-        if (ui.ring) {
-          ui.ring.style.borderColor = `${color}55`;
-          ui.ring.style.boxShadow = `0 0 18px ${color}44`;
-        }
-        ui.orb.style.filter = "none";
+        ui.orb.style.setProperty("--mood-glow", `${color}66`);
       } else {
-        ui.orb.style.background = `radial-gradient(circle at 28% 20%, #e2e8f0 0%, ${color} 42%, ${deep} 100%)`;
-        ui.orb.style.filter = `drop-shadow(0 0 16px ${color}66)`;
+        const highlight =
+          nextMood === "lit"
+            ? "#fef08a"
+            : nextMood === "zen"
+              ? "#ccfbf1"
+              : nextMood === "excited"
+                ? "#f5d0fe"
+                : "#fbcfe8";
+        ui.orb.style.background = `radial-gradient(circle at 28% 20%, ${highlight} 0%, ${color} 40%, ${deep} 100%)`;
+        ui.orb.style.setProperty("--mood-glow", `${color}88`);
         if (ui.ring) {
-          ui.ring.style.borderColor = "";
-          ui.ring.style.boxShadow = "";
+          ui.ring.style.opacity = "";
         }
       }
 
@@ -690,40 +928,68 @@
         ui.mouthPath.setAttribute("d", moodToMouthPath(mouthCurve + amp));
       }
 
+      if (moodChanged && !state.trippyMode) spawnParticleBurst();
+
       applyTooltip();
-      if (emitAnalytics && previousDisplayedMood !== nextMood) {
+      if (emitAnalytics && moodChanged) {
         sendAnalyticsMoodEvent(nextMood);
         playMoodChime(nextMood);
-        syncCollaborativeMood(nextMood);
+        syncCollaborativeMood(analyticsSafeMood(nextMood));
         if (nextMood === "concerned") {
           showReactionEmoji(Math.random() < 0.5 ? "💧" : "🤗", 2000);
+        }
+        if (nextMood === "lit" || nextMood === "excited") {
+          showReactionEmoji("✨", 1100);
         }
       }
     }
 
     function sendAnalyticsMoodEvent(mood) {
       if (!cfg.licenseKey) return;
+      const safe = analyticsSafeMood(mood);
       fetch(`${cfg.apiBase}/api/analytics/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           licenseKey: cfg.licenseKey,
           domain: window.location.hostname,
-          mood,
+          mood: safe,
           timestamp: new Date().toISOString(),
         }),
       }).catch(() => undefined);
     }
 
     function animate() {
-      const t = (performance.now() - t0) / 1000;
-      const breathing = 1 + Math.sin(t * 1.3) * 0.02;
+      const now = performance.now();
+      const t = (now - t0) / 1000;
+
+      if (!state.suppressBreathingRaf && !state.trippyMode && ui.orb) {
+        const skipTransform =
+          ui.orb.classList.contains("mood-happy") ||
+          ui.orb.classList.contains("mood-lit") ||
+          ui.orb.classList.contains("mood-concerned") ||
+          ui.orb.classList.contains("chill-mode");
+        if (!skipTransform) {
+          const breathing = 1 + Math.sin(t * 1.3) * 0.02;
+          ui.orb.style.transform = `scale(${breathing.toFixed(4)})`;
+        }
+      }
+
       if (state.features.voiceSync) {
         state.voiceLevel = (Math.sin(t * 4.2) + 1) / 2;
       } else {
         state.voiceLevel = 0;
       }
-      ui.orb.style.transform = `scale(${breathing.toFixed(4)})`;
+
+      if (now - state.lastParticleSpawn > 650 + Math.random() * 200) {
+        state.lastParticleSpawn = now;
+        if (!state.trippyMode) spawnFloatingParticle(false);
+      }
+
+      if (ui.orb) {
+        ui.orb.classList.toggle("party-mode", now < state.partyModeUntil);
+      }
+
       state.rafId = window.requestAnimationFrame(animate);
     }
 
@@ -740,6 +1006,10 @@
       }, next);
     }
 
+    function messageHasWord(lower, words) {
+      return words.some((w) => lower.includes(w));
+    }
+
     function processLatestMessage() {
       if (state.moodOverride && state.moodOverrideUntil > Date.now()) {
         applyMood(state.moodOverride, false);
@@ -747,6 +1017,7 @@
       }
       if (hasTypingIndicator()) {
         window.clearTimeout(state.typingTimeout);
+        setChillMode(false);
         applyMood("thinking");
         state.typingTimeout = window.setTimeout(() => applyMood(state.previousMood), 2200);
         return;
@@ -757,10 +1028,7 @@
       if (!text || text === state.lastMessage) return;
       state.lastMessage = text;
       const lower = text.toLowerCase();
-      if (lower.includes("party")) {
-        triggerMiniConfetti();
-        state.isHeartEyes = false;
-      }
+
       if (lower.includes("secret")) {
         state.isWinking = true;
         showReactionEmoji("🤫");
@@ -777,13 +1045,36 @@
           applyMood(state.mood, false);
         }, 1200);
       }
+
       const mood = detectMood(text, state.previousMood);
-      if (lower.includes("party")) {
+
+      if (messageHasWord(lower, PARTY_WORDS)) {
+        setChillMode(false);
+        state.isHeartEyes = false;
+        triggerPartyConfetti();
+        triggerMiniConfetti();
         state.previousMood = "excited";
         applyMood("excited");
         speakWithLipSync(text);
         return;
       }
+
+      if (messageHasWord(lower, CHILL_WORDS)) {
+        setChillMode(true);
+        state.previousMood = mood === "excited" ? "zen" : mood;
+        applyMood("zen");
+        speakWithLipSync(text);
+        return;
+      }
+
+      if (messageHasWord(lower, TRIPPY_WORDS)) {
+        setChillMode(false);
+        startTrippyCycle(mood);
+        speakWithLipSync(text);
+        return;
+      }
+
+      setChillMode(false);
       state.previousMood = mood;
       applyMood(mood);
       speakWithLipSync(text);
@@ -798,7 +1089,7 @@
       state.features = { ...FREE_FEATURES, ...(result.features || {}) };
       state.themeName = state.features.customTheme ? "premium" : "default";
       applyWidgetConfig(result.widgetConfig || {});
-      if (result.moodOverride && THEMES[state.themeName][result.moodOverride]) {
+      if (result.moodOverride && moodInTheme(state.themeName, result.moodOverride)) {
         state.moodOverride = result.moodOverride;
         state.moodOverrideUntil = Date.now() + 15000;
         applyMood(result.moodOverride, false);
@@ -842,6 +1133,8 @@
       });
     }
 
+    setupOrbInteraction();
+    state.lastParticleSpawn = performance.now();
     applyMood("neutral");
     scheduleBlink();
     animate();

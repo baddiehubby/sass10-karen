@@ -1,39 +1,200 @@
-/* Buddy AI widget shadow styles (versioned + SRI from public/widget/buddy-widget.css) */
+/* Buddy AI — trippy vaporwave orb (shadow DOM) */
 :host {
   all: initial;
 }
+
 .root {
   position: relative;
   width: 80px;
   height: 80px;
-  pointer-events: auto;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  pointer-events: none;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    sans-serif;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+.aura-stack {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Spinning conic candy border */
 .ring {
   position: absolute;
-  inset: -6px;
+  inset: -10px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
-  animation: lfSpin 10s linear infinite;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 105, 180, 0.75),
+    rgba(125, 211, 252, 0.7),
+    rgba(196, 181, 253, 0.75),
+    rgba(244, 114, 182, 0.7),
+    rgba(103, 232, 249, 0.75),
+    rgba(255, 105, 180, 0.75)
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  animation: lfAuraSpin 6s linear infinite;
+  opacity: 0.85;
+  filter: blur(0.5px);
+  transition: opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+.root.orb-hover-intense .ring {
+  opacity: 1;
+  animation-duration: 3s;
+  filter: blur(0px) drop-shadow(0 0 12px rgba(255, 105, 180, 0.55));
+}
+
+.particle-field {
+  position: absolute;
+  inset: -20px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.particle {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0.55;
+  animation: lfParticleFloat 2.4s ease-out forwards;
+}
+
+.particle-burst {
+  width: 7px;
+  height: 7px;
+  animation: lfParticleBurst 0.85s ease-out forwards;
+}
+
+.party-confetti {
+  position: absolute;
+  inset: -30px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.party-piece {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 2px;
+  opacity: 0;
+  animation: lfPartyConfetti 3s ease-out forwards;
+}
+
 .orb {
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  overflow: hidden;
-  background: radial-gradient(circle at 28% 20%, #c7d2fe 0%, #6366f1 40%, #312e81 100%);
-  box-shadow: inset 0 -10px 20px rgba(15, 23, 42, 0.35);
+  overflow: visible;
+  z-index: 3;
+  background: radial-gradient(circle at 28% 20%, #fbcfe8 0%, #a78bfa 38%, #6366f1 72%, #312e81 100%);
+  box-shadow:
+    inset 0 -10px 22px rgba(15, 23, 42, 0.35),
+    0 0 28px rgba(167, 139, 250, 0.45);
   transform-origin: center center;
   will-change: transform, filter, background;
-  transition: background 240ms ease, filter 240ms ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: lfHueRotate 10s linear infinite;
 }
+
+/* Cotton-candy smoke pulse */
+.orb::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 182, 193, 0.45) 0%,
+    rgba(125, 211, 252, 0.28) 45%,
+    rgba(196, 181, 253, 0.12) 70%,
+    transparent 78%
+  );
+  filter: blur(14px);
+  z-index: -1;
+  animation: lfAuraPulse 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.orb::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 90deg,
+    rgba(255, 182, 193, 0.5),
+    rgba(103, 232, 249, 0.45),
+    rgba(216, 180, 254, 0.5),
+    rgba(255, 182, 193, 0.5)
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent 68%, #000 72%);
+  mask: radial-gradient(farthest-side, transparent 68%, #000 72%);
+  animation: lfAuraSpin 8s linear infinite reverse;
+  opacity: 0.65;
+  pointer-events: none;
+}
+
 .orb.hq-orb-image {
+  animation: none;
   background-color: #0f172a;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
+
+.orb.hq-orb-image::before,
+.orb.hq-orb-image::after {
+  display: none;
+}
+
+.orb.chill-mode {
+  animation: lfChillBreath 3s ease-in-out infinite;
+}
+
+.orb.chill-mode::before {
+  animation: lfChillAura 3s ease-in-out infinite;
+}
+
+.orb.trippy-mode {
+  animation: lfTrippyFlash 0.35s ease-in-out infinite, lfHueRotate 2s linear infinite;
+}
+
+.orb.mood-happy {
+  animation: lfHappyBounce 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.orb.mood-concerned {
+  transform: rotate(-5deg);
+}
+
+.orb.mood-lit {
+  animation: lfLitBounce 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+.orb.mood-zen {
+  animation: lfZenPulse 4.5s ease-in-out infinite;
+}
+
+.orb.pulse-click {
+  animation: lfClickPulse 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.root.orb-wiggle .orb {
+  animation: lfWiggle 0.45s ease-in-out;
+}
+
 .face {
   position: absolute;
   inset: 0;
@@ -41,7 +202,9 @@
   align-items: center;
   justify-content: center;
   z-index: 2;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
 .brow-wrap {
   position: absolute;
   top: 24px;
@@ -49,16 +212,22 @@
   right: 18px;
   display: flex;
   justify-content: space-between;
-  transition: transform 220ms ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+.orb.mood-concerned .brow-wrap {
+  transform: rotate(12deg);
+}
+
 .eye {
   width: 14px;
   height: 14px;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.45);
   transform-origin: center center;
-  transition: transform 220ms ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
 .eye.heart-eye {
   width: 16px;
   height: 16px;
@@ -66,6 +235,7 @@
   clip-path: path("M8 14 C8 14,0 9,0 4 C0 1.5,2 0,4 0 C5.5 0,7 1.1,8 2.6 C9 1.1,10.5 0,12 0 C14 0,16 1.5,16 4 C16 9,8 14,8 14 Z");
   background-color: #ef4444;
 }
+
 .mouth-wrap {
   position: absolute;
   left: 50%;
@@ -74,17 +244,71 @@
   width: 34px;
   height: 18px;
   opacity: 0.9;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+.orb.mood-happy .mouth-wrap {
+  transform: translateX(-50%) scale(1.08);
+}
+
 .mouth {
   width: 100%;
   height: 100%;
 }
+
 .mouth path {
   stroke: rgba(15, 23, 42, 0.65);
   stroke-width: 2.6;
   stroke-linecap: round;
   fill: transparent;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+.orb-hotspot {
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  z-index: 20;
+  pointer-events: auto;
+  cursor: pointer;
+  background: transparent;
+}
+
+.smoke-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40%;
+  height: 40%;
+  margin: -20% 0 0 -20%;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.smoke-ring.pop {
+  animation: lfSmokeRing 0.7s ease-out forwards;
+}
+
+.sparkle-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 7;
+}
+
+.sparkle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  border-radius: 999px;
+  box-shadow: 0 0 8px #f0abfc, 0 0 12px #67e8f9;
+  animation: lfSparkle 0.65s ease-out forwards;
+}
+
 .tooltip {
   position: absolute;
   bottom: 92px;
@@ -103,6 +327,7 @@
   transition: opacity 180ms ease, transform 180ms ease;
   pointer-events: none;
 }
+
 .sound-toggle {
   position: absolute;
   top: -6px;
@@ -119,7 +344,9 @@
   justify-content: center;
   cursor: pointer;
   pointer-events: auto;
+  z-index: 25;
 }
+
 .reaction-emoji {
   position: absolute;
   top: -12px;
@@ -127,17 +354,22 @@
   font-size: 16px;
   opacity: 0;
   transform: translateY(6px);
-  transition: all 180ms ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 25;
 }
+
 .reaction-emoji.show {
   opacity: 1;
   transform: translateY(0);
 }
+
 .mini-confetti {
   position: absolute;
   inset: -4px;
   pointer-events: none;
+  z-index: 5;
 }
+
 .mini-dot {
   position: absolute;
   width: 4px;
@@ -146,9 +378,223 @@
   opacity: 0;
   animation: none;
 }
+
 .mini-confetti.run .mini-dot {
   animation: lfConfetti 760ms ease-out forwards;
 }
+
+.upgrade {
+  color: #93c5fd;
+  margin-left: 6px;
+  text-decoration: underline;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.root:hover .tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Mood tint overlays via CSS variables set from JS */
+.orb[data-mood="happy"] {
+  --mood-glow: rgba(34, 197, 94, 0.55);
+}
+.orb[data-mood="excited"] {
+  --mood-glow: rgba(168, 85, 247, 0.6);
+}
+.orb[data-mood="thinking"] {
+  --mood-glow: rgba(245, 158, 11, 0.55);
+}
+.orb[data-mood="concerned"] {
+  --mood-glow: rgba(239, 68, 68, 0.5);
+}
+.orb[data-mood="sleepy"] {
+  --mood-glow: rgba(100, 116, 139, 0.45);
+}
+.orb[data-mood="zen"] {
+  --mood-glow: rgba(45, 212, 191, 0.55);
+}
+.orb[data-mood="lit"] {
+  --mood-glow: rgba(251, 191, 36, 0.65);
+}
+
+@keyframes lfHueRotate {
+  0% {
+    filter: hue-rotate(0deg) drop-shadow(0 0 16px var(--mood-glow, rgba(167, 139, 250, 0.55)));
+  }
+  100% {
+    filter: hue-rotate(360deg) drop-shadow(0 0 16px var(--mood-glow, rgba(167, 139, 250, 0.55)));
+  }
+}
+
+@keyframes lfAuraSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lfAuraPulse {
+  0%,
+  100% {
+    transform: scale(1.1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.72;
+  }
+}
+
+@keyframes lfChillBreath {
+  0%,
+  100% {
+    transform: scale(0.95);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes lfChillAura {
+  0%,
+  100% {
+    transform: scale(1.15);
+    opacity: 0.35;
+    filter: blur(18px);
+  }
+  50% {
+    transform: scale(1.45);
+    opacity: 0.75;
+    filter: blur(22px);
+  }
+}
+
+@keyframes lfTrippyFlash {
+  0%,
+  100% {
+    filter: hue-rotate(0deg) saturate(1.4);
+  }
+  50% {
+    filter: hue-rotate(180deg) saturate(1.8);
+  }
+}
+
+@keyframes lfHappyBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes lfLitBounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.04);
+  }
+}
+
+@keyframes lfZenPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.03);
+    filter: brightness(1.08);
+  }
+}
+
+@keyframes lfWiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes lfClickPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes lfSmokeRing {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes lfSparkle {
+  0% {
+    opacity: 1;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4) translate(var(--sx), var(--sy));
+  }
+}
+
+@keyframes lfParticleFloat {
+  0% {
+    opacity: 0.6;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--px), var(--py)) scale(0.3);
+  }
+}
+
+@keyframes lfParticleBurst {
+  0% {
+    opacity: 0.9;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--bx), var(--by)) scale(0.2);
+  }
+}
+
+@keyframes lfPartyConfetti {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--cx)), calc(-50% + var(--cy))) rotate(var(--cr)) scale(0.6);
+  }
+}
+
 @keyframes lfConfetti {
   from {
     opacity: 1;
@@ -157,24 +603,5 @@
   to {
     opacity: 0;
     transform: translate(var(--x), var(--y)) rotate(360deg);
-  }
-}
-.upgrade {
-  color: #93c5fd;
-  margin-left: 6px;
-  text-decoration: underline;
-  pointer-events: auto;
-  cursor: pointer;
-}
-.root:hover .tooltip {
-  opacity: 1;
-  transform: translateY(0);
-}
-@keyframes lfSpin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
   }
 }

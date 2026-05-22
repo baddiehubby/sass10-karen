@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Buddy AI Widget Test</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 2rem;
+      }
+      [data-message-author-role="assistant"] {
+        max-width: 520px;
+        margin-top: 1rem;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+      }
+      button {
+        margin: 0.35rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: none;
+        background: #6366f1;
+        color: white;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Buddy AI orb test</h1>
+    <p>Hover or tap the orb. Try the message buttons below.</p>
+    <div>
+      <button type="button" id="btn-party">Party message ✨</button>
+      <button type="button" id="btn-chill">Chill vibe</button>
+      <button type="button" id="btn-trippy">Trippy wild</button>
+      <button type="button" id="btn-happy">Happy news</button>
+    </div>
+    <div data-message-author-role="assistant" id="assistant-msg">
+      Buddy is warming up — click a button to simulate AI output.
+    </div>
+    <script src="../dist/livingface-widget.js" data-hq-key="DEMO-FREE-LICENSE" data-hq-api="http://localhost:3000"></script>
+    <script>
+      const el = document.getElementById("assistant-msg");
+      document.getElementById("btn-party").onclick = () => {
+        el.textContent = "This is absolutely a party — time to celebrate, everything is lit tonight! 🎉";
+      };
+      document.getElementById("btn-chill").onclick = () => {
+        el.textContent = "Let's chill and relax — just vibe with the flow for a while.";
+      };
+      document.getElementById("btn-trippy").onclick = () => {
+        el.textContent = "Whoa, that answer was trippy and wild — colors everywhere.";
+      };
+      document.getElementById("btn-happy").onclick = () => {
+        el.textContent = "Amazing work! This is great and users will love it. Thanks!";
+      };
+    </script>
+  </body>
+</html>

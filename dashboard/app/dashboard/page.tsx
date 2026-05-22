@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -10,6 +11,7 @@ import { getWidgetScriptUrl } from "@/lib/widget-cdn";
 import { prisma } from "@/lib/prisma";
 import { CopyEmbedCodeButton } from "@/components/copy-embed-code-button";
 import { ComplianceActions } from "@/components/compliance-actions";
+import type { License } from "@prisma/client";
 
 function formatFeatures(features: unknown) {
   let f: Record<string, boolean> = {};
@@ -46,70 +48,166 @@ function subscriptionStatusLabel(status: string | null, expiresAt: Date) {
   return { label: s.replace(/_/g, " "), tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
 }
 
+type MoodEventRow = { id: string; mood: string; domain: string | null; timestamp: Date };
+
+type DashboardData = {
+  companionName: string;
+  licenses: License[];
+  totalSignals: number;
+  topMoodToday: string;
+  moodScoreToday: number | null;
+  widgetScriptUrl: string;
+  activeEmbedScript: string;
+  firstActiveLicense: License | null;
+  allBadges: Awaited<ReturnType<typeof prisma.badge.findMany>>;
+  earnedSet: Set<string>;
+  recentEvents: MoodEventRow[];
+};
+
+async function loadDashboardData(userId: string): Promise<{ ok: true; data: DashboardData } | { ok: false; error: string }> {
+  try {
+    await ensureBadgeSeeds();
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { companionName: true },
+    });
+    const companionName = user?.companionName?.trim() || "Buddy";
+
+    const licenses = await prisma.license.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+    const licenseIds = licenses.map((l) => l.id);
+    const now = Date.now();
+    const firstActiveLicense = licenses.find((license) => new Date(license.expiresAt).getTime() > now) || null;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [totalSignals, todaysMoods, recentEvents] =
+      licenseIds.length === 0
+        ? [0, [] as { mood: string }[], [] as MoodEventRow[]]
+        : await Promise.all([
+            prisma.moodEvent.count({ where: { licenseId: { in: licenseIds } } }),
+            prisma.moodEvent.findMany({
+              where: { licenseId: { in: licenseIds }, timestamp: { gte: todayStart } },
+              select: { mood: true },
+            }),
+            prisma.moodEvent.findMany({
+              where: { licenseId: { in: licenseIds } },
+              orderBy: { timestamp: "desc" },
+              take: 12,
+              select: { id: true, mood: true, domain: true, timestamp: true },
+            }),
+          ]);
+
+    const moodTally: Record<string, number> = {};
+    for (const row of todaysMoods) {
+      moodTally[row.mood] = (moodTally[row.mood] || 0) + 1;
+    }
+    const topMoodToday =
+      Object.entries(moodTally).sort((a, b) => b[1] - a[1])[0]?.[0] || (totalSignals ? "neutral" : "—");
+
+    const happyToday = todaysMoods.filter((m) => m.mood === "happy" || m.mood === "excited").length;
+    const concernedToday = todaysMoods.filter((m) => m.mood === "concerned").length;
+    const denomToday = happyToday + concernedToday;
+    const moodScoreToday = denomToday ? Math.round((happyToday / denomToday) * 100) : null;
+
+    const widgetScriptUrl = getWidgetScriptUrl();
+    const activeEmbedScript = firstActiveLicense
+      ? `<script src="${widgetScriptUrl}" data-hq-key="${firstActiveLicense.key}" async></script>`
+      : "";
+
+    const allBadges = await prisma.badge.findMany({ orderBy: { createdAt: "asc" } });
+    const earnedBadges = await prisma.userBadge.findMany({
+      where: { userId },
+      select: { badgeId: true },
+    });
+    const earnedSet = new Set(earnedBadges.map((b) => b.badgeId));
+
+    return {
+      ok: true,
+      data: {
+        companionName,
+        licenses,
+        totalSignals,
+        topMoodToday,
+        moodScoreToday,
+        widgetScriptUrl,
+        activeEmbedScript,
+        firstActiveLicense,
+        allBadges,
+        earnedSet,
+        recentEvents,
+      },
+    };
+  } catch (err) {
+    console.error("[dashboard] loadDashboardData", err);
+    return {
+      ok: false,
+      error: "We could not load your dashboard data. Your account is signed in — try refreshing in a moment.",
+    };
+  }
+}
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
-  await ensureBadgeSeeds();
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { companionName: true },
-  });
-  const companionName = user?.companionName?.trim() || "Buddy";
+  const loaded = await loadDashboardData(session.user.id);
 
-  const licenses = await prisma.license.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" },
-  });
-  const licenseIds = licenses.map((l) => l.id);
-  const now = Date.now();
-  const firstActiveLicense = licenses.find((license) => new Date(license.expiresAt).getTime() > now) || null;
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const [totalSignals, todaysMoods, recentEvents] =
-    licenseIds.length === 0
-      ? [0, [] as { mood: string }[], []]
-      : await Promise.all([
-          prisma.moodEvent.count({ where: { licenseId: { in: licenseIds } } }),
-          prisma.moodEvent.findMany({
-            where: { licenseId: { in: licenseIds }, timestamp: { gte: todayStart } },
-            select: { mood: true },
-          }),
-          prisma.moodEvent.findMany({
-            where: { licenseId: { in: licenseIds } },
-            orderBy: { timestamp: "desc" },
-            take: 12,
-          }),
-        ]);
-
-  const moodTally: Record<string, number> = {};
-  for (const row of todaysMoods) {
-    moodTally[row.mood] = (moodTally[row.mood] || 0) + 1;
+  if (!loaded.ok) {
+    return (
+      <main className="mx-auto w-full max-w-6xl px-6 py-10">
+        <p className="text-xs uppercase tracking-[0.24em] text-indigo-300">Buddy AI · emotional intelligence</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Dashboard</h1>
+        <div className="mt-8 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          {loaded.error}
+        </div>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link
+            href="/api/licenses/generate?plan=starter&days=14"
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+          >
+            Start 14-day trial license
+          </Link>
+          <Link
+            href="/pricing"
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+          >
+            View pricing
+          </Link>
+          <Link
+            href="/onboarding"
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+          >
+            Set up your Buddy
+          </Link>
+        </div>
+      </main>
+    );
   }
-  const topMoodToday =
-    Object.entries(moodTally).sort((a, b) => b[1] - a[1])[0]?.[0] || (totalSignals ? "neutral" : "—");
 
-  const happyToday = todaysMoods.filter((m) => m.mood === "happy" || m.mood === "excited").length;
-  const concernedToday = todaysMoods.filter((m) => m.mood === "concerned").length;
-  const denomToday = happyToday + concernedToday;
-  const moodScoreToday = denomToday ? Math.round((happyToday / denomToday) * 100) : null;
-
-  const widgetScriptUrl = getWidgetScriptUrl();
-  const activeEmbedScript = firstActiveLicense
-    ? `<script src="${widgetScriptUrl}" data-hq-key="${firstActiveLicense.key}" async></script>`
-    : "";
-  const allBadges = await prisma.badge.findMany({ orderBy: { createdAt: "asc" } });
-  const earnedBadges = await prisma.userBadge.findMany({
-    where: { userId: session.user.id },
-    select: { badgeId: true },
-  });
-  const earnedSet = new Set(earnedBadges.map((b) => b.badgeId));
+  const {
+    companionName,
+    licenses,
+    totalSignals,
+    topMoodToday,
+    moodScoreToday,
+    widgetScriptUrl,
+    activeEmbedScript,
+    firstActiveLicense,
+    allBadges,
+    earnedSet,
+    recentEvents,
+  } = loaded.data;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10">
-      <DashboardCelebration />
+      <Suspense fallback={null}>
+        <DashboardCelebration />
+      </Suspense>
       <p className="text-xs uppercase tracking-[0.24em] text-indigo-300">Buddy AI · emotional intelligence</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Dashboard</h1>
       <p className="mt-3 max-w-2xl text-slate-300">
@@ -223,43 +321,43 @@ export default async function DashboardPage() {
                 licenses.map((license) => {
                   const sub = subscriptionStatusLabel(license.lemonSqueezySubscriptionStatus, license.expiresAt);
                   return (
-                  <tr key={license.id} className="border-t border-slate-800">
-                    <td className="px-4 py-3 capitalize text-slate-200">{planLabel(license.plan)}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{license.key}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs capitalize ${sub.tone}`}>
-                        {sub.label}
-                      </span>
-                      {license.lemonSqueezyCustomerPortalUrl ? (
-                        <a
-                          className="mt-2 block text-xs text-emerald-300 hover:underline"
-                          href={license.lemonSqueezyCustomerPortalUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Open customer portal →
-                        </a>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-slate-300">{formatFeatures(license.features)}</td>
-                    <td className="px-4 py-3 text-slate-300">{new Date(license.expiresAt).toLocaleDateString()}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Link
-                          className="rounded border border-indigo-500/50 px-2 py-1 text-xs text-indigo-200"
-                          href={`/dashboard/theme?key=${encodeURIComponent(license.key)}`}
-                        >
-                          Theme
-                        </Link>
-                        <Link
-                          className="rounded border border-violet-500/50 px-2 py-1 text-xs text-violet-200"
-                          href="/pricing"
-                        >
-                          Upgrade
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
+                    <tr key={license.id} className="border-t border-slate-800">
+                      <td className="px-4 py-3 capitalize text-slate-200">{planLabel(license.plan)}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{license.key}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs capitalize ${sub.tone}`}>
+                          {sub.label}
+                        </span>
+                        {license.lemonSqueezyCustomerPortalUrl ? (
+                          <a
+                            className="mt-2 block text-xs text-emerald-300 hover:underline"
+                            href={license.lemonSqueezyCustomerPortalUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open customer portal →
+                          </a>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-slate-300">{formatFeatures(license.features)}</td>
+                      <td className="px-4 py-3 text-slate-300">{new Date(license.expiresAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            className="rounded border border-indigo-500/50 px-2 py-1 text-xs text-indigo-200"
+                            href={`/dashboard/theme?key=${encodeURIComponent(license.key)}`}
+                          >
+                            Theme
+                          </Link>
+                          <Link
+                            className="rounded border border-violet-500/50 px-2 py-1 text-xs text-violet-200"
+                            href="/pricing"
+                          >
+                            Upgrade
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })
               )}

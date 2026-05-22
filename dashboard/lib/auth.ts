@@ -61,8 +61,11 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
-    async jwt({ token, user }) {
-      if (user?.id) token.id = user.id;
+    async jwt({ token, user, account }) {
+      // OAuth providers supply their own subject id — always resolve our DB user id by email.
+      if (user?.id && account?.provider === "credentials") {
+        token.id = user.id;
+      }
       const email = (user?.email || token.email || "").toString().toLowerCase();
       const adminList = (process.env.BUDDY_ADMIN_EMAILS || "")
         .split(",")

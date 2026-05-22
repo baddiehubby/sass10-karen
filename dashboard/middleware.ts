@@ -105,10 +105,12 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  if (pathname.startsWith("/dashboard")) {
+  if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
     const token = await getToken({ req, secret: middlewareSecret });
     if (!token) {
-      const res = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const login = new URL("/login", req.url);
+      login.searchParams.set("callbackUrl", pathname);
+      const res = NextResponse.redirect(login);
       applySecurityHeaders(res);
       return res;
     }
@@ -120,5 +122,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*", "/dashboard/:path*"],
+  matcher: ["/api/:path*", "/dashboard", "/dashboard/:path*"],
 };

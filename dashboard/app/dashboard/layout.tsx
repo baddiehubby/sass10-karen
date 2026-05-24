@@ -1,12 +1,20 @@
 import type { Metadata } from "next";
-import { DashboardShell } from "@/components/dashboard-shell";
+import { DashboardMinimalNav } from "@/components/dashboard-minimal-nav";
 
 export const metadata: Metadata = {
   title: "Dashboard",
-  description: "Manage your Buddie AI Buddy, licenses, embed snippet, and emotional analytics home.",
+  description: "Your Buddy's home — mood, moments, and presence.",
   alternates: { canonical: "/dashboard" },
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <div
+      className="min-h-screen"
+      style={{ background: "#0a0a1a" }}
+    >
+      <DashboardMinimalNav />
+      {children}
+    </div>
+  );
 }

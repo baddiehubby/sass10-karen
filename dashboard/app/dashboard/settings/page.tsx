@@ -1,125 +1,71 @@
-"use client";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth";
+import { DashboardSettingsPanel } from "@/components/dashboard-settings-panel";
+import { prisma } from "@/lib/prisma";
+import { getWidgetScriptUrl } from "@/lib/widget-cdn";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { toast } from "react-hot-toast";
+function planLabel(plan: string) {
+  if (plan === "free") return "Expired";
+  if (plan === "pro") return "Starter";
+  return plan.charAt(0).toUpperCase() + plan.slice(1);
+}
 
-const personalities = [
-  { id: "cheerful", title: "Cheerful", desc: "Bright and upbeat — great for creators." },
-  { id: "calm", title: "Calm", desc: "Steady and professional — default for SaaS." },
-  { id: "genius", title: "Genius", desc: "Curious analyst — ideal for complex workflows." },
-] as const;
+function subscriptionStatusLabel(status: string | null, expiresAt: Date) {
+  const s = (status || "").trim().toLowerCase();
+  if (expiresAt.getTime() < Date.now()) {
+    return { label: "Expired", tone: "text-rose-300 border-rose-500/40 bg-rose-500/10" };
+  }
+  if (s === "active" || s === "on_trial") {
+    return { label: "Active", tone: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10" };
+  }
+  if (s === "past_due") return { label: "Past due", tone: "text-amber-300 border-amber-500/40 bg-amber-500/10" };
+  if (s === "cancelled" || s === "expired") {
+    return { label: "Cancelled", tone: "text-rose-300 border-rose-500/40 bg-rose-500/10" };
+  }
+  if (!s || s === "free") return { label: "Trial", tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
+  return { label: s.replace(/_/g, " "), tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
+}
 
-export default function DashboardSettingsPage() {
-  const [companionName, setCompanionName] = useState("");
-  const [personality, setPersonality] = useState<(typeof personalities)[number]["id"]>("calm");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+export const dynamic = "force-dynamic";
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const res = await fetch("/api/onboarding/bootstrap");
-      if (!res.ok) return;
-      const data = (await res.json()) as {
-        companionName?: string;
-        personality?: string;
-      };
-      if (!mounted) return;
-      if (data.companionName) setCompanionName(data.companionName);
-      if (data.personality === "cheerful" || data.personality === "calm" || data.personality === "genius") {
-        setPersonality(data.personality);
-      }
-      setLoading(false);
-    })();
-    return () => {
-      mounted = false;
+export default async function DashboardSettingsPage() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login");
+
+  const licenses = await prisma.license.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+  });
+  const now = Date.now();
+  const firstActive = licenses.find((l) => new Date(l.expiresAt).getTime() > now) || null;
+  const widgetScriptUrl = getWidgetScriptUrl();
+  const embedCode = firstActive
+    ? `<script src="${widgetScriptUrl}" data-hq-key="${firstActive.key}" async></script>`
+    : "";
+
+  const licenseRows = licenses.map((l) => {
+    const sub = subscriptionStatusLabel(l.lemonSqueezySubscriptionStatus, l.expiresAt);
+    return {
+      id: l.id,
+      key: l.key,
+      plan: l.plan,
+      expiresAt: l.expiresAt.toISOString(),
+      statusLabel: sub.label,
+      statusTone: sub.tone,
+      portalUrl: l.lemonSqueezyCustomerPortalUrl,
     };
-  }, []);
+  });
 
-  async function onSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await fetch("/api/onboarding/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companionName: companionName.trim() || "Buddy", personality }),
-      });
-      if (!res.ok) {
-        toast.error("Could not save settings");
-        return;
-      }
-      toast.success("Buddy updated");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (loading) {
-    return <p className="text-sm text-slate-400">Loading settings…</p>;
-  }
+  const planLicense = firstActive || licenses[0];
 
   return (
-    <div>
-      <p className="text-xs uppercase tracking-[0.24em] text-indigo-300">Settings</p>
-      <h1 className="mt-2 text-3xl font-semibold text-white">Customize your Buddy</h1>
-      <p className="mt-2 max-w-xl text-sm text-slate-400">
-        Set your companion&apos;s name and personality. You can change these anytime — your embed updates automatically.
-      </p>
-
-      <form onSubmit={onSave} className="mt-8 max-w-lg space-y-6 glass-panel p-6">
-        <label className="block">
-          <span className="text-sm font-medium text-slate-200">Companion name</span>
-          <input
-            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
-            value={companionName}
-            onChange={(e) => setCompanionName(e.target.value)}
-            placeholder="Buddy"
-            maxLength={60}
-          />
-        </label>
-
-        <fieldset>
-          <legend className="text-sm font-medium text-slate-200">Personality</legend>
-          <div className="mt-3 space-y-2">
-            {personalities.map((p) => (
-              <label
-                key={p.id}
-                className={`flex cursor-pointer gap-3 rounded-xl border px-4 py-3 ${
-                  personality === p.id ? "border-indigo-500/50 bg-indigo-500/10" : "border-white/10 bg-slate-950/40"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="personality"
-                  value={p.id}
-                  checked={personality === p.id}
-                  onChange={() => setPersonality(p.id)}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="font-medium text-white">{p.title}</span>
-                  <span className="mt-0.5 block text-xs text-slate-400">{p.desc}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save changes"}
-          </button>
-          <Link href="/dashboard" className="rounded-xl border border-white/15 px-5 py-2.5 text-sm text-slate-200 hover:bg-white/5">
-            Back to dashboard
-          </Link>
-        </div>
-      </form>
-    </div>
+    <DashboardSettingsPanel
+      embedCode={embedCode}
+      hasLicense={Boolean(firstActive)}
+      licenses={licenseRows}
+      planLabel={planLicense ? planLabel(planLicense.plan) : "None"}
+      licenseId={firstActive?.id ?? null}
+    />
   );
 }

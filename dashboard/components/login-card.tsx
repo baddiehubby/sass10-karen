@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { CinematicOrb, getTimeTheme, TIME_THEME_COLORS } from "@/components/cinematic-orb";
 
 type LoginCardProps = {
   nextAuthUrl: string;
@@ -12,96 +12,39 @@ type LoginCardProps = {
 export function LoginCard({ nextAuthUrl }: LoginCardProps) {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const theme = getTimeTheme();
+  const colors = TIME_THEME_COLORS[theme];
   const nextAuthConfigured = Boolean(nextAuthUrl);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    const form = e.currentTarget;
-    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
-    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
-
-    try {
-      const response = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (response?.error) {
-        setError("Invalid email or password");
-      } else {
-        window.location.href = callbackUrl;
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <main className="mx-auto w-full max-w-md px-6 py-12">
-      <div className="glass-panel p-8">
-        <h1 className="text-2xl font-semibold tracking-tight text-white">Sign in</h1>
-        <p className="mt-2 text-sm text-slate-300">
-          Already have a license? Sign in to manage your Buddy, embed code, and analytics.
+    <main
+      className="flex min-h-screen flex-col items-center justify-center px-6 py-16"
+      style={{
+        background: `#0a0a1a radial-gradient(ellipse 70% 50% at 50% 35%, ${colors.glow} 0%, transparent 65%)`,
+      }}
+    >
+      <CinematicOrb theme={theme} height="min(42vh, 280px)" breathing />
+      <p className="mt-8 max-w-sm text-center text-sm font-light tracking-wide text-white/60">
+        Continue with Google to keep your orb alive.
+      </p>
+
+      {!nextAuthConfigured ? (
+        <p className="mt-4 rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+          Configuration missing — check NEXTAUTH_URL
         </p>
-        <p className="mt-3 text-sm text-slate-400">
-          New here?{" "}
-          <Link href="/pricing" className="text-indigo-300 underline hover:text-indigo-200">
-            View pricing and start your trial
-          </Link>
-        </p>
+      ) : null}
 
-        {!nextAuthConfigured ? (
-          <p className="mt-4 rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
-            Configuration missing - check NEXTAUTH_URL
-          </p>
-        ) : null}
+      <button
+        type="button"
+        onClick={() => signIn("google", { callbackUrl })}
+        className="mt-8 w-full max-w-xs rounded-full border border-white/15 bg-white/8 px-6 py-3.5 text-sm font-medium text-white/90 backdrop-blur-sm transition hover:border-white/30 hover:bg-white/12"
+      >
+        Continue with Google
+      </button>
 
-        <button
-          type="button"
-          onClick={() => signIn("google", { callbackUrl })}
-          className="mt-5 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/15"
-        >
-          Continue with Google
-        </button>
-
-        <div className="my-5 flex items-center gap-3 text-xs text-slate-400">
-          <span className="h-px flex-1 bg-white/10" />
-          or
-          <span className="h-px flex-1 bg-white/10" />
-        </div>
-
-        {error ? <p className="text-sm text-red-500">{error}</p> : null}
-
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <input
-            name="email"
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
-            placeholder="Email"
-            type="email"
-            required
-          />
-          <input
-            name="password"
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
-            placeholder="Password"
-            type="password"
-            required
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-indigo-900/25 hover:bg-indigo-500 disabled:opacity-50"
-          >
-            {loading ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-      </div>
+      <Link href="/about" className="mt-10 text-xs text-white/30 transition hover:text-white/55">
+        Learn more
+      </Link>
     </main>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 type LoginCardProps = {
@@ -8,6 +10,8 @@ type LoginCardProps = {
 };
 
 export function LoginCard({ nextAuthUrl }: LoginCardProps) {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const nextAuthConfigured = Boolean(nextAuthUrl);
@@ -31,7 +35,7 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
       if (response?.error) {
         setError("Invalid email or password");
       } else {
-        window.location.href = "/dashboard";
+        window.location.href = callbackUrl;
       }
     } finally {
       setLoading(false);
@@ -41,8 +45,16 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
   return (
     <main className="mx-auto w-full max-w-md px-6 py-12">
       <div className="glass-panel p-8">
-        <h1 className="text-2xl font-semibold tracking-tight text-white">Login</h1>
-        <p className="mt-2 text-sm text-slate-300">Continue with your Google account or use email and password.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">Sign in</h1>
+        <p className="mt-2 text-sm text-slate-300">
+          Already have a license? Sign in to manage your Buddy, embed code, and analytics.
+        </p>
+        <p className="mt-3 text-sm text-slate-400">
+          New here?{" "}
+          <Link href="/pricing" className="text-indigo-300 underline hover:text-indigo-200">
+            View pricing and start your trial
+          </Link>
+        </p>
 
         {!nextAuthConfigured ? (
           <p className="mt-4 rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
@@ -52,7 +64,7 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
 
         <button
           type="button"
-          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+          onClick={() => signIn("google", { callbackUrl })}
           className="mt-5 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/15"
         >
           Continue with Google

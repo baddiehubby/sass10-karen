@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type PaidTier = "starter" | "agency" | "enterprise";
 
@@ -23,27 +23,48 @@ export default function PricingPage() {
 
   const { status } = useSession();
   const [error, setError] = useState<string | null>(null);
-  const [loadingTier, setLoadingTier] = useState<PaidTier | null>(null);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
 
-  async function subscribe(tier: PaidTier) {
-    setError(null);
-    setLoadingTier(tier);
-    try {
-      const res = await fetch("/api/lemonsqueezy/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier }),
-      });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) {
-        setError(data.error || "Could not start Lemon Squeezy checkout");
-        return;
+  const startCheckout = useCallback(
+    async (tier: PaidTier, trial: boolean) => {
+      setError(null);
+      const loadingId = `${tier}-${trial ? "trial" : "buy"}`;
+      setLoadingKey(loadingId);
+
+      try {
+        if (status !== "authenticated") {
+          const returnParams = new URLSearchParams({ checkout: tier, trial: trial ? "1" : "0" });
+          window.location.href = `/register?returnUrl=${encodeURIComponent(`/pricing?${returnParams}`)}`;
+          return;
+        }
+
+        const res = await fetch("/api/lemonsqueezy/create-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tier, trial }),
+        });
+        const data = (await res.json()) as { url?: string; error?: string };
+        if (!res.ok || !data.url) {
+          setError(data.error || "Could not start Lemon Squeezy checkout");
+          return;
+        }
+        window.location.href = data.url;
+      } finally {
+        setLoadingKey(null);
       }
-      window.location.href = data.url;
-    } finally {
-      setLoadingTier(null);
+    },
+    [status],
+  );
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get("checkout") as PaidTier | null;
+    const trial = params.get("trial") === "1";
+    if (checkout === "starter" || checkout === "agency" || checkout === "enterprise") {
+      void startCheckout(checkout, trial);
     }
-  }
+  }, [status, startCheckout]);
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-14">
@@ -51,8 +72,8 @@ export default function PricingPage() {
       <p className="text-xs uppercase tracking-[0.28em] text-indigo-300">Buddy AI · emotional intelligence</p>
       <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-5xl">Premium pricing</h1>
       <p className="mt-4 max-w-2xl text-slate-300">
-        No free tier. All paid plans are billed securely through Lemon Squeezy. Start a 14-day trial license from your
-        dashboard, then subscribe to unlock full compliance and analytics.
+        Start with a card on file — your 14-day trial begins instantly. After payment, your license is created
+        automatically and you land on a live dashboard with embed code and orb preview.
       </p>
 
       <div className="mt-10 grid gap-5 md:grid-cols-3">
@@ -68,13 +89,22 @@ export default function PricingPage() {
           </ul>
           <p className="mt-5 text-4xl font-bold text-white">$49</p>
           <p className="text-xs text-slate-400">per month</p>
-          <button
-            disabled={status !== "authenticated" || loadingTier !== null}
-            onClick={() => void subscribe("starter")}
-            className="mt-6 w-full rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 hover:bg-indigo-500 disabled:opacity-50"
-          >
-            {loadingTier === "starter" ? "Redirecting…" : "Subscribe"}
-          </button>
+          <div className="mt-6 space-y-2">
+            <button
+              disabled={loadingKey !== null}
+              onClick={() => void startCheckout("starter", true)}
+              className="w-full rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 hover:bg-indigo-500 disabled:opacity-50"
+            >
+              {loadingKey === "starter-trial" ? "Redirecting…" : "Start 14-Day Trial"}
+            </button>
+            <button
+              disabled={loadingKey !== null}
+              onClick={() => void startCheckout("starter", false)}
+              className="w-full rounded-full border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-100 hover:bg-white/10 disabled:opacity-50"
+            >
+              {loadingKey === "starter-buy" ? "Redirecting…" : "Buy Now"}
+            </button>
+          </div>
         </article>
 
         <article className="glass-panel p-6 ring-1 ring-violet-500/30">
@@ -90,11 +120,11 @@ export default function PricingPage() {
           <p className="mt-5 text-4xl font-bold text-white">$149</p>
           <p className="text-xs text-slate-400">per month</p>
           <button
-            disabled={status !== "authenticated" || loadingTier !== null}
-            onClick={() => void subscribe("agency")}
+            disabled={loadingKey !== null}
+            onClick={() => void startCheckout("agency", false)}
             className="mt-6 w-full rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 hover:bg-indigo-500 disabled:opacity-50"
           >
-            {loadingTier === "agency" ? "Redirecting…" : "Subscribe"}
+            {loadingKey === "agency-buy" ? "Redirecting…" : "Subscribe"}
           </button>
         </article>
 
@@ -111,23 +141,27 @@ export default function PricingPage() {
           <p className="mt-5 text-4xl font-bold text-white">$499</p>
           <p className="text-xs text-slate-400">per month</p>
           <button
-            disabled={status !== "authenticated" || loadingTier !== null}
-            onClick={() => void subscribe("enterprise")}
+            disabled={loadingKey !== null}
+            onClick={() => void startCheckout("enterprise", false)}
             className="mt-6 w-full rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 hover:bg-indigo-500 disabled:opacity-50"
           >
-            {loadingTier === "enterprise" ? "Redirecting…" : "Subscribe"}
+            {loadingKey === "enterprise-buy" ? "Redirecting…" : "Subscribe"}
           </button>
         </article>
       </div>
 
-      {status !== "authenticated" ? (
-        <p className="mt-4 text-sm text-amber-300">
-          <Link href="/login" className="underline">
-            Log in
-          </Link>{" "}
-          to start Lemon Squeezy checkout.
-        </p>
-      ) : null}
+      <p className="mt-6 text-sm text-slate-400">
+        {status === "authenticated" ? (
+          <>Signed in — checkout opens Lemon Squeezy securely.</>
+        ) : (
+          <>
+            New here? Choose a plan above — we&apos;ll create your account, then send you to checkout.{" "}
+            <Link href="/login" className="text-indigo-300 underline">
+              Already have a license? Sign in
+            </Link>
+          </>
+        )}
+      </p>
       {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
 
       <section className="mt-16 glass-panel p-6 sm:p-8">

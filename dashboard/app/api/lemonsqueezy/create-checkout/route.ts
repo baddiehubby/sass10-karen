@@ -13,9 +13,9 @@ export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, lemonCheckoutBodySchema);
   if (!parsed.ok) return parsed.response;
 
-  const { tier } = parsed.data;
+  const { tier, trial } = parsed.data;
   const storeId = getLemonStoreId();
-  const variantId = getLemonVariantIdByTier(tier);
+  const variantId = getLemonVariantIdByTier(tier, { trial });
   if (!storeId || !variantId) {
     return NextResponse.json(
       { error: "Lemon Squeezy is not configured (LEMONSQUEEZY_STORE_ID / variant IDs)." },
@@ -41,10 +41,11 @@ export async function POST(req: Request) {
             custom: {
               user_id: session.user.id,
               tier,
+              trial: trial ? "true" : "false",
             },
           },
           product_options: {
-            redirect_url: `${base}/dashboard?lemonsqueezy=success`,
+            redirect_url: `${base}/dashboard?payment=success`,
           },
         },
         relationships: {

@@ -24,7 +24,11 @@ function variantEnv(tier: LemonCheckoutTier): string {
   return map[tier] || "";
 }
 
-export function getLemonVariantIdByTier(tier: LemonCheckoutTier): string {
+export function getLemonVariantIdByTier(tier: LemonCheckoutTier, opts?: { trial?: boolean }): string {
+  if (tier === "starter" && opts?.trial) {
+    const trialVariant = process.env.LEMONSQUEEZY_STARTER_TRIAL_VARIANT_ID?.trim();
+    if (trialVariant) return trialVariant;
+  }
   return variantEnv(tier);
 }
 

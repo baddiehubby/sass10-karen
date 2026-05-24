@@ -197,6 +197,7 @@ export const lemonCheckoutBodySchema = z.object({
     .max(12)
     .transform((s) => s.trim().toLowerCase())
     .pipe(z.enum(["starter", "agency", "enterprise"])),
+  trial: z.boolean().optional().default(false),
 });
 
 export const licenseThemePostSchema = z.object({

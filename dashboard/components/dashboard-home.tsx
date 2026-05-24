@@ -17,6 +17,7 @@ export type DashboardHomeProps = {
   sparklineEvents: Array<{ mood: string; timestamp: string }>;
   recentMoments: Array<{ id: string; mood: string; domain: string | null; timestamp: string }>;
   hasLicense: boolean;
+  isFreeOnly: boolean;
 };
 
 export function DashboardHome({
@@ -29,6 +30,7 @@ export function DashboardHome({
   sparklineEvents,
   recentMoments,
   hasLicense,
+  isFreeOnly,
 }: DashboardHomeProps) {
   const moodLabel = topMood === "—" ? "listening" : topMood;
   const pronoun = pronounForName(companionName);
@@ -72,7 +74,7 @@ export function DashboardHome({
             <li className="text-sm font-light text-white/35">
               {hasLicense
                 ? "No moments yet. Your orb is listening — embed it on your site to begin."
-                : "Keep your orb alive with a license — then moments will appear here."}
+                : "Sign in to activate your free Buddy — moments will appear here."}
             </li>
           ) : (
             recentMoments.slice(0, 5).map((ev) => (
@@ -88,12 +90,12 @@ export function DashboardHome({
         Embed
       </Link>
 
-      {!hasLicense ? (
+      {isFreeOnly ? (
         <Link
           href="/pricing"
-          className="mt-6 rounded-full border border-violet-500/25 px-5 py-2 text-xs text-violet-200/80 hover:bg-violet-500/10"
+          className="mt-6 text-xs text-white/40 transition hover:text-violet-200/80"
         >
-          Keep your orb alive
+          Free — Upgrade for analytics &amp; custom themes
         </Link>
       ) : null}
     </div>

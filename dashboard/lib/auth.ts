@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { ensureFreeLicenseForUser } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -51,13 +52,14 @@ export const authOptions: NextAuthOptions = {
           const email = user.email.toLowerCase();
           const existing = await prisma.user.findUnique({ where: { email } });
           if (!existing) {
-            await prisma.user.create({
+            const created = await prisma.user.create({
               data: {
                 email,
                 password: await bcrypt.hash(Math.random().toString(36), 10),
                 name: user.name || user.email,
               },
             });
+            await ensureFreeLicenseForUser(created.id);
           }
         } catch (err) {
           console.error("[auth] google signIn", err);
@@ -95,6 +97,9 @@ export const authOptions: NextAuthOptions = {
               data: { onboardingCompleted: true },
             });
             dbUser.onboardingCompleted = true;
+          }
+          if (dbUser._count.licenses === 0) {
+            await ensureFreeLicenseForUser(dbUser.id);
           }
           token.id = dbUser.id;
           token.onboardingCompleted = dbUser.onboardingCompleted;

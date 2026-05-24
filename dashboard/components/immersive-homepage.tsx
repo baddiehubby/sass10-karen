@@ -150,16 +150,23 @@ export function ImmersiveHomepage() {
 
         <AnimatePresence>
           {showCta ? (
-            <motion.button
-              type="button"
+            <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1.4, ease: "easeOut" }}
-              onClick={() => router.push("/login")}
-              className="pointer-events-auto mt-8 text-sm tracking-wide text-white/45 transition-colors hover:text-white/75"
+              className="pointer-events-auto mt-8 flex flex-col items-center"
             >
-              Keep your orb alive →
-            </motion.button>
+              <button
+                type="button"
+                onClick={() => router.push("/login")}
+                className="text-sm tracking-wide text-white/45 transition-colors hover:text-white/75"
+              >
+                Keep your orb alive →
+              </button>
+              <p className="mt-3 max-w-xs text-center text-xs text-slate-500">
+                No credit card needed. Your Buddy stays free forever. Upgrade when you&apos;re ready.
+              </p>
+            </motion.div>
           ) : null}
         </AnimatePresence>
       </div>

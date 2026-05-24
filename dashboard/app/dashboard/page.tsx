@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { DashboardHome } from "@/components/dashboard-home";
 import { daysSince } from "@/lib/dashboard-format";
+import { ensureFreeLicenseForUser, isLicenseActive, isPaidPlan } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
 import { getWidgetScriptUrl } from "@/lib/widget-cdn";
 
@@ -22,6 +23,8 @@ export default async function DashboardPage() {
   }
   if (!userId) redirect("/login");
 
+  await ensureFreeLicenseForUser(userId);
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { companionName: true, createdAt: true },
@@ -33,8 +36,11 @@ export default async function DashboardPage() {
     orderBy: { createdAt: "asc" },
   });
   const licenseIds = licenses.map((l) => l.id);
-  const now = Date.now();
-  const firstActiveLicense = licenses.find((l) => new Date(l.expiresAt).getTime() > now) || null;
+
+  const activePaidLicense = licenses.find((l) => isPaidPlan(l.plan) && isLicenseActive(l)) || null;
+  const freeLicense = licenses.find((l) => l.plan === "free" && isLicenseActive(l)) || null;
+  const orbLicense = activePaidLicense ?? freeLicense;
+  const isFreeOnly = !activePaidLicense && Boolean(freeLicense);
 
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
@@ -82,7 +88,7 @@ export default async function DashboardPage() {
       companionName={companionName}
       topMood={topMood}
       daysTogether={daysTogether}
-      licenseKey={firstActiveLicense?.key ?? null}
+      licenseKey={orbLicense?.key ?? null}
       scriptUrl={widgetScriptUrl}
       apiBase={apiBase}
       sparklineEvents={weekEvents.map((e) => ({
@@ -95,7 +101,8 @@ export default async function DashboardPage() {
         domain: e.domain,
         timestamp: e.timestamp.toISOString(),
       }))}
-      hasLicense={Boolean(firstActiveLicense)}
+      hasLicense={Boolean(orbLicense)}
+      isFreeOnly={isFreeOnly}
     />
   );
 }

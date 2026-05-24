@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/api-json";
+import { ensureFreeLicenseForUser } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
 import { registerBodySchema } from "@/lib/validation";
 
@@ -32,6 +33,8 @@ export async function POST(req: Request) {
         name: true,
       },
     });
+
+    await ensureFreeLicenseForUser(user.id);
 
     return NextResponse.json({ userId: user.id, user });
   } catch (err) {

@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     );
   }
 
-  if (license.expiresAt.getTime() < Date.now()) {
+  if (license.plan.trim().toLowerCase() !== "free" && license.expiresAt.getTime() < Date.now()) {
     return NextResponse.json(
       { valid: false, reason: "License expired", features: null },
       { headers: corsHeaders() },

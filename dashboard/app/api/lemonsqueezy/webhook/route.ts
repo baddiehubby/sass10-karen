@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFeatureByPlan } from "@/lib/feature-plans";
+import { FREE_LICENSE_FEATURES, FREE_PERPETUAL_EXPIRY } from "@/lib/free-license";
 import { planByVariantId, verifyLemonSignature, type LemonPaidPlan } from "@/lib/lemonsqueezy";
 import { generateLicenseKey } from "@/lib/license";
 import { prisma } from "@/lib/prisma";
@@ -41,7 +42,7 @@ function resolveExpiryDate(attrs: NonNullable<LemonPayload["data"]>["attributes"
 function tierFromMetadata(custom: Record<string, unknown> | undefined, variantPlan: LemonPaidPlan | "free"): LemonPaidPlan | "free" {
   const tier = asString(custom?.tier).toLowerCase();
   if (tier === "starter" || tier === "agency" || tier === "enterprise" || tier === "pro") {
-    return tier === "pro" ? "starter" : (tier as LemonPaidPlan);
+    return tier === "starter" ? "pro" : (tier as LemonPaidPlan);
   }
   return variantPlan === "free" ? "free" : variantPlan;
 }
@@ -113,11 +114,8 @@ export async function POST(req: Request) {
 
   if (!targetLicenseId && targetUserId) {
     const existingUserLicense = await prisma.license.findFirst({
-      where: {
-        userId: targetUserId,
-        plan: { in: ["starter", "pro", "agency", "enterprise"] },
-      },
-      orderBy: { createdAt: "desc" },
+      where: { userId: targetUserId },
+      orderBy: { createdAt: "asc" },
       select: { id: true },
     });
     targetLicenseId = existingUserLicense?.id || null;
@@ -187,8 +185,8 @@ export async function POST(req: Request) {
         where: { id: targetLicenseId },
         data: {
           plan: "free",
-          features: JSON.stringify(getFeatureByPlan("free")),
-          expiresAt: new Date(),
+          features: JSON.stringify(FREE_LICENSE_FEATURES),
+          expiresAt: FREE_PERPETUAL_EXPIRY,
           lemonSqueezySubscriptionStatus: "cancelled",
           lemonSqueezyCustomerPortalUrl: customerPortalUrl,
         },

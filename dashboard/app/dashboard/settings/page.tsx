@@ -2,17 +2,15 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { DashboardSettingsPanel } from "@/components/dashboard-settings-panel";
+import { displayPlanName, ensureFreeLicenseForUser, isLicenseActive, isPaidPlan } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
 import { getWidgetScriptUrl } from "@/lib/widget-cdn";
 
-function planLabel(plan: string) {
-  if (plan === "free") return "Expired";
-  if (plan === "pro") return "Starter";
-  return plan.charAt(0).toUpperCase() + plan.slice(1);
-}
-
-function subscriptionStatusLabel(status: string | null, expiresAt: Date) {
+function subscriptionStatusLabel(status: string | null, expiresAt: Date, plan: string) {
   const s = (status || "").trim().toLowerCase();
+  if (plan === "free") {
+    return { label: "Free forever", tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
+  }
   if (expiresAt.getTime() < Date.now()) {
     return { label: "Expired", tone: "text-rose-300 border-rose-500/40 bg-rose-500/10" };
   }
@@ -33,19 +31,22 @@ export default async function DashboardSettingsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
+  await ensureFreeLicenseForUser(session.user.id);
+
   const licenses = await prisma.license.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
   });
-  const now = Date.now();
-  const firstActive = licenses.find((l) => new Date(l.expiresAt).getTime() > now) || null;
+  const activePaid = licenses.find((l) => isPaidPlan(l.plan) && isLicenseActive(l)) || null;
+  const freeLicense = licenses.find((l) => l.plan === "free" && isLicenseActive(l)) || null;
+  const embedLicense = activePaid ?? freeLicense;
   const widgetScriptUrl = getWidgetScriptUrl();
-  const embedCode = firstActive
-    ? `<script src="${widgetScriptUrl}" data-hq-key="${firstActive.key}" async></script>`
+  const embedCode = embedLicense
+    ? `<script src="${widgetScriptUrl}" data-hq-key="${embedLicense.key}" async></script>`
     : "";
 
   const licenseRows = licenses.map((l) => {
-    const sub = subscriptionStatusLabel(l.lemonSqueezySubscriptionStatus, l.expiresAt);
+    const sub = subscriptionStatusLabel(l.lemonSqueezySubscriptionStatus, l.expiresAt, l.plan);
     return {
       id: l.id,
       key: l.key,
@@ -57,15 +58,15 @@ export default async function DashboardSettingsPage() {
     };
   });
 
-  const planLicense = firstActive || licenses[0];
+  const planLicense = activePaid ?? freeLicense ?? licenses[0];
 
   return (
     <DashboardSettingsPanel
       embedCode={embedCode}
-      hasLicense={Boolean(firstActive)}
+      hasLicense={Boolean(embedLicense)}
       licenses={licenseRows}
-      planLabel={planLicense ? planLabel(planLicense.plan) : "None"}
-      licenseId={firstActive?.id ?? null}
+      planLabel={planLicense ? displayPlanName(planLicense.plan) : "None"}
+      licenseId={embedLicense?.id ?? null}
     />
   );
 }

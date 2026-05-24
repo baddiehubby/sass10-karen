@@ -130,7 +130,17 @@ export function ImmersiveHomepage() {
       onMouseMove={markInteraction}
       onClick={markInteraction}
     >
-      <CinematicOrb theme={theme} breathing={breathing} scrollPulse={scrollPulse} mouseRef={mouseRef} />
+      <div className="flex flex-col items-center">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="pointer-events-none mb-3 text-center text-sm font-light tracking-wide text-slate-400"
+        >
+          Your AI companion, always listening.
+        </motion.p>
+        <CinematicOrb theme={theme} breathing={breathing} scrollPulse={scrollPulse} mouseRef={mouseRef} />
+      </div>
 
       <div className="pointer-events-none relative mt-2 flex min-h-[4rem] w-full max-w-md flex-col items-center px-6">
         <AnimatePresence mode="wait">

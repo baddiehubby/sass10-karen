@@ -193,6 +193,9 @@ export function DashboardSettingsPanel({
           <Link href="/dashboard/analytics" className="hover:text-white/75">
             Analytics
           </Link>
+          <Link href="/dashboard/theme" className="hover:text-white/75">
+            Custom themes
+          </Link>
           <Link href="/dashboard/messages" className="hover:text-white/75">
             Messages
           </Link>

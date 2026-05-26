@@ -4,6 +4,15 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { ensureFreeLicenseForUser } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
+import {
+  getCanonicalSiteUrl,
+  logAuthUrlDebug,
+  pinNextAuthUrl,
+  resolvePostAuthCallbackUrl,
+} from "@/lib/site-url";
+
+pinNextAuthUrl();
+logAuthUrlDebug("authOptions");
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -129,15 +138,22 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      if (url.startsWith(baseUrl)) return url;
-      return `${baseUrl}/dashboard`;
+    async redirect({ url }) {
+      const siteUrl = getCanonicalSiteUrl();
+      if (url.startsWith("/")) return `${siteUrl}${url}`;
+      try {
+        const target = new URL(url);
+        const allowed = new URL(siteUrl);
+        if (target.origin === allowed.origin) return url;
+      } catch {
+        /* ignore malformed url */
+      }
+      return resolvePostAuthCallbackUrl("/dashboard");
     },
   },
   pages: {
     signIn: "/login",
   },
   secret: authSecret,
-  debug: true,
+  debug: process.env.NODE_ENV === "development",
 };

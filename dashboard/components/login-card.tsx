@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { CinematicOrb, getTimeTheme, TIME_THEME_COLORS } from "@/components/cinematic-orb";
+import { getClientSignInCallbackUrl } from "@/lib/site-url";
 
 type LoginCardProps = {
   nextAuthUrl: string;
@@ -11,7 +12,7 @@ type LoginCardProps = {
 
 export function LoginCard({ nextAuthUrl }: LoginCardProps) {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = getClientSignInCallbackUrl(searchParams.get("callbackUrl"));
   const theme = getTimeTheme();
   const colors = TIME_THEME_COLORS[theme];
   const nextAuthConfigured = Boolean(nextAuthUrl);

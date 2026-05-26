@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { LoginCard } from "@/components/login-card";
+import { getCanonicalSiteUrl } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Login",
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  const nextAuthUrl = process.env.NEXTAUTH_URL?.trim() || "";
+  const nextAuthUrl = getCanonicalSiteUrl();
   return (
     <Suspense fallback={<main className="mx-auto max-w-md px-6 py-12 text-slate-400">Loading…</main>}>
       <LoginCard nextAuthUrl={nextAuthUrl} />

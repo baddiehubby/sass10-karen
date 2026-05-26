@@ -196,7 +196,7 @@ export const lemonCheckoutBodySchema = z.object({
     .string()
     .max(12)
     .transform((s) => s.trim().toLowerCase())
-    .pipe(z.enum(["pro", "agency", "starter", "enterprise"])),
+    .pipe(z.enum(["pro", "agency"])),
   trial: z.boolean().optional().default(false),
 });
 

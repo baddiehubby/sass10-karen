@@ -2,8 +2,10 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
-import { lemonRequest, getLemonStoreId, getLemonVariantIdByTier } from "@/lib/lemonsqueezy";
+import { lemonRequest, getLemonVariantIdByTier, resolveLemonStoreId } from "@/lib/lemonsqueezy";
+import { isPaidCheckoutTier } from "@/lib/pricing-plans";
 import { prisma } from "@/lib/prisma";
+import { getCanonicalSiteUrl } from "@/lib/site-url";
 import { lemonCheckoutBodySchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
@@ -14,11 +16,25 @@ export async function POST(req: Request) {
   if (!parsed.ok) return parsed.response;
 
   const { tier, trial } = parsed.data;
-  const storeId = getLemonStoreId();
-  const variantId = getLemonVariantIdByTier(tier, { trial });
-  if (!storeId || !variantId) {
+  if (!isPaidCheckoutTier(tier)) {
     return NextResponse.json(
-      { error: "Lemon Squeezy is not configured (LEMONSQUEEZY_STORE_ID / variant IDs)." },
+      {
+        error:
+          "Buddy Free does not use checkout. Sign in with Google — your free license is created automatically.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const variantId = getLemonVariantIdByTier(tier, { trial });
+  const storeId = await resolveLemonStoreId();
+  if (!variantId || !storeId) {
+    const missing =
+      tier === "pro" ? "LEMONSQUEEZY_PRO_VARIANT_ID" : "LEMONSQUEEZY_AGENCY_VARIANT_ID";
+    return NextResponse.json(
+      {
+        error: `Lemon Squeezy is not configured (${missing}, LEMONSQUEEZY_API_KEY).`,
+      },
       { status: 501 },
     );
   }
@@ -28,7 +44,7 @@ export async function POST(req: Request) {
     select: { email: true, name: true },
   });
 
-  const base = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+  const base = getCanonicalSiteUrl();
   const response = await lemonRequest("/checkouts", {
     method: "POST",
     body: JSON.stringify({

@@ -10,12 +10,20 @@ type LoginCardProps = {
   nextAuthUrl: string;
 };
 
+const OAUTH_REDIRECT_URI = "https://www.buddieai.com/api/auth/callback/google";
+
 export function LoginCard({ nextAuthUrl }: LoginCardProps) {
   const searchParams = useSearchParams();
   const callbackUrl = getClientSignInCallbackUrl(searchParams.get("callbackUrl"));
+  const authError = searchParams.get("error");
   const theme = getTimeTheme();
   const colors = TIME_THEME_COLORS[theme];
   const nextAuthConfigured = Boolean(nextAuthUrl);
+  const showOAuthSetupHint =
+    authError === "google" ||
+    authError === "OAuthSignin" ||
+    authError === "OAuthCallback" ||
+    authError === "Configuration";
 
   return (
     <main
@@ -32,6 +40,14 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
       {!nextAuthConfigured ? (
         <p className="mt-4 rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
           Configuration missing — check NEXTAUTH_URL
+        </p>
+      ) : null}
+
+      {showOAuthSetupHint ? (
+        <p className="mt-4 max-w-sm rounded-lg border border-rose-300/25 bg-rose-500/10 px-3 py-2 text-center text-xs leading-relaxed text-rose-100/90">
+          Google sign-in failed. In Google Cloud Console → Credentials → your{" "}
+          <strong>Web client</strong>, add this exact Authorized redirect URI:{" "}
+          <code className="break-all text-rose-50">{OAUTH_REDIRECT_URI}</code>
         </p>
       ) : null}
 

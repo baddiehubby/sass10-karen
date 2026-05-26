@@ -21,12 +21,12 @@ NEXTAUTH_SECRET=
 # Comma-separated admin emails — unlocks /dashboard/outreach
 BUDDY_ADMIN_EMAILS=you@company.com
 
-# Lemon Squeezy
+# Lemon Squeezy (Pro + Agency checkout only; Free is in-app via Google sign-in)
 LEMONSQUEEZY_API_KEY=
 LEMONSQUEEZY_WEBHOOK_SECRET=
-LEMONSQUEEZY_STORE_ID=
-LEMONSQUEEZY_PRO_VARIANT_ID=
-LEMONSQUEEZY_AGENCY_VARIANT_ID=
+LEMONSQUEEZY_STORE_ID=   # optional; auto-fetched via API if omitted
+LEMONSQUEEZY_PRO_VARIANT_ID=      # Lemon "Pro" $29.99
+LEMONSQUEEZY_AGENCY_VARIANT_ID=  # Lemon "Agency" $199.99
 
 # Optional: full URL to livingface-widget.js on your CDN (no trailing slash)
 WIDGET_CDN_URL=

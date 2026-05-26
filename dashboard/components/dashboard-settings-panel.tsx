@@ -7,6 +7,7 @@ import { CHROME_WEB_STORE_URL } from "@/lib/marketing-links";
 import { CopyEmbedCodeButton } from "@/components/copy-embed-code-button";
 import { DashboardEmbedActions } from "@/components/dashboard-embed-actions";
 import { ComplianceActions } from "@/components/compliance-actions";
+import { displayPlanName } from "@/lib/free-license";
 
 const personalities = [
   { id: "cheerful", title: "Cheerful", desc: "Bright and upbeat — great for creators." },
@@ -31,12 +32,6 @@ type DashboardSettingsPanelProps = {
   planLabel: string;
   licenseId: string | null;
 };
-
-function planDisplay(plan: string) {
-  if (plan === "pro") return "Starter";
-  if (plan === "free") return "Expired";
-  return plan.charAt(0).toUpperCase() + plan.slice(1);
-}
 
 export function DashboardSettingsPanel({
   embedCode,
@@ -220,7 +215,7 @@ export function DashboardSettingsPanel({
           <ul className="mt-3 space-y-2 text-xs text-white/45">
             {licenses.map((l) => (
               <li key={l.id} className="flex justify-between gap-2 border-b border-white/5 pb-2">
-                <span className="capitalize">{planDisplay(l.plan)}</span>
+                <span>{displayPlanName(l.plan)}</span>
                 <span className="font-mono">{l.key.slice(-12)}</span>
               </li>
             ))}

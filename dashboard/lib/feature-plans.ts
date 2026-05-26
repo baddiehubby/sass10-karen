@@ -32,11 +32,10 @@ export const PLAN_FEATURES: Record<"free" | "pro" | "premium" | "agency", Featur
   },
 };
 
-/** Tier reference prices (USD) used for pricing display/docs. */
-export const PLAN_PRICE_USD: Record<"starter" | "agency" | "enterprise", number> = {
-  starter: 49,
-  agency: 149,
-  enterprise: 499,
+/** Tier reference prices (USD) — must match Lemon Squeezy products on /pricing. */
+export const PLAN_PRICE_USD: Record<"pro" | "agency", number> = {
+  pro: 29.99,
+  agency: 199.99,
 };
 
 export function getFeatureByPlan(plan: string): FeatureFlags {

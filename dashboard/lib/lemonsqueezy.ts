@@ -1,9 +1,13 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import type { PaidCheckoutTier } from "@/lib/pricing-plans";
 
 const API_BASE = "https://api.lemonsqueezy.com/v1";
 
-export type LemonCheckoutTier = "pro" | "agency" | "starter" | "enterprise";
-export type LemonPaidPlan = LemonCheckoutTier;
+/** Tiers that open Lemon Squeezy checkout (paid products only). */
+export type LemonCheckoutTier = PaidCheckoutTier;
+
+/** Plans resolved from Lemon webhooks (includes legacy variant IDs). */
+export type LemonWebhookPlan = LemonCheckoutTier | "starter" | "enterprise";
 
 export function getLemonApiKey(): string {
   return process.env.LEMONSQUEEZY_API_KEY?.trim() || "";
@@ -13,43 +17,70 @@ export function getLemonStoreId(): string {
   return process.env.LEMONSQUEEZY_STORE_ID?.trim() || "";
 }
 
-function variantEnv(tier: LemonCheckoutTier): string {
-  const map: Record<LemonCheckoutTier, string | undefined> = {
-    pro:
-      process.env.LEMONSQUEEZY_PRO_VARIANT_ID?.trim() ||
-      process.env.LEMONSQUEEZY_STARTER_VARIANT_ID?.trim(),
-    starter:
-      process.env.LEMONSQUEEZY_STARTER_VARIANT_ID?.trim() ||
-      process.env.LEMONSQUEEZY_PRO_VARIANT_ID?.trim(),
-    agency: process.env.LEMONSQUEEZY_AGENCY_VARIANT_ID?.trim(),
-    enterprise: process.env.LEMONSQUEEZY_ENTERPRISE_VARIANT_ID?.trim(),
-  };
-  return map[tier] || "";
+/** In-process cache when store ID is resolved via API (single-store accounts). */
+let cachedStoreIdFromApi: string | null = null;
+
+/**
+ * Store ID for checkout creation. Uses LEMONSQUEEZY_STORE_ID when set; otherwise
+ * fetches GET /v1/stores and uses the first store (requires LEMONSQUEEZY_API_KEY).
+ */
+export async function resolveLemonStoreId(): Promise<string> {
+  const fromEnv = getLemonStoreId();
+  if (fromEnv) return fromEnv;
+
+  if (cachedStoreIdFromApi) return cachedStoreIdFromApi;
+  if (!getLemonApiKey()) return "";
+
+  try {
+    const response = await lemonRequest("/stores");
+    const payload = (await response.json()) as {
+      data?: Array<{ id: string }>;
+      errors?: Array<{ detail?: string }>;
+    };
+
+    if (!response.ok) {
+      console.error("[lemonsqueezy] list stores:", payload.errors?.[0]?.detail || response.status);
+      return "";
+    }
+
+    const id = payload.data?.[0]?.id?.trim() || "";
+    if (id) cachedStoreIdFromApi = id;
+    return id;
+  } catch (err) {
+    console.error("[lemonsqueezy] resolve store id", err);
+    return "";
+  }
+}
+
+function variantIdForCheckoutTier(tier: LemonCheckoutTier): string {
+  if (tier === "pro") {
+    return process.env.LEMONSQUEEZY_PRO_VARIANT_ID?.trim() || "";
+  }
+  return process.env.LEMONSQUEEZY_AGENCY_VARIANT_ID?.trim() || "";
 }
 
 export function getLemonVariantIdByTier(tier: LemonCheckoutTier, opts?: { trial?: boolean }): string {
-  const resolved: LemonCheckoutTier = tier === "starter" ? "pro" : tier;
-  if (resolved === "pro" && opts?.trial) {
-    const trialVariant = process.env.LEMONSQUEEZY_STARTER_TRIAL_VARIANT_ID?.trim();
+  if (tier === "pro" && opts?.trial) {
+    const trialVariant = process.env.LEMONSQUEEZY_PRO_TRIAL_VARIANT_ID?.trim();
     if (trialVariant) return trialVariant;
   }
-  return variantEnv(resolved);
+  return variantIdForCheckoutTier(tier);
 }
 
-export function planByVariantId(variantId: string): LemonPaidPlan | "free" {
+/** Map Lemon variant IDs to app license plans (webhooks / legacy products). */
+export function planByVariantId(variantId: string): LemonWebhookPlan | "free" {
   const id = variantId.trim();
   if (!id) return "free";
 
-  const pro =
-    process.env.LEMONSQUEEZY_PRO_VARIANT_ID?.trim() ||
-    process.env.LEMONSQUEEZY_STARTER_VARIANT_ID?.trim();
-  const starter = process.env.LEMONSQUEEZY_STARTER_VARIANT_ID?.trim();
+  const pro = process.env.LEMONSQUEEZY_PRO_VARIANT_ID?.trim();
   const agency = process.env.LEMONSQUEEZY_AGENCY_VARIANT_ID?.trim();
+  /** Legacy Lemon "Starter" product — treated as Pro in the app. */
+  const starter = process.env.LEMONSQUEEZY_STARTER_VARIANT_ID?.trim();
   const enterprise = process.env.LEMONSQUEEZY_ENTERPRISE_VARIANT_ID?.trim();
 
   if (pro && id === pro) return "pro";
-  if (starter && id === starter) return "pro";
   if (agency && id === agency) return "agency";
+  if (starter && id === starter) return "pro";
   if (enterprise && id === enterprise) return "enterprise";
   return "free";
 }

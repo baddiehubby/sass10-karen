@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getFeatureByPlan } from "@/lib/feature-plans";
 import { FREE_LICENSE_FEATURES, FREE_PERPETUAL_EXPIRY } from "@/lib/free-license";
-import { planByVariantId, verifyLemonSignature, type LemonPaidPlan } from "@/lib/lemonsqueezy";
+import { planByVariantId, verifyLemonSignature, type LemonWebhookPlan } from "@/lib/lemonsqueezy";
 import { generateLicenseKey } from "@/lib/license";
 import { prisma } from "@/lib/prisma";
 import { lemonWebhookMetaSchema } from "@/lib/validation";
@@ -39,11 +39,15 @@ function resolveExpiryDate(attrs: NonNullable<LemonPayload["data"]>["attributes"
   return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 }
 
-function tierFromMetadata(custom: Record<string, unknown> | undefined, variantPlan: LemonPaidPlan | "free"): LemonPaidPlan | "free" {
+function tierFromMetadata(
+  custom: Record<string, unknown> | undefined,
+  variantPlan: LemonWebhookPlan | "free",
+): LemonWebhookPlan | "free" {
   const tier = asString(custom?.tier).toLowerCase();
-  if (tier === "starter" || tier === "agency" || tier === "enterprise" || tier === "pro") {
-    return tier === "starter" ? "pro" : (tier as LemonPaidPlan);
-  }
+  if (tier === "free") return "free";
+  if (tier === "starter" || tier === "pro") return "pro";
+  if (tier === "agency") return "agency";
+  if (tier === "enterprise") return "enterprise";
   return variantPlan === "free" ? "free" : variantPlan;
 }
 

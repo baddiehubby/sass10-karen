@@ -9,6 +9,9 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
+  workboxOptions: {
+    importScripts: ["/shadow-companion-sw.js"],
+  },
 });
 
 /** @type {import('next').NextConfig} */

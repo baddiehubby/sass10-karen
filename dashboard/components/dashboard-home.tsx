@@ -8,6 +8,7 @@ import { DashboardCompanionOnboarding } from "@/components/dashboard-companion-o
 import { DashboardLiveOrb } from "@/components/dashboard-live-orb";
 import { MoodSparkline } from "@/components/mood-sparkline";
 import { PrivacyBadge } from "@/components/privacy-badge";
+import { ShadowCompanionRegister } from "@/components/shadow-companion-register";
 import { formatMomentSentence, formatRelativeTime, pronounForName } from "@/lib/dashboard-format";
 
 export type DashboardHomeProps = {
@@ -58,6 +59,7 @@ export function DashboardHome({
         <DashboardCelebration />
       </Suspense>
 
+      <ShadowCompanionRegister licenseKey={licenseKey} />
       <DashboardCompanionOnboarding licenseKey={licenseKey} />
 
       <DashboardLiveOrb

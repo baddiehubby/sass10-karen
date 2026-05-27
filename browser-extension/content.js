@@ -79,6 +79,21 @@
     document.body.appendChild(host);
   }
 
+  async function syncPresenceHeartbeat(licenseKey, mood = "neutral") {
+    try {
+      await fetch(`${API_BASE}/api/presence/state`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Buddy-License-Key": licenseKey,
+        },
+        body: JSON.stringify({ licenseKey, currentMood: mood }),
+      });
+    } catch {
+      /* offline — PWA background sync will flush later */
+    }
+  }
+
   async function bootWidget() {
     markExtensionInstalled();
     injectWidgetCss();
@@ -92,6 +107,7 @@
     }
 
     injectBuddyWidget(licenseKey);
+    void syncPresenceHeartbeat(licenseKey);
   }
 
   chrome.storage.onChanged.addListener((changes, areaName) => {

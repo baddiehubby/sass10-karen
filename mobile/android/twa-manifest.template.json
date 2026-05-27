@@ -1,0 +1,25 @@
+{
+  "packageId": "com.buddieai.shadow",
+  "host": "www.buddieai.com",
+  "name": "Buddy AI",
+  "launcherName": "Buddy",
+  "display": "standalone",
+  "themeColor": "#7C3AED",
+  "navigationColor": "#0A0A1A",
+  "backgroundColor": "#0A0A1A",
+  "startUrl": "/pwa",
+  "iconUrl": "https://www.buddieai.com/icon-512.png",
+  "maskableIconUrl": "https://www.buddieai.com/icon-512.png",
+  "monochromeIconUrl": "https://www.buddieai.com/icon-192.png",
+  "splashScreenFadeOutDuration": 300,
+  "enableNotifications": true,
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "shortName": "Dashboard",
+      "url": "/dashboard",
+      "chosenIconUrl": "https://www.buddieai.com/icon-192.png"
+    }
+  ],
+  "webManifestUrl": "https://www.buddieai.com/manifest.json"
+}

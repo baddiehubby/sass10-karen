@@ -1,0 +1,38 @@
+{
+  "name": "buddy-shadow-companion",
+  "version": "1.0.0",
+  "description": "Buddy AI desktop overlay — always-on-top Shadow Companion",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "pack:win": "electron-builder --win portable",
+    "pack:mac": "electron-builder --mac dmg",
+    "pack": "electron-builder --win portable --mac dmg"
+  },
+  "build": {
+    "appId": "com.buddieai.shadow-companion",
+    "productName": "Buddy Shadow Companion",
+    "directories": {
+      "output": "dist"
+    },
+    "files": ["main.js", "preload.js", "orb.html", "package.json"],
+    "win": {
+      "target": ["portable"],
+      "artifactName": "BuddyShadowCompanion-${version}-win.exe"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "artifactName": "BuddyShadowCompanion-${version}-mac.dmg",
+      "category": "public.app-category.productivity"
+    }
+  },
+  "dependencies": {
+    "auto-launch": "^5.0.6",
+    "electron-store": "^8.2.0"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  }
+}

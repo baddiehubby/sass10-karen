@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { CHROME_EXTENSION_DOWNLOAD_URL } from "@/lib/marketing-links";
+import {
+  CHROME_EXTENSION_DOWNLOAD_URL,
+  DESKTOP_COMPANION_MAC_URL,
+  DESKTOP_COMPANION_WIN_URL,
+} from "@/lib/marketing-links";
 import {
   installPwa,
   isExtensionInstalled,
@@ -107,6 +111,18 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
               className="premium-btn-glow inline-flex rounded-full border border-white/20 bg-black/25 px-5 py-2.5 text-sm font-medium text-white/90"
             >
               Download for Chrome
+            </a>
+            <a
+              href={DESKTOP_COMPANION_WIN_URL}
+              className="premium-btn-glow inline-flex rounded-full border border-violet-400/25 bg-violet-950/40 px-5 py-2.5 text-sm font-medium text-violet-100/90"
+            >
+              Desktop overlay (Windows)
+            </a>
+            <a
+              href={DESKTOP_COMPANION_MAC_URL}
+              className="premium-btn-glow inline-flex rounded-full border border-violet-400/25 bg-violet-950/40 px-5 py-2.5 text-sm font-medium text-violet-100/90"
+            >
+              Desktop overlay (Mac)
             </a>
           </div>
           <p className="mt-4 text-center text-xs tracking-wide text-white/50">

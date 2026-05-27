@@ -30,6 +30,9 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Buddy",
   },
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
   title: {
     default: seoTitle,
     template: "%s | Buddie AI",

@@ -1,25 +1,39 @@
 {
   "name": "Buddy AI — Your Emotional Companion",
   "short_name": "Buddy",
-  "description": "Your AI companion that follows you everywhere. Detects emotions, prevents hallucinations, keeps you safe.",
-  "start_url": "/dashboard",
+  "description": "Shadow Companion — ambient mood presence on every device. Privacy-first, on-device detection.",
+  "start_url": "/pwa",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0a0a1a",
   "theme_color": "#7c3aed",
   "orientation": "any",
+  "categories": ["health", "productivity", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Companion orb",
+      "url": "/pwa",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

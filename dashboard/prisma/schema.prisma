@@ -69,6 +69,36 @@ model License {
   complianceReports ComplianceReport[]
   lemonWebhookEvents LemonSqueezyWebhookEvent[]
   collaborativeRoom CollaborativeRoom?
+  presence      CompanionPresence?
+  pushSubscriptions PushSubscription[]
+}
+
+/// Cross-device Shadow Companion mood state (license-key anchor).
+model CompanionPresence {
+  id            String   @id @default(cuid())
+  licenseId     String   @unique
+  currentMood   String   @default("neutral")
+  moodHistory   String   @default("[]")
+  lastCheckIn   DateTime @default(now())
+  guidanceQueue String   @default("[]")
+  companionName String   @default("Buddy")
+  updatedAt     DateTime @updatedAt
+
+  license License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+}
+
+/// Web Push subscription for ambient check-ins (VAPID).
+model PushSubscription {
+  id           String   @id @default(cuid())
+  licenseId    String
+  endpoint     String   @unique
+  p256dh       String
+  auth         String
+  createdAt    DateTime @default(now())
+
+  license License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@index([licenseId])
 }
 
 model LemonSqueezyWebhookEvent {

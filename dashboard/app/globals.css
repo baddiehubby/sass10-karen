@@ -1538,8 +1538,10 @@ html.light .future-cta-panel {
   }
 
   .immersive-home-orb {
-    height: min(48vh, 260px) !important;
-    max-width: min(88vw, 300px) !important;
+    width: 100%;
+    max-width: 90vw !important;
+    max-height: 50vh !important;
+    height: min(50vh, 280px) !important;
   }
 
   .immersive-home-orb canvas {

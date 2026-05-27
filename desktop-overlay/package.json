@@ -16,7 +16,7 @@
     "directories": {
       "output": "dist"
     },
-    "files": ["main.js", "preload.js", "orb.html", "package.json"],
+    "files": ["main.js", "preload.js", "orb.html", "win-capture-exclude.js", "package.json"],
     "win": {
       "target": ["portable"],
       "artifactName": "BuddyShadowCompanion-${version}-win.exe"

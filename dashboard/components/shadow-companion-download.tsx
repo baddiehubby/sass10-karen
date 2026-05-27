@@ -37,7 +37,7 @@ export function ShadowCompanionDownload({ isAdmin = false }: ShadowCompanionDown
           href={desktopHref}
           className="inline-flex rounded-full border border-violet-400/35 bg-violet-600/25 px-4 py-2 text-xs font-medium text-violet-100"
         >
-          Download desktop overlay
+          Download Desktop Companion
         </a>
         {platform === "unknown" ? (
           <a

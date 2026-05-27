@@ -138,23 +138,35 @@ export async function registerShadowCompanion(licenseKey: string): Promise<void>
 
   void subscribeToPush(licenseKey);
 
-  if ("setAppBadge" in navigator) {
-    try {
-      const state = await fetchPresenceState(licenseKey);
-      if (state) {
-        await (navigator as Navigator & { setAppBadge?: (color?: string) => Promise<void> }).setAppBadge?.();
-      }
-    } catch {
-      /* Badging API optional */
+  try {
+    const state = await fetchPresenceState(licenseKey);
+    if (state?.currentMood) {
+      await updateAppBadgeForMood(state.currentMood as BuddyMood);
     }
+  } catch {
+    /* optional */
   }
 }
 
+function applyMoodThemeColor(color: string) {
+  if (typeof document === "undefined") return;
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", color);
+  document.documentElement.style.setProperty("--buddy-mood-badge", color);
+}
+
 export async function updateAppBadgeForMood(mood: BuddyMood) {
-  if (!("setAppBadge" in navigator)) return;
   const color = MOOD_BADGE_COLORS[mood];
+  applyMoodThemeColor(color);
   try {
-    await (navigator as Navigator & { setAppBadge?: () => Promise<void> }).setAppBadge?.();
+    if ("setAppBadge" in navigator) {
+      await (navigator as Navigator & { setAppBadge?: () => Promise<void> }).setAppBadge?.();
+    }
     document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute("data-mood-color", color);
   } catch {
     /* ignore */

@@ -48,7 +48,12 @@ const moodFromString = z
   .pipe(moodEnum);
 
 export const analyticsEventBodySchema = z.object({
-  licenseKey: z.string().min(1).max(120),
+  licenseKey: z.string().min(1).max(120).optional(),
+  sessionToken: z
+    .string()
+    .max(80)
+    .optional()
+    .transform((s) => (s == null ? undefined : sanitize(s, 80))),
   domain: z
     .string()
     .max(253)
@@ -66,7 +71,11 @@ export const analyticsEventBodySchema = z.object({
     .max(280)
     .optional()
     .transform((s) => (s == null ? undefined : sanitize(s, 280))),
-});
+})
+  .refine((d) => Boolean((d.licenseKey || "").trim() || (d.sessionToken || "").trim()), {
+    message: "licenseKey or sessionToken required",
+    path: ["licenseKey"],
+  });
 
 export const widgetMoodPostSchema = z
   .object({

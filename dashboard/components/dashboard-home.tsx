@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Suspense } from "react";
 import { DashboardCelebration } from "@/components/dashboard-celebration";
 import { DashboardCompanionOnboarding } from "@/components/dashboard-companion-onboarding";
@@ -36,6 +37,15 @@ export function DashboardHome({
 }: DashboardHomeProps) {
   const moodLabel = topMood === "—" ? "listening" : topMood;
   const pronoun = pronounForName(companionName);
+  const [analyticsOptIn, setAnalyticsOptIn] = useState(false);
+
+  useEffect(() => {
+    try {
+      setAnalyticsOptIn(window.localStorage.getItem("buddy_analytics_opt_in") === "yes");
+    } catch {
+      setAnalyticsOptIn(false);
+    }
+  }, []);
 
   return (
     <div
@@ -57,7 +67,7 @@ export function DashboardHome({
         apiBase={apiBase}
       />
 
-      <PrivacyBadge variant="dashboard" className="mt-4" />
+      <PrivacyBadge variant="dashboard" className="mt-4" optedIn={analyticsOptIn} />
 
       <p className="mt-10 text-base font-light tracking-wide text-white/75 md:text-lg">
         Your Buddy is <span className="capitalize text-violet-200/90">{moodLabel}</span>. {pronoun} been with you
@@ -71,6 +81,9 @@ export function DashboardHome({
       <div className="mt-12 w-full">
         <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/30">Mood timeline</p>
         <MoodSparkline events={sparklineEvents} />
+        <p className="mt-3 text-center text-xs text-emerald-200/75">
+          Thanks to users like you, Buddy&apos;s emotional intelligence improves every day.
+        </p>
       </div>
 
       <div className="mt-14 w-full text-left">

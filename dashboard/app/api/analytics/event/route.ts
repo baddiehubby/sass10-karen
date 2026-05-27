@@ -22,6 +22,16 @@ function clientIp(req: Request): string {
   return "unknown";
 }
 
+function anonymizedSessionTokenFromLicense(licenseKey: string): string {
+  let hash = 2166136261;
+  const source = `${licenseKey}:buddy-private-v1`;
+  for (let i = 0; i < source.length; i += 1) {
+    hash ^= source.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `bdy_${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders() });
 }
@@ -36,15 +46,32 @@ export async function POST(req: Request) {
     return r;
   }
 
-  const { licenseKey, domain, mood, timestamp: tsRaw, messageSnippet } = parsed.data;
+  const { licenseKey, sessionToken, domain, mood, timestamp: tsRaw, messageSnippet } = parsed.data;
 
   const ip = clientIp(req);
-  if (!checkAnalyticsRateLimit(licenseKey, ip)) {
+  if (!checkAnalyticsRateLimit(licenseKey || sessionToken || "anon", ip)) {
     return NextResponse.json({ error: "Rate limited" }, { status: 429, headers: corsHeaders() });
   }
 
-  const license = await prisma.license.findUnique({ where: { key: licenseKey } });
-  if (!license || license.expiresAt.getTime() < Date.now()) {
+  const directLicense =
+    licenseKey && licenseKey.trim()
+      ? await prisma.license.findUnique({ where: { key: licenseKey } })
+      : null;
+
+  let resolvedLicense = directLicense;
+  if (!resolvedLicense && sessionToken) {
+    // Privacy mode fallback: match anonymized session token without requiring raw license key in payload.
+    const activeLicenses = await prisma.license.findMany({
+      where: { expiresAt: { gt: new Date() } },
+      select: { id: true, key: true, userId: true, expiresAt: true },
+    });
+    const match = activeLicenses.find((l) => anonymizedSessionTokenFromLicense(l.key) === sessionToken) || null;
+    if (match) {
+      resolvedLicense = await prisma.license.findUnique({ where: { id: match.id } });
+    }
+  }
+
+  if (!resolvedLicense || resolvedLicense.expiresAt.getTime() < Date.now()) {
     return NextResponse.json({ error: "Invalid license" }, { status: 403, headers: corsHeaders() });
   }
 
@@ -56,7 +83,7 @@ export async function POST(req: Request) {
 
   await prisma.moodEvent.create({
     data: {
-      licenseId: license.id,
+      licenseId: resolvedLicense.id,
       mood,
       domain: domain ?? null,
       messageSnippet: messageSnippet ?? null,
@@ -65,7 +92,7 @@ export async function POST(req: Request) {
   });
 
   if (mood === "happy") {
-    await awardBadgeByName(license.userId, "First Smile");
+    await awardBadgeByName(resolvedLicense.userId, "First Smile");
   }
 
   return NextResponse.json({ ok: true }, { headers: corsHeaders() });

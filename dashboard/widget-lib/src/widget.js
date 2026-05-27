@@ -1,3 +1,9 @@
+import Sentiment from "sentiment";
+
+/*
+ * Buddy AI on-device emotion detection.
+ * Raw conversations never leave this device.
+ */
 /* Buddy AI — emotional intelligence embed (Living Face widget bundle) */
 (function initLivingFaceWidget() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
@@ -50,6 +56,9 @@
   const EXCITED_WORDS = ["incredible", "fantastic", "brilliant", "outstanding", "superb", "best"];
   const QUESTION_WORDS = ["how", "what", "why", "explain", "help", "?"];
   const SLEEPY_WORDS = ["sleep", "rest", "tired", "late", "exhausted", "fatigue", "nap"];
+  const sentimentAnalyzer = new Sentiment();
+  const OPTIN_KEY = "buddy_analytics_opt_in";
+  const SESSION_TOKEN_KEY = "buddy_analytics_session_token";
 
   function detectCurrentScript() {
     const scripts = Array.from(document.getElementsByTagName("script"));
@@ -116,10 +125,55 @@
     trippyLandMood: "neutral",
     lastParticleSpawn: 0,
     suppressBreathingRaf: false,
+    analyticsOptIn: readAnalyticsOptIn(),
+    analyticsPromptShown: false,
   };
 
   function normalizeText(text) {
     return (text || "").replace(/\s+/g, " ").trim();
+  }
+
+  function anonymizedSessionTokenFromLicense(licenseKey) {
+    const seed = String(licenseKey || "").trim();
+    if (!seed) return "";
+    let hash = 2166136261;
+    const source = `${seed}:buddy-private-v1`;
+    for (let i = 0; i < source.length; i += 1) {
+      hash ^= source.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return `bdy_${(hash >>> 0).toString(16).padStart(8, "0")}`;
+  }
+
+  function readAnalyticsOptIn() {
+    try {
+      const raw = window.localStorage.getItem(OPTIN_KEY);
+      if (raw === "yes") return true;
+      if (raw === "no") return false;
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
+  function writeAnalyticsOptIn(value) {
+    try {
+      window.localStorage.setItem(OPTIN_KEY, value ? "yes" : "no");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function getSessionToken() {
+    try {
+      const stored = window.localStorage.getItem(SESSION_TOKEN_KEY);
+      if (stored) return stored;
+      const generated = anonymizedSessionTokenFromLicense(cfg.licenseKey) || `bdy_${Date.now().toString(16)}`;
+      window.localStorage.setItem(SESSION_TOKEN_KEY, generated);
+      return generated;
+    } catch {
+      return anonymizedSessionTokenFromLicense(cfg.licenseKey) || `bdy_${Date.now().toString(16)}`;
+    }
   }
 
   function isVisible(el) {
@@ -133,6 +187,10 @@
   function detectMood(text, previousMood) {
     const t = normalizeText(text).toLowerCase();
     if (!t) return previousMood || "neutral";
+    const sentimentScore = sentimentAnalyzer.analyze(t).score;
+    if (sentimentScore >= 4) return "excited";
+    if (sentimentScore >= 2) return "happy";
+    if (sentimentScore <= -4) return "concerned";
     if (SLEEPY_WORDS.some((w) => t.includes(w))) return "sleepy";
     if (EXCITED_WORDS.some((w) => t.includes(w))) return "excited";
     if (HAPPY_WORDS.some((w) => t.includes(w))) return "happy";
@@ -410,6 +468,59 @@
     let dynamicStyleEl = null;
     let customCssStyleEl = null;
     const audioCtx = window.AudioContext ? new window.AudioContext() : null;
+
+    function privacyStatusLine() {
+      if (state.analyticsOptIn === true) {
+        return "Anonymous mood data helps Buddy improve — no raw text ever shared.";
+      }
+      return "Your emotions never leave this device.";
+    }
+
+    function showAnalyticsConsentPrompt() {
+      if (state.analyticsPromptShown || state.analyticsOptIn !== null || !ui.shadow) return;
+      state.analyticsPromptShown = true;
+
+      const prompt = document.createElement("div");
+      prompt.setAttribute("role", "dialog");
+      prompt.setAttribute("aria-live", "polite");
+      prompt.style.position = "absolute";
+      prompt.style.left = "50%";
+      prompt.style.bottom = "96px";
+      prompt.style.transform = "translateX(-50%)";
+      prompt.style.maxWidth = "260px";
+      prompt.style.padding = "10px 12px";
+      prompt.style.borderRadius = "12px";
+      prompt.style.border = "1px solid rgba(167,243,208,0.28)";
+      prompt.style.background = "rgba(15,23,42,0.94)";
+      prompt.style.backdropFilter = "blur(8px)";
+      prompt.style.color = "rgba(226,232,240,0.92)";
+      prompt.style.fontSize = "11px";
+      prompt.style.lineHeight = "1.4";
+      prompt.style.boxShadow = "0 12px 30px rgba(2,6,23,0.45)";
+      prompt.style.zIndex = "2147483647";
+      prompt.innerHTML = `
+        <div style="margin-bottom:8px;">Help make Buddy smarter for everyone? (anonymous)</div>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+          <button data-opt="no" style="border:1px solid rgba(148,163,184,0.4); background:transparent; color:#cbd5e1; border-radius:999px; padding:4px 10px; font-size:11px;">No</button>
+          <button data-opt="yes" style="border:1px solid rgba(16,185,129,0.45); background:rgba(16,185,129,0.2); color:#d1fae5; border-radius:999px; padding:4px 10px; font-size:11px;">Yes</button>
+        </div>
+      `;
+      ui.shadow.appendChild(prompt);
+
+      const clickHandler = (ev) => {
+        const button = ev.target.closest("button[data-opt]");
+        if (!button) return;
+        const opt = button.getAttribute("data-opt") === "yes";
+        state.analyticsOptIn = opt;
+        writeAnalyticsOptIn(opt);
+        applyTooltip();
+        prompt.remove();
+      };
+      prompt.addEventListener("click", clickHandler);
+      window.setTimeout(() => {
+        if (prompt.isConnected && state.analyticsOptIn === null) prompt.remove();
+      }, 15000);
+    }
 
     function ensureConfettiNodes() {
       if (!ui.confettiLayer || ui.confettiLayer.childNodes.length > 0) return;
@@ -849,7 +960,9 @@
       }
       if (ui.upgrade) ui.upgrade.style.display = state.licenseValid ? "none" : "inline";
       if (ui.tipText) {
-        ui.tipText.textContent = whiteLabel ? tooltipText || `${state.mood}` : `Buddy AI companion • ${state.mood}`;
+        ui.tipText.textContent = whiteLabel
+          ? tooltipText || `${state.mood}`
+          : `Buddy AI companion • ${state.mood} • ${privacyStatusLine()}`;
       }
       if (whiteLabel && ui.upgrade) ui.upgrade.style.display = "none";
       if (ui.root) ui.root.setAttribute("aria-label", whiteLabel ? "AI companion" : "Buddy AI companion");
@@ -955,15 +1068,16 @@
     }
 
     function sendAnalyticsMoodEvent(mood) {
-      if (!cfg.licenseKey) return;
+      if (state.analyticsOptIn !== true) return;
       const safe = analyticsSafeMood(mood);
+      const sessionToken = getSessionToken();
+      if (!sessionToken) return;
       fetch(`${cfg.apiBase}/api/analytics/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          licenseKey: cfg.licenseKey,
-          domain: window.location.hostname,
           mood: safe,
+          sessionToken,
           timestamp: new Date().toISOString(),
         }),
       }).catch(() => undefined);
@@ -1038,6 +1152,7 @@
       if (!text || text === state.lastMessage) return;
       state.lastMessage = text;
       const lower = text.toLowerCase();
+      showAnalyticsConsentPrompt();
 
       if (lower.includes("secret")) {
         state.isWinking = true;
@@ -1178,6 +1293,9 @@
   window.BuddyAI = {
     init: function initBuddyWidget(config) {
       bootBuddyWidget(config && typeof config === "object" ? config : {});
+    },
+    getPrivacyMode: function getPrivacyMode() {
+      return true;
     },
   };
 

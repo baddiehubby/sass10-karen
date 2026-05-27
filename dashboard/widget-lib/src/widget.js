@@ -1077,6 +1077,23 @@ import Sentiment from "sentiment";
       return "unknown";
     }
 
+    function inferClientRegion() {
+      try {
+        const lang = (navigator.language || "").toLowerCase();
+        const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || "").toLowerCase();
+        if (lang.endsWith("-us") || /america\/(new_york|chicago|denver|los_angeles|phoenix)/.test(tz)) {
+          return "US";
+        }
+        if (/-(gb|de|fr|es|it|nl|pl|se|ie|pt|be|at|ch|dk|fi|no)\b/.test(lang) || tz.startsWith("europe/")) {
+          return "EU";
+        }
+        if (/^(zh|ja|ko|hi|th|vi)/.test(lang) || tz.startsWith("asia/")) return "Asia";
+      } catch {
+        /* ignore */
+      }
+      return "Other";
+    }
+
     function serverAnonymousAnalyticsGranted() {
       try {
         return window.localStorage.getItem(SERVER_ANALYTICS_KEY) === "granted";
@@ -1115,6 +1132,7 @@ import Sentiment from "sentiment";
         sessionToken,
         mood: safe,
         timestamp: new Date().toISOString(),
+        region: inferClientRegion(),
         companionType: "buddy",
         source: inferEidataSource(),
       };

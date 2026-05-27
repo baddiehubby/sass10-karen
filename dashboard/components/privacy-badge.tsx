@@ -4,18 +4,18 @@ type PrivacyBadgeProps = {
   optedIn?: boolean;
 };
 
+const PRIVACY_LINE = "🔒 100% Private. Your emotions never leave your device.";
+
 const COPY = {
-  homepage: "🔒 100% Private. Your emotions never leave your device.",
-  login: "Your emotions stay private. Always.",
-  dashboard: "Your data is yours. End-to-end encrypted. Zero tracking.",
+  homepage: PRIVACY_LINE,
+  login: PRIVACY_LINE,
+  dashboard: PRIVACY_LINE,
 } as const;
 
 export function PrivacyBadge({ variant = "homepage", className = "", optedIn }: PrivacyBadgeProps) {
   const text =
-    variant === "dashboard"
-      ? optedIn
-        ? "Anonymous mood data helps Buddy improve — no raw text ever shared."
-        : COPY.dashboard
+    variant === "dashboard" && optedIn
+      ? "Anonymous mood data helps Buddy improve — no raw text ever shared."
       : COPY[variant];
   return (
     <p
@@ -24,7 +24,7 @@ export function PrivacyBadge({ variant = "homepage", className = "", optedIn }: 
     >
       {variant === "homepage" ? (
         <>
-          <span className="privacy-badge-glow">100% Private</span>. Your emotions never leave your device.
+          <span className="privacy-badge-glow">🔒 100% Private</span>. Your emotions never leave your device.
         </>
       ) : (
         text

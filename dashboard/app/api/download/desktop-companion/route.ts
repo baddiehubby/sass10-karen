@@ -17,9 +17,15 @@ export async function GET(req: NextRequest) {
     artifact.endsWith(".dmg") ? "application/x-apple-diskimage" : "application/octet-stream";
 
   try {
-    const filePath = path.join(process.cwd(), "..", "desktop-overlay", "dist", artifact);
-    const file = await readFile(filePath);
-    return new NextResponse(file, {
+    const publicPath = path.join(process.cwd(), "public", "downloads", artifact);
+    const distPath = path.join(process.cwd(), "..", "desktop-overlay", "dist", artifact);
+    let file: Buffer;
+    try {
+      file = await readFile(publicPath);
+    } catch {
+      file = await readFile(distPath);
+    }
+    return new NextResponse(new Uint8Array(file), {
       status: 200,
       headers: {
         "Content-Type": contentType,

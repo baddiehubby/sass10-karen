@@ -19,7 +19,8 @@
     "files": ["main.js", "preload.js", "orb.html", "win-capture-exclude.js", "package.json"],
     "win": {
       "target": ["portable"],
-      "artifactName": "BuddyShadowCompanion-${version}-win.exe"
+      "artifactName": "BuddyShadowCompanion-${version}-win.exe",
+      "signAndEditExecutable": false
     },
     "mac": {
       "target": ["dmg"],

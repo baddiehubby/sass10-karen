@@ -67,6 +67,8 @@ const PUBLIC_API_PREFIXES = [
   "/api/challenge/report",
   "/api/dev/widget",
   "/api/extensions/stats",
+  "/api/download/desktop-companion",
+  "/api/download/buddy-extension",
 ];
 
 function isPublicApi(pathname: string) {

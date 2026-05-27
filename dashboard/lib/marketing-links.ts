@@ -7,3 +7,6 @@ export const CHROME_EXTENSION_DOWNLOAD_URL =
 
 export const DESKTOP_COMPANION_WIN_URL = "/api/download/desktop-companion?platform=win";
 export const DESKTOP_COMPANION_MAC_URL = "/api/download/desktop-companion?platform=mac";
+
+/** Unpacked Chrome extension .zip for Web Store sideload / developer install. */
+export const BROWSER_EXTENSION_ZIP_URL = "/downloads/buddy-extension.zip";

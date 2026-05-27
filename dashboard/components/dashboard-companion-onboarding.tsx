@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
+  BROWSER_EXTENSION_ZIP_URL,
   CHROME_EXTENSION_DOWNLOAD_URL,
   DESKTOP_COMPANION_MAC_URL,
   DESKTOP_COMPANION_WIN_URL,
@@ -127,6 +128,19 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
           </div>
           <p className="mt-4 text-center text-xs tracking-wide text-white/50">
             Your Buddy will appear on ChatGPT, Claude, Gemini, and any AI chat — automatically.
+          </p>
+          <p className="mt-3 text-center text-xs leading-relaxed text-white/45">
+            Chrome extension:{" "}
+            <a
+              href={BROWSER_EXTENSION_ZIP_URL}
+              className="text-violet-300/90 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
+              download
+            >
+              download the .zip
+            </a>
+            , unzip, then in{" "}
+            <code className="rounded bg-white/10 px-1 py-0.5 text-[10px]">chrome://extensions</code> enable
+            Developer mode → Load unpacked. Or use Download for Chrome below.
           </p>
           {iosHelp ? (
             <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-100/80">

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Buddy AI - Emotional Safety",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "description": "Add emotional eyes to any AI chat. Buddy AI detects real-time emotional safety and keeps you compliant. Works with ChatGPT, Claude, Gemini. EU AI Act ready.",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": [

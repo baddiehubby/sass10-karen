@@ -59,6 +59,10 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
         Continue with Google
       </button>
 
+      <p className="mt-4 max-w-sm text-center text-xs font-light tracking-wide text-slate-400/80">
+        🔒 100% Private. Your emotions never leave your device.
+      </p>
+
       <Link href="/about" className="mt-10 text-xs text-white/30 transition hover:text-white/55">
         Learn more
       </Link>

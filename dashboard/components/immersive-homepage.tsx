@@ -140,6 +140,14 @@ export function ImmersiveHomepage() {
           Your AI companion, always listening.
         </motion.p>
         <CinematicOrb theme={theme} breathing={breathing} scrollPulse={scrollPulse} mouseRef={mouseRef} />
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="mt-3 text-center text-xs font-light tracking-wide text-slate-400/80"
+        >
+          🔒 100% Private. Your emotions never leave your device.
+        </motion.p>
       </div>
 
       <div className="pointer-events-none relative mt-2 flex min-h-[4rem] w-full max-w-md flex-col items-center px-6">

@@ -101,6 +101,10 @@ export function DashboardHome({
           Free — Upgrade for analytics &amp; custom themes
         </Link>
       ) : null}
+
+      <p className="mt-4 text-xs font-light tracking-wide text-slate-400/80">
+        🔒 100% Private. Your emotions never leave your device.
+      </p>
     </div>
   );
 }

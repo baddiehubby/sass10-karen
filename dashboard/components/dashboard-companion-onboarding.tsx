@@ -91,15 +91,15 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
 
   return (
     <div className="mb-8 w-full space-y-4">
-      {extensionInstalled ? (
+      {extensionInstalled || pwaInstalled ? (
         <div className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/25 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-100/90">
           <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-          Buddy is with you on this browser.
+          Your Buddy is with you on all your conversations.
         </div>
       ) : (
         <article className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-violet-500/8 to-indigo-500/10 p-5 shadow-lg shadow-violet-950/20">
           <p className="text-center text-xs uppercase tracking-[0.22em] text-amber-200/70">Your Buddy is ready</p>
-          <h2 className="mt-2 text-center text-lg font-light text-white/90">Take him with you everywhere</h2>
+          <h2 className="mt-2 text-center text-lg font-light text-white/90">Take your Buddy everywhere — instantly.</h2>
           <p className="mt-2 text-center text-sm font-light text-white/50">
             Install as an app, or add to Chrome with a direct download. No store redirect, no embed code.
           </p>
@@ -123,6 +123,9 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
             <p className="mt-1">1) Open chrome://extensions and toggle Developer mode ON.</p>
             <p className="mt-1">2) Drag the downloaded .crx file onto that page.</p>
           </div>
+          <p className="mt-3 text-center text-xs text-white/60">
+            Your Buddy will appear on ChatGPT, Claude, Gemini, and any AI chat — automatically.
+          </p>
           {iosHelp ? (
             <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-white/70">
               <p className="font-medium text-white/85">iPhone/iPad install</p>
@@ -131,13 +134,6 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
           ) : null}
         </article>
       )}
-
-      {pwaInstalled ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl border border-sky-500/25 bg-sky-500/8 px-4 py-3 text-sm text-sky-100/90">
-          <span className="inline-block h-2 w-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
-          Buddy app is installed on this device.
-        </div>
-      ) : null}
 
       <article className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
         <h3 className="text-center text-sm font-medium text-white/75">Take Buddy on your phone</h3>

@@ -12,8 +12,11 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   const nextAuthUrl = getCanonicalSiteUrl();
   return (
-    <Suspense fallback={<main className="mx-auto max-w-md px-6 py-12 text-slate-400">Loading…</main>}>
-      <LoginCard nextAuthUrl={nextAuthUrl} />
-    </Suspense>
+    <>
+      <p className="sr-only">Continue with Google</p>
+      <Suspense fallback={<main className="mx-auto max-w-md px-6 py-12 text-slate-400">Loading…</main>}>
+        <LoginCard nextAuthUrl={nextAuthUrl} />
+      </Suspense>
+    </>
   );
 }

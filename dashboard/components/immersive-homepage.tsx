@@ -126,24 +126,33 @@ export function ImmersiveHomepage() {
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden text-white"
+      className="immersive-home fixed inset-0 z-50 flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden overscroll-none text-white"
       style={bgStyle}
       onMouseMove={markInteraction}
       onClick={markInteraction}
+      onTouchStart={markInteraction}
+      onTouchMove={markInteraction}
     >
-      <div className="flex flex-col items-center">
+      <div className="immersive-home-orb-wrap flex w-full flex-col items-center px-4">
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="pointer-events-none mb-3 text-center text-sm font-light tracking-wide text-slate-400"
+          className="pointer-events-none mb-2 max-w-[90vw] text-center text-xs font-light tracking-wide text-slate-400 sm:mb-3 sm:text-sm"
         >
           Your AI companion, always listening.
         </motion.p>
-        <CinematicOrb theme={theme} breathing={breathing} scrollPulse={scrollPulse} mouseRef={mouseRef} shimmer />
+        <CinematicOrb
+          theme={theme}
+          breathing={breathing}
+          scrollPulse={scrollPulse}
+          mouseRef={mouseRef}
+          shimmer
+          className="immersive-home-orb"
+        />
       </div>
 
-      <div className="pointer-events-none relative mt-2 flex min-h-[4rem] w-full max-w-md flex-col items-center px-6">
+      <div className="pointer-events-none relative mt-1 flex min-h-[3.5rem] w-full max-w-md flex-col items-center px-4 sm:mt-2 sm:min-h-[4rem] sm:px-6">
         <AnimatePresence mode="wait">
           {whisperVisible && whisper ? (
             <motion.p
@@ -191,9 +200,10 @@ export function ImmersiveHomepage() {
       </div>
 
       <div
-        className="pointer-events-auto fixed inset-x-0 bottom-0 flex h-20 items-end justify-center pb-4"
+        className="pointer-events-auto fixed inset-x-0 bottom-0 flex h-20 items-end justify-center pb-[max(1rem,env(safe-area-inset-bottom))]"
         onMouseEnter={() => setShowAbout(true)}
         onMouseLeave={() => setShowAbout(false)}
+        onTouchStart={() => setShowAbout(true)}
       />
       <AnimatePresence>
         {showAbout ? (

@@ -1525,3 +1525,25 @@ html.light .future-cta-panel {
   }
 }
 
+/* Immersive homepage — mobile orb scaling */
+.immersive-home-orb {
+  height: min(68vh, 520px);
+  max-width: min(92vw, 520px);
+}
+
+@media (max-width: 480px) {
+  .immersive-home {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .immersive-home-orb {
+    height: min(48vh, 260px) !important;
+    max-width: min(88vw, 300px) !important;
+  }
+
+  .immersive-home-orb canvas {
+    touch-action: manipulation;
+  }
+}
+

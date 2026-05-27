@@ -53,6 +53,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
   themeColor: "#7c3aed",
 };
 
@@ -66,7 +70,7 @@ export default function RootLayout({
 
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable} h-full antialiased`}>
-      <body className="app-gradient min-h-full flex flex-col text-slate-100">
+      <body className="app-gradient min-h-[100dvh] min-h-full flex flex-col text-slate-100 overflow-x-hidden">
         <AppSessionProvider>
           <div className="pointer-events-none fixed -left-[10000px] top-0 w-[320px] opacity-[0.01]" aria-hidden>
             <div data-message-author-role="assistant">

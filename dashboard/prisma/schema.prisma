@@ -16,6 +16,8 @@ model User {
   companionName String?
   personality   String?
   onboardingCompleted Boolean @default(false)
+  /// User completed the EIData consent modal (Accept or Decline).
+  eidataConsentCompleted Boolean @default(false)
   /// Optional external customer identifier for migration compatibility.
   stripeCustomerId String? @unique
   createdAt DateTime  @default(now())
@@ -26,6 +28,7 @@ model User {
   badges    UserBadge[]
   emails    WelcomeEmail[]
   sentEmails SentEmail[]
+  consents  UserConsent[]
 }
 
 model License {
@@ -127,12 +130,42 @@ model PendingPayment {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-/// Anonymous widget mood telemetry (GDPR: mood + domain + license link only).
+/// Granular GDPR / EU AI Act / SB 243 consent records per user and purpose.
+model UserConsent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose     String   // companion_mood_detection | anonymous_analytics | model_training | data_selling
+  status      String   // granted | denied | withdrawn
+  consentedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, purpose])
+  @@index([userId, status])
+}
+
+/// Product-improvement layer — mood labels only, irreversible session hash, no raw text.
+model AnonymizedMoodEvent {
+  id            String   @id @default(cuid())
+  sessionToken  String   // SHA-256(salt + pseudonymous session id), not reversible to user
+  mood          String
+  timestamp     DateTime @default(now())
+  region        String?  // broad bucket: EU | US | Asia | Other
+  companionType String?  // buddy | sachapandit
+  source        String?  // chatgpt | claude | gemini | website | extension | unknown
+
+  @@index([timestamp])
+  @@index([mood, timestamp])
+  @@index([sessionToken, timestamp])
+}
+
+/// Anonymous widget mood telemetry (license-holder dashboard — requires companion_mood_detection consent).
 model MoodEvent {
   id         String   @id @default(cuid())
   licenseId  String
   mood       String
   domain     String?
+  /// Deprecated — never populated (raw conversation text prohibited).
   messageSnippet String?
   timestamp  DateTime
   acknowledgedBy String?

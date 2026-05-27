@@ -8,6 +8,7 @@ import { DashboardCompanionOnboarding } from "@/components/dashboard-companion-o
 import { DashboardLiveOrb } from "@/components/dashboard-live-orb";
 import { MoodSparkline } from "@/components/mood-sparkline";
 import { PrivacyBadge } from "@/components/privacy-badge";
+import { ShadowCompanionDownload } from "@/components/shadow-companion-download";
 import { ShadowCompanionRegister } from "@/components/shadow-companion-register";
 import { formatMomentSentence, formatRelativeTime, pronounForName } from "@/lib/dashboard-format";
 
@@ -22,6 +23,7 @@ export type DashboardHomeProps = {
   recentMoments: Array<{ id: string; mood: string; domain: string | null; timestamp: string }>;
   hasLicense: boolean;
   isFreeOnly: boolean;
+  isAdmin?: boolean;
 };
 
 export function DashboardHome({
@@ -35,6 +37,7 @@ export function DashboardHome({
   recentMoments,
   hasLicense,
   isFreeOnly,
+  isAdmin = false,
 }: DashboardHomeProps) {
   const moodLabel = topMood === "—" ? "listening" : topMood;
   const pronoun = pronounForName(companionName);
@@ -60,6 +63,7 @@ export function DashboardHome({
       </Suspense>
 
       <ShadowCompanionRegister licenseKey={licenseKey} />
+      <ShadowCompanionDownload isAdmin={isAdmin} />
       <DashboardCompanionOnboarding licenseKey={licenseKey} />
 
       <DashboardLiveOrb

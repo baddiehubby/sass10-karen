@@ -55,6 +55,36 @@ export default function TermsPage() {
         </section>
 
         <section className="mt-7 space-y-3 text-sm leading-relaxed text-slate-300">
+          <h2 className="text-lg font-semibold text-white">Emotional data ownership</h2>
+          <p>
+            You own your account data and control how Buddie AI processes emotional signals. Raw conversation content
+            remains on your device by default. Anonymized mood labels contributed under consent become part of
+            aggregated datasets that Buddie AI may use to improve the service; you may withdraw consent for future
+            processing at any time in dashboard Settings or via DELETE on a specific consent purpose.
+          </p>
+        </section>
+
+        <section className="mt-7 space-y-3 text-sm leading-relaxed text-slate-300">
+          <h2 className="text-lg font-semibold text-white">Right to deletion</h2>
+          <p>
+            You may request deletion of your account and associated license-linked mood history by contacting{" "}
+            <a className="text-indigo-300 underline" href="mailto:privacy@buddieai.com">
+              privacy@buddieai.com
+            </a>
+            . Anonymized events already merged into k-anonymized aggregates cannot be individually removed but contain
+            no direct identifiers.
+          </p>
+        </section>
+
+        <section className="mt-7 space-y-3 text-sm leading-relaxed text-slate-300">
+          <h2 className="text-lg font-semibold text-white">Consent withdrawal</h2>
+          <p>
+            Withdrawing consent stops future collection for that purpose immediately. Withdrawal does not affect the
+            lawfulness of processing based on consent before withdrawal, as documented in your consent log.
+          </p>
+        </section>
+
+        <section className="mt-7 space-y-3 text-sm leading-relaxed text-slate-300">
           <h2 className="text-lg font-semibold text-white">Limitation of liability</h2>
           <p>
             Buddie AI is provided on an as-is basis. To the maximum extent allowed by law, Buddie AI is not liable for

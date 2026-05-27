@@ -119,6 +119,15 @@ function createOverlayWindow() {
     mainWindow.setContentProtection(true);
   }
 
+  mainWindow.once("ready-to-show", () => {
+    try {
+      const { excludeFromCapture } = require("./win-capture-exclude");
+      excludeFromCapture(mainWindow);
+    } catch {
+      /* optional Windows module */
+    }
+  });
+
   mainWindow.loadFile(path.join(__dirname, "orb.html"));
 
   mainWindow.on("closed", () => {

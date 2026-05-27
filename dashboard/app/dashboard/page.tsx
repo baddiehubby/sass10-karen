@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
+  const isAdmin = Boolean((session.user as { isAdmin?: boolean }).isAdmin);
 
   let userId = session.user.id;
   if (!userId && session.user.email) {
@@ -104,6 +105,7 @@ export default async function DashboardPage() {
       }))}
       hasLicense={Boolean(orbLicense)}
       isFreeOnly={isFreeOnly}
+      isAdmin={isAdmin}
     />
   );
 }

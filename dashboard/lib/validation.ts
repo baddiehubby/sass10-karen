@@ -47,34 +47,63 @@ const moodFromString = z
   .transform((s) => s.trim().toLowerCase())
   .pipe(moodEnum);
 
-export const analyticsEventBodySchema = z.object({
-  licenseKey: z.string().min(1).max(120).optional(),
-  sessionToken: z
-    .string()
-    .max(80)
-    .optional()
-    .transform((s) => (s == null ? undefined : sanitize(s, 80))),
-  domain: z
-    .string()
-    .max(253)
-    .optional()
-    .transform((d) => {
-      if (d == null || d === "") return undefined;
-      const s = d.trim().toLowerCase().slice(0, 253);
-      if (!/^[a-z0-9.-]+$/.test(s)) return undefined;
-      return s;
-    }),
-  mood: moodFromString,
-  timestamp: z.string().max(40).optional(),
-  messageSnippet: z
-    .string()
-    .max(280)
-    .optional()
-    .transform((s) => (s == null ? undefined : sanitize(s, 280))),
-})
+export const analyticsEventBodySchema = z
+  .object({
+    licenseKey: z.string().min(1).max(120).optional(),
+    sessionToken: z
+      .string()
+      .max(80)
+      .optional()
+      .transform((s) => (s == null ? undefined : sanitize(s, 80))),
+    domain: z
+      .string()
+      .max(253)
+      .optional()
+      .transform((d) => {
+        if (d == null || d === "") return undefined;
+        const s = d.trim().toLowerCase().slice(0, 253);
+        if (!/^[a-z0-9.-]+$/.test(s)) return undefined;
+        return s;
+      }),
+    mood: moodFromString,
+    timestamp: z.string().max(40).optional(),
+  })
+  .strict()
   .refine((d) => Boolean((d.licenseKey || "").trim() || (d.sessionToken || "").trim()), {
     message: "licenseKey or sessionToken required",
     path: ["licenseKey"],
+  });
+
+export const anonymizedMoodEventBodySchema = z
+  .object({
+    licenseKey: z.string().min(1).max(120).optional(),
+    sessionToken: z
+      .string()
+      .max(80)
+      .optional()
+      .transform((s) => (s == null ? undefined : sanitize(s, 80))),
+    domain: z
+      .string()
+      .max(253)
+      .optional()
+      .transform((d) => {
+        if (d == null || d === "") return undefined;
+        const s = d.trim().toLowerCase().slice(0, 253);
+        if (!/^[a-z0-9.-]+$/.test(s)) return undefined;
+        return s;
+      }),
+    mood: moodFromString,
+    timestamp: z.string().datetime({ offset: true }).optional(),
+    region: z.enum(["EU", "US", "Asia", "Other"]).optional(),
+    companionType: z.enum(["buddy", "sachapandit"]).optional(),
+    source: z
+      .enum(["chatgpt", "claude", "gemini", "website", "extension", "unknown"])
+      .optional(),
+  })
+  .strict()
+  .refine((d) => Boolean((d.licenseKey || "").trim() || (d.sessionToken || "").trim()), {
+    message: "licenseKey or sessionToken required",
+    path: ["sessionToken"],
   });
 
 export const widgetMoodPostSchema = z

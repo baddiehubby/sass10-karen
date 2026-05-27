@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { checkAnalyticsRateLimit } from "@/lib/analytics-rate-limit";
+import {
+  anonymizedSessionTokenFromLicense,
+  broadRegionFromRequest,
+  ingestAnonymizedMoodEvent,
+  sourceFromDomain,
+} from "@/lib/anonymized-mood-ingest";
 import { awardBadgeByName } from "@/lib/badges";
+import { canIngestAnonymizedEvent, widgetOptInFromRequest } from "@/lib/eidata-ingest-policy";
+import { hasConsent } from "@/lib/consent-service";
 import { parseJsonBody } from "@/lib/api-json";
 import { prisma } from "@/lib/prisma";
 import { analyticsEventBodySchema } from "@/lib/validation";
@@ -9,7 +17,7 @@ function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-Buddy-Widget-Opt-In",
     "Cache-Control": "no-store",
   };
 }
@@ -20,16 +28,6 @@ function clientIp(req: Request): string {
   const real = req.headers.get("x-real-ip");
   if (real) return real.trim();
   return "unknown";
-}
-
-function anonymizedSessionTokenFromLicense(licenseKey: string): string {
-  let hash = 2166136261;
-  const source = `${licenseKey}:buddy-private-v1`;
-  for (let i = 0; i < source.length; i += 1) {
-    hash ^= source.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `bdy_${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
 export async function OPTIONS() {
@@ -46,7 +44,7 @@ export async function POST(req: Request) {
     return r;
   }
 
-  const { licenseKey, sessionToken, domain, mood, timestamp: tsRaw, messageSnippet } = parsed.data;
+  const { licenseKey, sessionToken, domain, mood, timestamp: tsRaw } = parsed.data;
 
   const ip = clientIp(req);
   if (!checkAnalyticsRateLimit(licenseKey || sessionToken || "anon", ip)) {
@@ -60,12 +58,12 @@ export async function POST(req: Request) {
 
   let resolvedLicense = directLicense;
   if (!resolvedLicense && sessionToken) {
-    // Privacy mode fallback: match anonymized session token without requiring raw license key in payload.
     const activeLicenses = await prisma.license.findMany({
       where: { expiresAt: { gt: new Date() } },
       select: { id: true, key: true, userId: true, expiresAt: true },
     });
-    const match = activeLicenses.find((l) => anonymizedSessionTokenFromLicense(l.key) === sessionToken) || null;
+    const match =
+      activeLicenses.find((l) => anonymizedSessionTokenFromLicense(l.key) === sessionToken) || null;
     if (match) {
       resolvedLicense = await prisma.license.findUnique({ where: { id: match.id } });
     }
@@ -81,19 +79,51 @@ export async function POST(req: Request) {
     if (!Number.isNaN(parsedTs.getTime())) at = parsedTs;
   }
 
-  await prisma.moodEvent.create({
-    data: {
-      licenseId: resolvedLicense.id,
-      mood,
-      domain: domain ?? null,
-      messageSnippet: messageSnippet ?? null,
-      timestamp: at,
-    },
+  const pseudonymousToken = anonymizedSessionTokenFromLicense(resolvedLicense.key);
+  const region = broadRegionFromRequest(req);
+  const source = sourceFromDomain(domain);
+
+  const companionConsent = await hasConsent(resolvedLicense.userId, "companion_mood_detection");
+  const anonymizedIngest = await canIngestAnonymizedEvent({
+    userId: resolvedLicense.userId,
+    widgetOptIn: widgetOptInFromRequest(req),
   });
 
-  if (mood === "happy") {
-    await awardBadgeByName(resolvedLicense.userId, "First Smile");
+  if (companionConsent) {
+    await prisma.moodEvent.create({
+      data: {
+        licenseId: resolvedLicense.id,
+        mood,
+        domain: domain ?? null,
+        messageSnippet: null,
+        timestamp: at,
+      },
+    });
+
+    if (mood === "happy") {
+      await awardBadgeByName(resolvedLicense.userId, "First Smile");
+    }
   }
 
-  return NextResponse.json({ ok: true }, { headers: corsHeaders() });
+  if (anonymizedIngest.allowed) {
+    await ingestAnonymizedMoodEvent({
+      sessionToken: pseudonymousToken,
+      mood,
+      timestamp: at,
+      region,
+      companionType: "buddy",
+      source,
+    });
+  }
+
+  return NextResponse.json(
+    {
+      ok: true,
+      stored: {
+        dashboard: companionConsent,
+        anonymized: anonymizedIngest.allowed,
+      },
+    },
+    { headers: corsHeaders() },
+  );
 }

@@ -52,9 +52,14 @@ export function SiteHeader() {
                 Dashboard
               </Link>
               {isAdmin ? (
-                <Link href="/dashboard/outreach" className="hover:text-amber-200">
-                  Outreach
-                </Link>
+                <>
+                  <Link href="/debiopwr" className="hover:text-amber-200">
+                    Debiopwr
+                  </Link>
+                  <Link href="/dashboard/outreach" className="hover:text-amber-200">
+                    Outreach
+                  </Link>
+                </>
               ) : null}
               <Link href="/emotional-wellness" className="hover:text-white">
                 Wellness

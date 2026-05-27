@@ -7,6 +7,7 @@ import { CHROME_EXTENSION_DOWNLOAD_URL } from "@/lib/marketing-links";
 import { CopyEmbedCodeButton } from "@/components/copy-embed-code-button";
 import { DashboardEmbedActions } from "@/components/dashboard-embed-actions";
 import { ComplianceActions } from "@/components/compliance-actions";
+import { ConsentManagementPanel } from "@/components/consent-management-panel";
 import { displayPlanName } from "@/lib/free-license";
 
 const personalities = [
@@ -164,6 +165,8 @@ export function DashboardSettingsPanel({
           </button>
         </form>
       </section>
+
+      <ConsentManagementPanel />
 
       <section id="embed" className="rounded-2xl border border-white/8 bg-white/[0.03] p-6">
         <h2 className="text-sm font-medium text-white/70">Embed</h2>

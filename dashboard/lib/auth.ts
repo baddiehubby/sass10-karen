@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { ensureDefaultConsents } from "@/lib/consent-service";
 import { ensureFreeLicenseForUser } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
 import {
@@ -101,6 +102,7 @@ export const authOptions: NextAuthOptions = {
         select: {
           id: true,
           onboardingCompleted: true,
+          eidataConsentCompleted: true,
           companionName: true,
           personality: true,
           _count: { select: { licenses: true } },
@@ -117,8 +119,10 @@ export const authOptions: NextAuthOptions = {
         if (dbUser._count.licenses === 0) {
           await ensureFreeLicenseForUser(dbUser.id);
         }
+        await ensureDefaultConsents(dbUser.id);
         token.id = dbUser.id;
         token.onboardingCompleted = dbUser.onboardingCompleted;
+        token.eidataConsentCompleted = dbUser.eidataConsentCompleted;
         token.companionName = dbUser.companionName || "";
         token.personality = dbUser.personality || "";
       }
@@ -141,6 +145,9 @@ export const authOptions: NextAuthOptions = {
         (session.user as { companionName?: string }).companionName = String(token.companionName || "");
         (session.user as { personality?: string }).personality = String(token.personality || "");
         (session.user as { isAdmin?: boolean }).isAdmin = Boolean(token.isAdmin);
+        (session.user as { eidataConsentCompleted?: boolean }).eidataConsentCompleted = Boolean(
+          token.eidataConsentCompleted,
+        );
       }
       return session;
     },

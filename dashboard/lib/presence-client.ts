@@ -84,10 +84,26 @@ function urlBase64ToUint8Array(base64String: string) {
   return output;
 }
 
+async function syncConsentToWidgetStorage(): Promise<void> {
+  try {
+    const res = await fetch("/api/consent", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = (await res.json()) as {
+      consents?: Array<{ purpose: string; status: string }>;
+    };
+    const analytics = data.consents?.find((c) => c.purpose === "anonymous_analytics");
+    const granted = analytics?.status === "granted";
+    window.localStorage.setItem("buddy_analytics_opt_in", granted ? "yes" : "no");
+  } catch {
+    /* not signed in */
+  }
+}
+
 export async function registerShadowCompanion(licenseKey: string): Promise<void> {
   if (!licenseKey || !("serviceWorker" in navigator)) return;
 
   storePresenceLicenseKey(licenseKey);
+  await syncConsentToWidgetStorage();
 
   const registration = await navigator.serviceWorker.register("/sw.js");
   await navigator.serviceWorker.ready;

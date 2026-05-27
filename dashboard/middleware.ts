@@ -59,6 +59,9 @@ const PUBLIC_API_PREFIXES = [
   "/api/licenses/theme",
   "/api/widget/mood",
   "/api/analytics/event",
+  "/api/analytics/anonymized-event",
+  "/api/eidata/anonymized-event",
+  "/api/consent/status",
   "/api/security/tamper-attempt",
   "/api/lemonsqueezy/webhook",
   "/api/challenge/report",
@@ -74,13 +77,16 @@ function withCorsForWidgetApis(req: NextRequest, res: NextResponse) {
   const p = req.nextUrl.pathname;
   if (
     p.startsWith("/api/analytics/event") ||
+    p.startsWith("/api/analytics/anonymized-event") ||
+    p.startsWith("/api/eidata/anonymized-event") ||
+    p.startsWith("/api/consent/status") ||
     p.startsWith("/api/licenses/verify") ||
     p.startsWith("/api/security/tamper-attempt") ||
     p.startsWith("/api/extensions/stats")
   ) {
     res.headers.set("Access-Control-Allow-Origin", "*");
     res.headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.headers.set("Access-Control-Allow-Headers", "Content-Type");
+    res.headers.set("Access-Control-Allow-Headers", "Content-Type, X-Buddy-Widget-Opt-In");
   }
   return res;
 }
@@ -111,11 +117,40 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
+  if (
+    pathname === "/dashboard" ||
+    (pathname.startsWith("/dashboard/") && !pathname.startsWith("/dashboard/debiopwr"))
+  ) {
     const token = await getToken({ req, secret: middlewareSecret });
     if (!token) {
       const login = new URL("/login", req.url);
       login.searchParams.set("callbackUrl", pathname);
+      const res = NextResponse.redirect(login);
+      applySecurityHeaders(res, { document: true });
+      return res;
+    }
+    if (!token.eidataConsentCompleted) {
+      const consent = new URL("/consent", req.url);
+      const res = NextResponse.redirect(consent);
+      applySecurityHeaders(res, { document: true });
+      return res;
+    }
+  }
+
+  if (pathname === "/consent") {
+    const token = await getToken({ req, secret: middlewareSecret });
+    if (!token) {
+      const login = new URL("/login", req.url);
+      const res = NextResponse.redirect(login);
+      applySecurityHeaders(res, { document: true });
+      return res;
+    }
+  }
+
+  if (pathname === "/debiopwr" || pathname.startsWith("/debiopwr/")) {
+    const token = await getToken({ req, secret: middlewareSecret });
+    if (!token) {
+      const login = new URL("/login", req.url);
       const res = NextResponse.redirect(login);
       applySecurityHeaders(res, { document: true });
       return res;
@@ -128,5 +163,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*", "/dashboard", "/dashboard/:path*"],
+  matcher: ["/api/:path*", "/dashboard", "/dashboard/:path*", "/consent", "/debiopwr"],
 };

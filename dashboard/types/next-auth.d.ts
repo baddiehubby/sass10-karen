@@ -8,6 +8,7 @@ declare module "next-auth" {
       companionName?: string;
       personality?: string;
       isAdmin?: boolean;
+      eidataConsentCompleted?: boolean;
     };
   }
 }
@@ -16,6 +17,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
     onboardingCompleted?: boolean;
+    eidataConsentCompleted?: boolean;
     companionName?: string;
     personality?: string;
     isAdmin?: boolean;

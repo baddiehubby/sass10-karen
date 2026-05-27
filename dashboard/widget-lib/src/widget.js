@@ -58,6 +58,7 @@ import Sentiment from "sentiment";
   const SLEEPY_WORDS = ["sleep", "rest", "tired", "late", "exhausted", "fatigue", "nap"];
   const sentimentAnalyzer = new Sentiment();
   const OPTIN_KEY = "buddy_analytics_opt_in";
+  const SERVER_ANALYTICS_KEY = "buddy_server_anonymous_analytics";
   const SESSION_TOKEN_KEY = "buddy_analytics_session_token";
 
   function detectCurrentScript() {
@@ -499,7 +500,7 @@ import Sentiment from "sentiment";
       prompt.style.boxShadow = "0 12px 30px rgba(2,6,23,0.45)";
       prompt.style.zIndex = "2147483647";
       prompt.innerHTML = `
-        <div style="margin-bottom:8px;">Help make Buddy smarter for everyone? (anonymous)</div>
+        <div style="margin-bottom:8px;">Share anonymous mood labels to improve Buddy? No chat text — ever. Manage granular choices in your Buddie AI settings.</div>
         <div style="display:flex; gap:8px; justify-content:flex-end;">
           <button data-opt="no" style="border:1px solid rgba(148,163,184,0.4); background:transparent; color:#cbd5e1; border-radius:999px; padding:4px 10px; font-size:11px;">No</button>
           <button data-opt="yes" style="border:1px solid rgba(16,185,129,0.45); background:rgba(16,185,129,0.2); color:#d1fae5; border-radius:999px; padding:4px 10px; font-size:11px;">Yes</button>
@@ -1067,19 +1068,64 @@ import Sentiment from "sentiment";
       }
     }
 
+    function inferEidataSource() {
+      const h = (window.location.hostname || "").toLowerCase();
+      if (h.includes("chatgpt") || h.includes("openai")) return "chatgpt";
+      if (h.includes("claude")) return "claude";
+      if (h.includes("gemini") || h.includes("google")) return "gemini";
+      if (h.includes("buddieai")) return "website";
+      return "unknown";
+    }
+
+    function serverAnonymousAnalyticsGranted() {
+      try {
+        return window.localStorage.getItem(SERVER_ANALYTICS_KEY) === "granted";
+      } catch {
+        return false;
+      }
+    }
+
+    function refreshServerConsentStatus() {
+      const sessionToken = getSessionToken();
+      if (!sessionToken) return;
+      const q = new URLSearchParams({ sessionToken });
+      if (cfg.licenseKey) q.set("licenseKey", cfg.licenseKey);
+      fetch(`${cfg.apiBase}/api/consent/status?${q.toString()}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data) return;
+          const granted = Boolean(data.anonymous_analytics);
+          try {
+            window.localStorage.setItem(SERVER_ANALYTICS_KEY, granted ? "granted" : "denied");
+            if (granted) window.localStorage.setItem(OPTIN_KEY, "yes");
+          } catch {
+            /* ignore */
+          }
+        })
+        .catch(() => undefined);
+    }
+
     function sendAnalyticsMoodEvent(mood) {
       if (state.analyticsOptIn !== true) return;
+      if (!serverAnonymousAnalyticsGranted()) return;
       const safe = analyticsSafeMood(mood);
       const sessionToken = getSessionToken();
       if (!sessionToken) return;
-      fetch(`${cfg.apiBase}/api/analytics/event`, {
+      const payload = {
+        sessionToken,
+        mood: safe,
+        timestamp: new Date().toISOString(),
+        companionType: "buddy",
+        source: inferEidataSource(),
+      };
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Buddy-Widget-Opt-In": "yes",
+      };
+      fetch(`${cfg.apiBase}/api/analytics/anonymized-event`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mood: safe,
-          sessionToken,
-          timestamp: new Date().toISOString(),
-        }),
+        headers,
+        body: JSON.stringify(payload),
       }).catch(() => undefined);
     }
 
@@ -1230,6 +1276,7 @@ import Sentiment from "sentiment";
       }
       applyTooltip();
       pollCollaborativeMood();
+      refreshServerConsentStatus();
     }
 
     function scheduleProcess() {

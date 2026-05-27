@@ -1,39 +1,19 @@
 (function buddyAiContentScript() {
+  const API_BASE = "https://www.buddieai.com";
+  const WIDGET_SCRIPT_ID = "buddy-ai-extension-widget-script";
+  const CSS_LINK_ID = "buddy-ai-extension-widget-css";
+  const ALLOWED_HOSTS = new Set(["chat.openai.com", "chatgpt.com", "claude.ai", "gemini.google.com"]);
+
+  if (!ALLOWED_HOSTS.has(window.location.hostname)) return;
+
+  let bootstrapped = false;
+
   function markExtensionInstalled() {
     const script = document.createElement("script");
     script.textContent = "window.__buddyExtensionInstalled = true;";
     (document.head || document.documentElement).appendChild(script);
     script.remove();
   }
-  markExtensionInstalled();
-
-  const API_BASE = "https://www.buddieai.com";
-  const SCRIPT_ID = "buddy-ai-extension-widget-script";
-  const INIT_SCRIPT_ID = "buddy-ai-extension-init-script";
-  const ALLOWED_HOSTS = new Set(["chat.openai.com", "chatgpt.com", "claude.ai", "gemini.google.com"]);
-
-  const PLATFORM =
-    window.location.hostname === "claude.ai"
-      ? "claude"
-      : window.location.hostname === "gemini.google.com"
-        ? "gemini"
-        : "chatgpt";
-  const CHAT_SURFACE_SELECTORS = [
-    '[data-message-author-role="assistant"]',
-    '[data-testid*="assistant"]',
-    '[data-testid*="response"]',
-    ".claude-message",
-    "[class*='claude'][class*='message']",
-    "[class*='response-content']",
-    "[class*='model-response']",
-    "main",
-    "[role='main']",
-  ];
-
-  if (!ALLOWED_HOSTS.has(window.location.hostname)) return;
-
-  let lastInjectedKey = "";
-  let waitingForSurface = false;
 
   function getFromStorage(keys) {
     return new Promise((resolve) => {
@@ -41,107 +21,99 @@
     });
   }
 
-  function findChatSurface() {
-    for (const selector of CHAT_SURFACE_SELECTORS) {
-      const node = document.querySelector(selector);
-      if (node) return node;
-    }
-    return document.body;
+  function injectWidgetCss() {
+    if (document.getElementById(CSS_LINK_ID)) return;
+    const link = document.createElement("link");
+    link.id = CSS_LINK_ID;
+    link.rel = "stylesheet";
+    link.href = chrome.runtime.getURL("vendor/buddy-widget.css");
+    (document.head || document.documentElement).appendChild(link);
   }
 
-  function removeExistingWidget() {
-    document.getElementById(INIT_SCRIPT_ID)?.remove();
-    document.getElementById(SCRIPT_ID)?.remove();
-    document.getElementById("hq-livingface-container")?.remove();
-  }
+  function injectBuddyWidget(licenseKey) {
+    if (!licenseKey) return;
+    if (bootstrapped && document.getElementById("hq-livingface-container")) return;
 
-  function injectInitScript(licenseKey) {
-    const initScript = document.createElement("script");
-    initScript.id = INIT_SCRIPT_ID;
-    initScript.src = chrome.runtime.getURL("buddy-extension-init.js");
-    initScript.dataset.licenseKey = licenseKey;
-    initScript.dataset.apiBase = API_BASE;
-    initScript.dataset.verifyDomain = "extension";
-    initScript.dataset.cssHref = chrome.runtime.getURL("vendor/buddy-widget.css");
-    initScript.addEventListener("load", () => {
+    const existing = document.getElementById(WIDGET_SCRIPT_ID);
+    if (existing) existing.remove();
+
+    const widgetScript = document.createElement("script");
+    widgetScript.id = WIDGET_SCRIPT_ID;
+    widgetScript.src = chrome.runtime.getURL("vendor/livingface-widget.js");
+    widgetScript.async = true;
+    widgetScript.dataset.hqKey = licenseKey;
+    widgetScript.dataset.hqApi = API_BASE;
+    widgetScript.dataset.hqDomain = "extension";
+    widgetScript.dataset.hqCss = chrome.runtime.getURL("vendor/buddy-widget.css");
+    widgetScript.dataset.hqPosition = "bottom-right";
+    widgetScript.dataset.hqManualInit = "true";
+
+    widgetScript.addEventListener("load", () => {
+      const initScript = document.createElement("script");
+      initScript.textContent = `(() => {
+        if (window.__buddyAiExtensionBootstrapped) return;
+        if (!window.BuddyAI || typeof window.BuddyAI.init !== "function") return;
+        window.BuddyAI.init({
+          licenseKey: ${JSON.stringify(licenseKey)},
+          apiBase: ${JSON.stringify(API_BASE)},
+          verifyDomain: "extension",
+          cssHref: ${JSON.stringify(chrome.runtime.getURL("vendor/buddy-widget.css"))},
+        });
+        window.__buddyAiExtensionBootstrapped = true;
+      })();`;
+      (document.head || document.documentElement).appendChild(initScript);
       initScript.remove();
-      lastInjectedKey = licenseKey;
-      window.dispatchEvent(
-        new CustomEvent("buddy-ai-extension-ready", {
-          detail: { platform: PLATFORM, host: window.location.hostname },
-        }),
-      );
+      bootstrapped = true;
     });
-    (document.head || document.documentElement).appendChild(initScript);
+
+    (document.head || document.documentElement).appendChild(widgetScript);
   }
 
-  function injectWidget(licenseKey) {
-    if (!licenseKey || !document.body) return;
-    if (lastInjectedKey === licenseKey && document.getElementById("hq-livingface-container")) return;
-
-    removeExistingWidget();
-
-    const script = document.createElement("script");
-    script.id = SCRIPT_ID;
-    script.src = chrome.runtime.getURL("vendor/livingface-widget.js");
-    script.async = true;
-    script.dataset.hqKey = licenseKey;
-    script.dataset.hqApi = API_BASE;
-    script.dataset.hqDomain = "extension";
-    script.dataset.hqCss = chrome.runtime.getURL("vendor/buddy-widget.css");
-    script.dataset.hqPosition = "bottom-right";
-    script.dataset.hqManualInit = "true";
-    script.addEventListener("load", () => injectInitScript(licenseKey));
-
-    (document.head || document.documentElement).appendChild(script);
+  function ensureOrbContainer() {
+    if (document.getElementById("hq-livingface-container")) return;
+    const host = document.createElement("div");
+    host.id = "hq-livingface-container";
+    host.setAttribute("data-buddy-extension-placeholder", "true");
+    host.style.cssText =
+      "position:fixed;bottom:24px;right:24px;width:80px;height:80px;z-index:2147483647;pointer-events:none;border-radius:999px;box-shadow:0 0 24px rgba(99,102,241,0.45);";
+    document.body.appendChild(host);
   }
 
-  async function bootWhenReady() {
+  async function bootWidget() {
+    markExtensionInstalled();
+    injectWidgetCss();
+
     const { buddyLicenseKey } = await getFromStorage(["buddyLicenseKey"]);
     const licenseKey = String(buddyLicenseKey || "").trim();
 
     if (!licenseKey) {
-      removeExistingWidget();
-      lastInjectedKey = "";
+      ensureOrbContainer();
       return;
     }
 
-    const surface = findChatSurface();
-    if (surface) {
-      injectWidget(licenseKey);
-      return;
-    }
-
-    if (waitingForSurface) return;
-    waitingForSurface = true;
-
-    const observer = new MutationObserver(() => {
-      if (!findChatSurface()) return;
-      waitingForSurface = false;
-      observer.disconnect();
-      injectWidget(licenseKey);
-    });
-
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    window.setTimeout(() => {
-      waitingForSurface = false;
-      observer.disconnect();
-      injectWidget(licenseKey);
-    }, 8000);
+    injectBuddyWidget(licenseKey);
   }
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local" || !changes.buddyLicenseKey) return;
-    bootWhenReady();
+    bootstrapped = false;
+    document.getElementById("hq-livingface-container")?.remove();
+    document.getElementById(WIDGET_SCRIPT_ID)?.remove();
+    void bootWidget();
   });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || message.type !== "BUDDY_AI_REFRESH_WIDGET") return false;
-    bootWhenReady()
+    bootstrapped = false;
+    void bootWidget()
       .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   });
 
-  bootWhenReady();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => void bootWidget(), { once: true });
+  } else {
+    void bootWidget();
+  }
 })();

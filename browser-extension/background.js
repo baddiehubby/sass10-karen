@@ -13,6 +13,40 @@ const AI_CHAT_URL_PATTERNS = [
   "https://gemini.google.com/*",
 ];
 
+const AI_PLATFORM_HOSTS = ["chatgpt.com", "chat.openai.com", "claude.ai", "gemini.google.com"];
+
+function isAiChatUrl(url) {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+    return AI_PLATFORM_HOSTS.some((pattern) => host === pattern || host.endsWith(`.${pattern}`));
+  } catch {
+    return false;
+  }
+}
+
+async function injectBuddyOnTab(tabId) {
+  if (!tabId) return;
+
+  try {
+    await chrome.scripting.insertCSS({
+      target: { tabId },
+      files: ["vendor/buddy-widget.css"],
+    });
+  } catch {
+    /* CSS may already be present */
+  }
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["content.js"],
+    });
+  } catch {
+    /* content script may already be registered via manifest */
+  }
+}
+
 chrome.runtime.onInstalled.addListener(async (details) => {
   const existing = await chrome.storage.local.get(Object.keys(DEFAULTS));
   const updates = {};
@@ -28,6 +62,17 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === "install") {
     console.info("[Buddy AI] Extension installed — sign in at buddieai.com to auto-activate.");
   }
+
+  const tabs = await chrome.tabs.query({ url: AI_CHAT_URL_PATTERNS });
+  for (const tab of tabs) {
+    await injectBuddyOnTab(tab.id);
+  }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== "complete" || !tab?.url) return;
+  if (!isAiChatUrl(tab.url)) return;
+  void injectBuddyOnTab(tabId);
 });
 
 async function refreshAiChatTabs() {
@@ -37,7 +82,7 @@ async function refreshAiChatTabs() {
     try {
       await chrome.tabs.sendMessage(tab.id, { type: "BUDDY_AI_REFRESH_WIDGET" });
     } catch {
-      /* tab may not have content script yet */
+      await injectBuddyOnTab(tab.id);
     }
   }
 }

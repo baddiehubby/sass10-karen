@@ -1,4 +1,5 @@
-const API_BASE = "https://app.buddieai.com";
+const API_BASE = "https://www.buddieai.com";
+const DASHBOARD_URL = "https://www.buddieai.com/dashboard";
 
 const els = {
   input: document.getElementById("licenseKey"),
@@ -69,7 +70,7 @@ async function paintStoredState() {
 
   if (!licenseKey) {
     setBadge("idle", "Inactive");
-    els.text.textContent = "Enter your Buddy AI license key to activate the orb.";
+    els.text.textContent = `Sign in at buddieai.com — your orb activates automatically.`;
     els.moods.textContent = "-";
     return;
   }
@@ -80,7 +81,7 @@ async function paintStoredState() {
   const verified = await verifyLicense(licenseKey);
   if (!verified) {
     setBadge("invalid", "Invalid key");
-    els.text.textContent = "Invalid key. Get a trial at app.buddieai.com/dashboard.";
+    els.text.textContent = `Invalid key. Open ${DASHBOARD_URL} to refresh your license.`;
     await chrome.storage.local.set({ buddyLicenseStatus: "invalid", buddyMoodEventsToday: 0 });
     els.moods.textContent = "0";
     return;
@@ -143,7 +144,7 @@ async function saveLicense() {
       els.moods.textContent = Number(stats.totalMoodsToday || 0).toLocaleString();
     } else {
       setBadge("invalid", "Invalid key");
-      els.text.textContent = "Invalid key. Get a trial at app.buddieai.com/dashboard.";
+      els.text.textContent = `Invalid key. Open ${DASHBOARD_URL} to refresh your license.`;
       els.moods.textContent = "0";
     }
 

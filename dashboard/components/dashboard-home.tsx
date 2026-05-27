@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { DashboardCelebration } from "@/components/dashboard-celebration";
+import { DashboardCompanionOnboarding } from "@/components/dashboard-companion-onboarding";
 import { DashboardLiveOrb } from "@/components/dashboard-live-orb";
 import { MoodSparkline } from "@/components/mood-sparkline";
 import { formatMomentSentence, formatRelativeTime, pronounForName } from "@/lib/dashboard-format";
@@ -45,6 +46,8 @@ export function DashboardHome({
       <Suspense fallback={null}>
         <DashboardCelebration />
       </Suspense>
+
+      <DashboardCompanionOnboarding licenseKey={licenseKey} />
 
       <DashboardLiveOrb
         mood={moodLabel}

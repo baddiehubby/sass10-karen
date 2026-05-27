@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/site-header";
 import { CookieBanner } from "@/components/CookieBanner";
 
 const IMMERSIVE_PREFIXES = ["/dashboard"];
-const IMMERSIVE_EXACT = new Set(["/", "/login"]);
+const IMMERSIVE_EXACT = new Set(["/", "/login", "/pwa"]);
 
 function isImmersiveRoute(pathname: string) {
   if (IMMERSIVE_EXACT.has(pathname)) return true;

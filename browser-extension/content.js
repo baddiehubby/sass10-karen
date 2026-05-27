@@ -1,5 +1,13 @@
 (function buddyAiContentScript() {
-  const API_BASE = "https://app.buddieai.com";
+  function markExtensionInstalled() {
+    const script = document.createElement("script");
+    script.textContent = "window.__buddyExtensionInstalled = true;";
+    (document.head || document.documentElement).appendChild(script);
+    script.remove();
+  }
+  markExtensionInstalled();
+
+  const API_BASE = "https://www.buddieai.com";
   const SCRIPT_ID = "buddy-ai-extension-widget-script";
   const INIT_SCRIPT_ID = "buddy-ai-extension-init-script";
   const ALLOWED_HOSTS = new Set(["chat.openai.com", "chatgpt.com", "claude.ai", "gemini.google.com"]);

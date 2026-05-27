@@ -44,6 +44,7 @@ export function DashboardSettingsPanel({
   const [personality, setPersonality] = useState<(typeof personalities)[number]["id"]>("calm");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -62,6 +63,22 @@ export function DashboardSettingsPanel({
       mounted = false;
     };
   }, []);
+
+  async function onSync() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/companion/sync", { method: "POST" });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast.error(data.error || "Could not sync");
+        return;
+      }
+      window.postMessage({ type: "BUDDY_REQUEST_EXTENSION_SYNC" }, "*");
+      toast.success("Buddy synced across your devices");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
@@ -94,7 +111,20 @@ export function DashboardSettingsPanel({
       </header>
 
       <section className="rounded-2xl border border-white/8 bg-white/[0.03] p-6">
-        <h2 className="text-sm font-medium text-white/70">Companion</h2>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-medium text-white/70">Companion</h2>
+            <p className="mt-1 text-xs text-white/35">Sync mood, memory, and themes on every device.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void onSync()}
+            disabled={syncing}
+            className="shrink-0 rounded-full border border-violet-500/30 px-3 py-1.5 text-xs text-violet-200/90 hover:bg-violet-500/10 disabled:opacity-50"
+          >
+            {syncing ? "Syncing…" : "Sync"}
+          </button>
+        </div>
         <form onSubmit={onSave} className="mt-4 space-y-4">
           <input
             className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white"

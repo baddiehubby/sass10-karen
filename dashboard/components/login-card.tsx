@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { CinematicOrb, getTimeTheme, TIME_THEME_COLORS } from "@/components/cinematic-orb";
+import { PrivacyBadge } from "@/components/privacy-badge";
 import { getClientSignInCallbackUrl } from "@/lib/site-url";
 
 type LoginCardProps = {
@@ -54,14 +55,12 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
       <button
         type="button"
         onClick={() => signIn("google", { callbackUrl })}
-        className="mt-8 w-full max-w-xs rounded-full border border-white/15 bg-white/8 px-6 py-3.5 text-sm font-medium text-white/90 backdrop-blur-sm transition hover:border-white/30 hover:bg-white/12"
+        className="premium-btn-glow mt-8 w-full max-w-xs rounded-full border border-white/15 bg-white/8 px-6 py-3.5 text-sm font-medium text-white/90 backdrop-blur-sm transition hover:border-white/30 hover:bg-white/12"
       >
         Continue with Google
       </button>
 
-      <p className="mt-4 max-w-sm text-center text-xs font-light tracking-wide text-slate-400/80">
-        🔒 100% Private. Your emotions never leave your device.
-      </p>
+      <PrivacyBadge variant="login" className="mt-4" />
 
       <Link href="/about" className="mt-10 text-xs text-white/30 transition hover:text-white/55">
         Learn more

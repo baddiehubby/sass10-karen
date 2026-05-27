@@ -101,6 +101,7 @@ type CinematicOrbProps = {
   scrollPulse?: number;
   mouseRef?: React.MutableRefObject<{ x: number; y: number }>;
   height?: string;
+  shimmer?: boolean;
 };
 
 export function CinematicOrb({
@@ -110,6 +111,7 @@ export function CinematicOrb({
   scrollPulse = 0,
   mouseRef,
   height = "min(68vh, 520px)",
+  shimmer = false,
 }: CinematicOrbProps) {
   const theme = themeProp ?? getTimeTheme();
   const internalMouse = useRef({ x: 0, y: 0 });
@@ -127,6 +129,7 @@ export function CinematicOrb({
         className="pointer-events-none absolute inset-[-15%] rounded-full blur-3xl"
         style={{ background: `radial-gradient(circle, ${colors.glow} 0%, transparent 70%)` }}
       />
+      {shimmer ? <div className="orb-gold-shimmer pointer-events-none absolute inset-0 rounded-full" aria-hidden /> : null}
       <Canvas camera={{ position: [0, 0, 5.2], fov: 38 }} dpr={dpr} gl={{ alpha: true, antialias: true }}>
         <ambientLight intensity={0.25} />
         <pointLight position={[8, 8, 8]} intensity={1.1} color={colors.primary} />

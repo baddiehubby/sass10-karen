@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { AppSessionProvider } from "@/components/session-provider";
@@ -24,6 +24,12 @@ const seoDescription =
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://buddieai.com"),
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Buddy",
+  },
   title: {
     default: seoTitle,
     template: "%s | Buddie AI",
@@ -41,6 +47,10 @@ export const metadata: Metadata = {
     title: seoTitle,
     description: seoDescription,
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#7c3aed",
 };
 
 export default function RootLayout({

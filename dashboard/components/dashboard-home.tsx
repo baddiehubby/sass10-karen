@@ -6,6 +6,7 @@ import { DashboardCelebration } from "@/components/dashboard-celebration";
 import { DashboardCompanionOnboarding } from "@/components/dashboard-companion-onboarding";
 import { DashboardLiveOrb } from "@/components/dashboard-live-orb";
 import { MoodSparkline } from "@/components/mood-sparkline";
+import { PrivacyBadge } from "@/components/privacy-badge";
 import { formatMomentSentence, formatRelativeTime, pronounForName } from "@/lib/dashboard-format";
 
 export type DashboardHomeProps = {
@@ -56,6 +57,8 @@ export function DashboardHome({
         apiBase={apiBase}
       />
 
+      <PrivacyBadge variant="dashboard" className="mt-4" />
+
       <p className="mt-10 text-base font-light tracking-wide text-white/75 md:text-lg">
         Your Buddy is <span className="capitalize text-violet-200/90">{moodLabel}</span>. {pronoun} been with you
         for{" "}
@@ -102,9 +105,6 @@ export function DashboardHome({
         </Link>
       ) : null}
 
-      <p className="mt-4 text-xs font-light tracking-wide text-slate-400/80">
-        🔒 100% Private. Your emotions never leave your device.
-      </p>
     </div>
   );
 }

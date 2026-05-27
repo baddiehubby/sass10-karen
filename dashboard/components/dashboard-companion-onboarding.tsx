@@ -3,35 +3,30 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { CHROME_EXTENSION_DOWNLOAD_URL } from "@/lib/marketing-links";
+import {
+  installPwa,
+  isExtensionInstalled,
+  isIosSafari,
+  isPwaInstalled,
+  type BeforeInstallPromptEvent,
+} from "@/lib/pwa-install";
 import { getPublicAppBaseUrl } from "@/lib/site-url";
-
-declare global {
-  interface Window {
-    __buddyExtensionInstalled?: boolean;
-  }
-}
 
 type DashboardCompanionOnboardingProps = {
   licenseKey: string | null;
 };
 
 export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionOnboardingProps) {
-  // Check synchronously on first render — the bridge script runs at document_idle so the flag
-  // is already set by the time React hydrates. No polling or artificial delay needed.
-  const [extensionInstalled, setExtensionInstalled] = useState(
-    () => typeof window !== "undefined" && window.__buddyExtensionInstalled === true,
-  );
-  const [pwaInstalled, setPwaInstalled] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches,
-  );
+  const [extensionInstalled, setExtensionInstalled] = useState(() => isExtensionInstalled());
+  const [pwaInstalled, setPwaInstalled] = useState(() => isPwaInstalled());
   const [iosHelp, setIosHelp] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   const pwaUrl = `${getPublicAppBaseUrl()}/pwa?autoInstall=true`;
-  const extensionDownloadUrl = "/api/download/buddy-extension";
 
   const detectExtension = useCallback(() => {
-    if (typeof window !== "undefined" && window.__buddyExtensionInstalled === true) {
+    if (isExtensionInstalled()) {
       setExtensionInstalled(true);
       return true;
     }
@@ -39,30 +34,25 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
   }, []);
 
   useEffect(() => {
-    // Re-check once after mount in case the content script set the flag after SSR hydration.
     detectExtension();
     const displayMode = window.matchMedia("(display-mode: standalone)");
-    setPwaInstalled(displayMode.matches);
+    setPwaInstalled(displayMode.matches || isPwaInstalled());
     const onDisplayModeChange = (event: MediaQueryListEvent) => setPwaInstalled(event.matches);
-    displayMode.addEventListener("change", onDisplayModeChange);
 
     const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === "BUDDY_EXTENSION_SYNCED") {
-        setExtensionInstalled(true);
-      }
+      if (event.data?.type === "BUDDY_EXTENSION_SYNCED") setExtensionInstalled(true);
     };
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      setDeferredPrompt(event as Event & { prompt: () => Promise<void> });
+      setDeferredPrompt(event as BeforeInstallPromptEvent);
     };
     const onInstalled = () => setPwaInstalled(true);
 
+    displayMode.addEventListener("change", onDisplayModeChange);
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
     window.addEventListener("message", onMessage);
-    if (displayMode.matches && window.location.pathname.startsWith("/dashboard")) {
-      window.location.replace("/pwa");
-    }
+
     return () => {
       displayMode.removeEventListener("change", onDisplayModeChange);
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
@@ -71,74 +61,70 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
     };
   }, [detectExtension]);
 
-  const installPwa = async () => {
-    const navInstall = (navigator as Navigator & { install?: () => Promise<void> }).install;
-    if (typeof navInstall === "function") {
-      try {
-        await navInstall.call(navigator);
-        setPwaInstalled(true);
-        return;
-      } catch {
-        /* fallback */
-      }
-    }
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
+  const handleInstall = async () => {
+    const result = await installPwa({ deferredPrompt });
+    if (result === "installed") {
+      setPwaInstalled(true);
       return;
     }
-    setIosHelp(true);
+    if (result === "ios-manual" || isIosSafari()) {
+      setIosHelp(true);
+    }
   };
+
+  const companionReady = extensionInstalled || pwaInstalled;
 
   return (
     <div className="mb-8 w-full space-y-4">
-      {extensionInstalled || pwaInstalled ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/25 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-100/90">
+      {companionReady ? (
+        <div className="luxury-card flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-100/90">
           <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-          Your Buddy is with you on all your conversations.
+          {pwaInstalled && extensionInstalled
+            ? "Buddy is with you everywhere — app and browser."
+            : pwaInstalled
+              ? "Buddy is with you everywhere."
+              : "Your Buddy is with you on all your conversations."}
         </div>
       ) : (
-        <article className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-violet-500/8 to-indigo-500/10 p-5 shadow-lg shadow-violet-950/20">
-          <p className="text-center text-xs uppercase tracking-[0.22em] text-amber-200/70">Your Buddy is ready</p>
-          <h2 className="mt-2 text-center text-lg font-light text-white/90">Take your Buddy everywhere — instantly.</h2>
-          <p className="mt-2 text-center text-sm font-light text-white/50">
-            Install as an app, or add to Chrome with a direct download. No store redirect, no embed code.
+        <article className="install-card-pulse luxury-glass luxury-card rounded-2xl border border-amber-400/25 p-5 shadow-lg shadow-violet-950/30">
+          <p className="text-center text-xs uppercase tracking-[0.24em] text-amber-200/80">✨ Premium companion</p>
+          <h2 className="mt-2 text-center text-lg font-light text-white/95">
+            Take Buddy Everywhere — Instantly
+          </h2>
+          <p className="mt-2 text-center text-sm font-light text-white/55">
+            Install as an app. Your Buddy appears on every AI chat — ChatGPT, Claude, Gemini — automatically.
           </p>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
-              onClick={installPwa}
-              className="inline-flex rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-medium text-white transition hover:border-white/35 hover:bg-white/15"
+              onClick={() => void handleInstall()}
+              className="premium-btn-glow inline-flex rounded-full border border-amber-300/30 bg-gradient-to-r from-violet-600/80 to-indigo-600/80 px-6 py-2.5 text-sm font-medium text-white"
             >
-              Install as app
+              Install Buddy Now
             </button>
             <a
-              href={extensionDownloadUrl}
-              className="inline-flex rounded-full border border-white/20 bg-black/20 px-5 py-2.5 text-sm font-medium text-white transition hover:border-white/35 hover:bg-black/30"
+              href={CHROME_EXTENSION_DOWNLOAD_URL}
+              className="premium-btn-glow inline-flex rounded-full border border-white/20 bg-black/25 px-5 py-2.5 text-sm font-medium text-white/90"
             >
-              Add to Chrome
+              Download for Chrome
             </a>
           </div>
-          <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-white/70">
-            <p className="font-medium text-white/85">Add Buddy to Chrome in 2 steps</p>
-            <p className="mt-1">1) Open chrome://extensions and toggle Developer mode ON.</p>
-            <p className="mt-1">2) Drag the downloaded .crx file onto that page.</p>
-          </div>
-          <p className="mt-3 text-center text-xs text-white/60">
+          <p className="mt-4 text-center text-xs tracking-wide text-white/50">
             Your Buddy will appear on ChatGPT, Claude, Gemini, and any AI chat — automatically.
           </p>
           {iosHelp ? (
-            <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-white/70">
-              <p className="font-medium text-white/85">iPhone/iPad install</p>
-              <p className="mt-1">Tap Share in Safari → Add to Home Screen.</p>
+            <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-100/80">
+              <p className="font-medium text-emerald-100">iPhone / iPad</p>
+              <p className="mt-1">Tap Share → Add to Home Screen.</p>
             </div>
           ) : null}
         </article>
       )}
 
-      <article className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
+      <article className="luxury-card rounded-2xl border border-white/8 bg-white/[0.03] p-5">
         <h3 className="text-center text-sm font-medium text-white/75">Take Buddy on your phone</h3>
         <p className="mt-1 text-center text-xs font-light text-white/40">
-          Scan to open your pocket companion. Add to Home Screen for a full-screen orb — one tap away.
+          Scan to open your pocket companion — one tap to install.
         </p>
         <div className="mt-4 flex flex-col items-center gap-3">
           <div className="rounded-xl bg-white p-3">
@@ -152,7 +138,7 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
           </Link>
           {licenseKey ? (
             <p className="max-w-xs text-center font-mono text-[10px] text-white/25">
-              Signed in on this device — your license syncs automatically.
+              Signed in — your license syncs automatically across devices.
             </p>
           ) : null}
         </div>

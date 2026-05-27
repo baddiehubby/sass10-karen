@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CinematicOrb, getTimeTheme, TIME_THEME_COLORS, type TimeTheme } from "@/components/cinematic-orb";
+import { PrivacyBadge } from "@/components/privacy-badge";
 
 const WHISPERS = [
   "You seem far away tonight.",
@@ -139,15 +140,7 @@ export function ImmersiveHomepage() {
         >
           Your AI companion, always listening.
         </motion.p>
-        <CinematicOrb theme={theme} breathing={breathing} scrollPulse={scrollPulse} mouseRef={mouseRef} />
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="mt-3 text-center text-xs font-light tracking-wide text-slate-400/80"
-        >
-          🔒 100% Private. Your emotions never leave your device.
-        </motion.p>
+        <CinematicOrb theme={theme} breathing={breathing} scrollPulse={scrollPulse} mouseRef={mouseRef} shimmer />
       </div>
 
       <div className="pointer-events-none relative mt-2 flex min-h-[4rem] w-full max-w-md flex-col items-center px-6">
@@ -184,6 +177,14 @@ export function ImmersiveHomepage() {
               <p className="mt-3 max-w-xs text-center text-xs text-slate-500">
                 No credit card needed. Your Buddy stays free forever. Upgrade when you&apos;re ready.
               </p>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.9, ease: "easeOut", delay: 1 }}
+                className="mt-4"
+              >
+                <PrivacyBadge variant="homepage" />
+              </motion.div>
             </motion.div>
           ) : null}
         </AnimatePresence>

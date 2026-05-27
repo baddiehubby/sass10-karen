@@ -1428,3 +1428,100 @@ html.light .future-cta-panel {
   animation: spin-slow linear infinite;
 }
 
+/* Premium privacy + install polish */
+.privacy-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(12px);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.72rem;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  color: rgba(167, 243, 208, 0.88);
+  box-shadow: 0 0 18px rgba(52, 211, 153, 0.12);
+}
+.privacy-badge--homepage::before {
+  content: "🔒 ";
+}
+.privacy-badge-glow {
+  text-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
+  color: rgba(253, 224, 71, 0.95);
+}
+.privacy-badge--login {
+  border-color: rgba(52, 211, 153, 0.22);
+  color: rgba(203, 213, 225, 0.75);
+  background: rgba(15, 23, 42, 0.35);
+  letter-spacing: 0.06em;
+}
+.privacy-badge--dashboard {
+  border-color: rgba(52, 211, 153, 0.25);
+  color: rgba(167, 243, 208, 0.82);
+  max-width: 20rem;
+  text-align: center;
+}
+
+.premium-btn-glow {
+  transition: transform 260ms ease, box-shadow 260ms ease, border-color 260ms ease;
+}
+.premium-btn-glow:hover {
+  transform: scale(1.03) translateY(-1px);
+  box-shadow: 0 12px 28px rgba(124, 58, 237, 0.35);
+}
+
+.install-card-pulse {
+  animation: installCardPulse 3.2s ease-in-out infinite;
+}
+@keyframes installCardPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.08), 0 18px 40px rgba(76, 29, 149, 0.25);
+    border-color: rgba(250, 204, 21, 0.22);
+  }
+  50% {
+    box-shadow: 0 0 24px 2px rgba(250, 204, 21, 0.18), 0 22px 48px rgba(124, 58, 237, 0.35);
+    border-color: rgba(250, 204, 21, 0.42);
+  }
+}
+
+.orb-gold-shimmer {
+  overflow: hidden;
+  z-index: 2;
+}
+.orb-gold-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 8% 12%;
+  border-radius: 999px;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(250, 204, 21, 0.22) 48%,
+    rgba(255, 255, 255, 0.12) 52%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  animation: orbGoldSweep 9s ease-in-out infinite;
+}
+@keyframes orbGoldSweep {
+  0%,
+  72% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  78% {
+    opacity: 1;
+  }
+  92% {
+    transform: translateX(120%);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+

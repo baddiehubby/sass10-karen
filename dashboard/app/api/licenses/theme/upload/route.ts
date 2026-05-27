@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAppBaseUrl } from "@/lib/site-url";
 import { themeUploadFormSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -79,6 +80,6 @@ export async function POST(req: Request) {
     },
   });
 
-  const base = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+  const base = getAppBaseUrl();
   return NextResponse.json({ ok: true, url: `${base}${publicPath}` });
 }

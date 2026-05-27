@@ -4,8 +4,8 @@
 
   /** Default stylesheet — same origin as the widget script (not external CDN). */
   const WIDGET_CSS_PATH = "/widget/buddy-widget.css";
-  const TAMPER_REPORT_URL = "https://api.buddieai.com/api/security/tamper-attempt";
-  const TRUSTED_POST_MESSAGE_ORIGIN = "https://app.buddieai.com";
+  const TAMPER_REPORT_URL = "https://www.buddieai.com/api/security/tamper-attempt";
+  const TRUSTED_POST_MESSAGE_ORIGIN = "https://www.buddieai.com";
 
   const FREE_FEATURES = {
     customTheme: false,

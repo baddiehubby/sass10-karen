@@ -95,7 +95,7 @@ export function verifyLemonSignature(rawBody: string, signature: string | null):
   if (!secret || !signature) return false;
 
   const digest = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
-  const sig = signature.trim().toLowerCase();
+  const sig = signature.trim().toLowerCase().replace(/^sha256=/, "");
 
   try {
     const a = Buffer.from(digest, "utf8");

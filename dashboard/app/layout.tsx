@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { AppSessionProvider } from "@/components/session-provider";
 import { SiteChrome } from "@/components/site-chrome";
 import { Toaster } from "react-hot-toast";
+import { getAppBaseUrl } from "@/lib/site-url";
 import { getWidgetScriptUrl } from "@/lib/widget-cdn";
 import "./globals.css";
 
@@ -48,7 +49,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const widgetScriptUrl = getWidgetScriptUrl();
-  const apiBase = (process.env.NEXTAUTH_URL || "https://www.buddieai.com").replace(/\/$/, "");
+  const apiBase = getAppBaseUrl();
 
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable} h-full antialiased`}>

@@ -6,6 +6,22 @@ export const PRODUCTION_SITE_URL = "https://www.buddieai.com";
 
 const LOCALHOST_URL_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/i;
 
+function trimOrigin(url: string): string {
+  return url.trim().replace(/\/$/, "");
+}
+
+/**
+ * Public app origin for API bases, widget embeds, and Lemon redirect URLs.
+ * Prefer NEXT_PUBLIC_APP_URL, then NEXT_PUBLIC_SITE_URL, then canonical auth URL.
+ */
+export function getAppBaseUrl(): string {
+  const app = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (app) return trimOrigin(app);
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (site) return trimOrigin(site);
+  return getCanonicalSiteUrl();
+}
+
 /** True when running a local dev server (next dev). */
 export function isLocalDevelopment(): boolean {
   return process.env.NODE_ENV !== "production";
@@ -78,12 +94,26 @@ export function getClientSignInCallbackUrl(relativeFromQuery: string | null): st
     return path;
   }
 
-  const publicSite = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
-  if (publicSite && LOCALHOST_URL_RE.test(publicSite)) {
+  const publicBase =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+    "";
+  if (publicBase && LOCALHOST_URL_RE.test(publicBase)) {
     return path;
   }
 
   return `${PRODUCTION_SITE_URL}${path}`;
+}
+
+/** Client-safe app origin (uses public env vars, then production canonical URL). */
+export function getPublicAppBaseUrl(): string {
+  const app = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (app) return trimOrigin(app);
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (site) return trimOrigin(site);
+  if (process.env.NODE_ENV === "production") return PRODUCTION_SITE_URL;
+  if (typeof window !== "undefined") return window.location.origin;
+  return "http://localhost:3000";
 }
 
 export function logAuthUrlDebug(context: string): void {

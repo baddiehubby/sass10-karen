@@ -82,39 +82,45 @@ export const authOptions: NextAuthOptions = {
       if (user?.id && account?.provider === "credentials") {
         token.id = user.id;
       }
+
       const email = (user?.email || token.email || "").toString().toLowerCase();
+
       const adminList = (process.env.BUDDY_ADMIN_EMAILS || "")
         .split(",")
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean);
       token.isAdmin = Boolean(email && adminList.length > 0 && adminList.includes(email));
-      if (email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email },
-          select: {
-            id: true,
-            onboardingCompleted: true,
-            companionName: true,
-            personality: true,
-            _count: { select: { licenses: true } },
-          },
-        });
-        if (dbUser) {
-          if (!dbUser.onboardingCompleted && dbUser._count.licenses > 0) {
-            await prisma.user.update({
-              where: { id: dbUser.id },
-              data: { onboardingCompleted: true },
-            });
-            dbUser.onboardingCompleted = true;
-          }
-          if (dbUser._count.licenses === 0) {
-            await ensureFreeLicenseForUser(dbUser.id);
-          }
-          token.id = dbUser.id;
-          token.onboardingCompleted = dbUser.onboardingCompleted;
-          token.companionName = dbUser.companionName || "";
-          token.personality = dbUser.personality || "";
+
+      // Only hit the DB on new sign-ins (user object present) or when we don't yet have an id.
+      // Refreshes of an existing valid token skip the DB call entirely.
+      const needsDbLookup = Boolean(user) || !token.id;
+      if (!needsDbLookup || !email) return token;
+
+      const dbUser = await prisma.user.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          onboardingCompleted: true,
+          companionName: true,
+          personality: true,
+          _count: { select: { licenses: true } },
+        },
+      });
+      if (dbUser) {
+        if (!dbUser.onboardingCompleted && dbUser._count.licenses > 0) {
+          await prisma.user.update({
+            where: { id: dbUser.id },
+            data: { onboardingCompleted: true },
+          });
+          dbUser.onboardingCompleted = true;
         }
+        if (dbUser._count.licenses === 0) {
+          await ensureFreeLicenseForUser(dbUser.id);
+        }
+        token.id = dbUser.id;
+        token.onboardingCompleted = dbUser.onboardingCompleted;
+        token.companionName = dbUser.companionName || "";
+        token.personality = dbUser.personality || "";
       }
       return token;
     },

@@ -11,26 +11,23 @@
   }
 
   function injectBootstrapFetch() {
-    const script = document.createElement("script");
-    script.textContent = `
-      (async function buddyBootstrapFromSession() {
-        try {
-          const res = await fetch("/api/extensions/bootstrap", {
-            credentials: "include",
-            cache: "no-store",
-            headers: { Accept: "application/json" },
-          });
-          if (!res.ok) return;
-          const payload = await res.json();
-          window.postMessage(
-            { source: "buddy-dashboard-bridge", type: "BUDDY_BOOTSTRAP", payload },
-            "*",
-          );
-        } catch (_) {}
-      })();
-    `;
-    (document.head || document.documentElement).appendChild(script);
-    script.remove();
+    // Content scripts can call fetch directly — no injected <script> needed (MV3 compatible).
+    fetch("/api/extensions/bootstrap", {
+      credentials: "include",
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
+      .then((payload) => {
+        if (!payload?.licenseKey) return;
+        window.postMessage(
+          { source: "buddy-dashboard-bridge", type: "BUDDY_BOOTSTRAP", payload },
+          window.location.origin,
+        );
+      })
+      .catch(() => {
+        /* unauthenticated or network error — silent */
+      });
   }
 
   markInstalled();
@@ -44,7 +41,7 @@
         type: "BUDDY_APPLY_BOOTSTRAP",
         payload: event.data.payload,
       });
-      window.postMessage({ type: "BUDDY_EXTENSION_SYNCED" }, "*");
+      window.postMessage({ type: "BUDDY_EXTENSION_SYNCED" }, window.location.origin);
     }
   });
 

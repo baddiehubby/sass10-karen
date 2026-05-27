@@ -5,6 +5,7 @@ import { DashboardHome } from "@/components/dashboard-home";
 import { daysSince } from "@/lib/dashboard-format";
 import { ensureFreeLicenseForUser, isLicenseActive, isPaidPlan } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
+import { getAppBaseUrl } from "@/lib/site-url";
 import { getWidgetScriptUrl } from "@/lib/widget-cdn";
 
 export const dynamic = "force-dynamic";
@@ -81,7 +82,7 @@ export default async function DashboardPage() {
   const daysTogether = daysSince(anchorDate);
 
   const widgetScriptUrl = getWidgetScriptUrl();
-  const apiBase = (process.env.NEXTAUTH_URL || "https://www.buddieai.com").replace(/\/$/, "");
+  const apiBase = getAppBaseUrl();
 
   return (
     <DashboardHome

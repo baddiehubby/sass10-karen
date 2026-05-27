@@ -23,8 +23,8 @@ Official-style emotional safety layer for **ChatGPT**, **Claude**, and **Gemini*
 
 ## Get a license
 
-1. Sign up at [app.buddieai.com/register](https://app.buddieai.com/register)  
-2. Start a **14-day trial** from [app.buddieai.com/dashboard](https://app.buddieai.com/dashboard)  
+1. Sign up at [www.buddieai.com/login](https://www.buddieai.com/login) (Google sign-in — no password needed)
+2. Open your dashboard at [www.buddieai.com/dashboard](https://www.buddieai.com/dashboard)
 3. Copy your license key into the extension popup  
 
 ## Build widget vendor bundle

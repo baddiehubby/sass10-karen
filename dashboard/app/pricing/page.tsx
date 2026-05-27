@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { isPaidCheckoutTier, PAID_CHECKOUT_TIERS, PRICING_TIERS, type PaidCheckoutTier } from "@/lib/pricing-plans";
 
-export default function PricingPage() {
+function PricingContent() {
   const free = PRICING_TIERS.free;
   const pro = PRICING_TIERS.pro;
   const agency = PRICING_TIERS.agency;
@@ -25,7 +26,9 @@ export default function PricingPage() {
   };
 
   const { status } = useSession();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loadingKey, setLoadingKey] = useState<PaidCheckoutTier | null>(null);
 
   const startCheckout = useCallback(
@@ -59,13 +62,17 @@ export default function PricingPage() {
   );
 
   useEffect(() => {
+    const checkout = searchParams.get("checkout");
+    if (checkout === "cancelled") {
+      setInfo("Checkout cancelled. Your free Buddy is still active — upgrade anytime.");
+      setError(null);
+      return;
+    }
     if (status !== "authenticated") return;
-    const params = new URLSearchParams(window.location.search);
-    const checkout = params.get("checkout");
     if (checkout && isPaidCheckoutTier(checkout)) {
       void startCheckout(checkout);
     }
-  }, [status, startCheckout]);
+  }, [status, startCheckout, searchParams]);
 
   const freeHref = status === "authenticated" ? "/dashboard" : "/login";
   const freeCta = status === "authenticated" ? "Go to your Buddy" : "Get started free";
@@ -165,6 +172,7 @@ export default function PricingPage() {
           </>
         )}
       </p>
+      {info ? <p className="mt-4 text-sm text-amber-200/90">{info}</p> : null}
       {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
 
       <section className="mt-16 glass-panel p-6 sm:p-8">
@@ -181,5 +189,17 @@ export default function PricingPage() {
         </p>
       </section>
     </main>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-6xl px-6 py-14 text-slate-400">Loading pricing…</main>
+      }
+    >
+      <PricingContent />
+    </Suspense>
   );
 }

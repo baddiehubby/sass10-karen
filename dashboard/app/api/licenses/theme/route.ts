@@ -5,6 +5,7 @@ import { parseJsonBody, parseQuery } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPresetCss, mergePresetWithHex } from "@/lib/theme-presets";
+import { getAppBaseUrl } from "@/lib/site-url";
 import { licenseThemeGetQuerySchema, licenseThemePostSchema } from "@/lib/validation";
 
 function corsHeaders() {
@@ -30,7 +31,7 @@ function parseFeatures(raw: string): Record<string, unknown> {
 
 function absoluteUrl(pathOrUrl: string): string {
   if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) return pathOrUrl;
-  const base = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+  const base = getAppBaseUrl();
   return `${base}${pathOrUrl.startsWith("/") ? "" : "/"}${pathOrUrl}`;
 }
 

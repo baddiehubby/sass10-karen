@@ -8,7 +8,11 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Buddy",
+    startupImage: "/apple-touch-icon.png",
   },
+  icons: [
+    { rel: "apple-touch-icon", url: "/apple-touch-icon.png", sizes: "180x180" },
+  ],
 };
 
 export const viewport: Viewport = {

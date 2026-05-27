@@ -1,4 +1,5 @@
 import "server-only";
+import { getAppBaseUrl } from "@/lib/site-url";
 
 /**
  * Absolute URL to the widget IIFE bundle for embed snippets.
@@ -13,7 +14,7 @@ export function getWidgetScriptUrl(): string {
   const cdn = process.env.WIDGET_CDN_URL?.trim();
   if (cdn) return cdn.replace(/\/$/, "");
 
-  const origin = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+  const origin = getAppBaseUrl();
 
   if (process.env.NODE_ENV === "development") {
     return `${origin}/api/dev/widget`;

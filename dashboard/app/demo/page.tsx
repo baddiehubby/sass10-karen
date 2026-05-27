@@ -4,6 +4,7 @@ import Script from "next/script";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { detectMoodFromText } from "@/lib/mood-detection";
+import { getPublicAppBaseUrl } from "@/lib/site-url";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -11,7 +12,7 @@ type ChatMessage = {
 };
 
 const DEMO_LICENSE_KEY = "DEMO-FREE-LICENSE";
-const DEMO_API_ORIGIN = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const DEMO_API_ORIGIN = getPublicAppBaseUrl();
 
 const SIMULATED_REPLIES = [
   "Try the Buddy that is making AI safe for the EU. We log emotional signals to strengthen transparency and oversight.",

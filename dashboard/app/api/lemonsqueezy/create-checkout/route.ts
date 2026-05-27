@@ -2,10 +2,10 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
+import { getLemonCheckoutRedirectUrls } from "@/lib/lemon-checkout-urls";
 import { lemonRequest, getLemonVariantIdByTier, resolveLemonStoreId } from "@/lib/lemonsqueezy";
 import { isPaidCheckoutTier } from "@/lib/pricing-plans";
 import { prisma } from "@/lib/prisma";
-import { getCanonicalSiteUrl } from "@/lib/site-url";
 import { lemonCheckoutBodySchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
@@ -44,7 +44,8 @@ export async function POST(req: Request) {
     select: { email: true, name: true },
   });
 
-  const base = getCanonicalSiteUrl();
+  const urls = getLemonCheckoutRedirectUrls(tier);
+
   const response = await lemonRequest("/checkouts", {
     method: "POST",
     body: JSON.stringify({
@@ -58,10 +59,13 @@ export async function POST(req: Request) {
               user_id: session.user.id,
               tier,
               trial: trial ? "true" : "false",
+              cancel_return_url: urls.cancelUrl,
             },
           },
           product_options: {
-            redirect_url: `${base}/dashboard?payment=success`,
+            redirect_url: urls.successUrl,
+            receipt_link_url: urls.receiptUrl,
+            receipt_button_text: "Open your Buddy dashboard",
           },
         },
         relationships: {

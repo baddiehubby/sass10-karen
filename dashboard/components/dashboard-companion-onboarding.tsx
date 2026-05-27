@@ -17,54 +17,38 @@ type DashboardCompanionOnboardingProps = {
 };
 
 export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionOnboardingProps) {
-  const [extensionInstalled, setExtensionInstalled] = useState(false);
-  const [checking, setChecking] = useState(true);
+  // Check synchronously on first render — the bridge script runs at document_idle so the flag
+  // is already set by the time React hydrates. No polling or artificial delay needed.
+  const [extensionInstalled, setExtensionInstalled] = useState(
+    () => typeof window !== "undefined" && window.__buddyExtensionInstalled === true,
+  );
 
   const pwaUrl = `${getPublicAppBaseUrl()}/pwa`;
 
   const detectExtension = useCallback(() => {
     if (typeof window !== "undefined" && window.__buddyExtensionInstalled === true) {
       setExtensionInstalled(true);
-      setChecking(false);
       return true;
     }
     return false;
   }, []);
 
   useEffect(() => {
+    // Re-check once after mount in case the content script set the flag after SSR hydration.
     detectExtension();
 
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === "BUDDY_EXTENSION_SYNCED") {
         setExtensionInstalled(true);
-        setChecking(false);
       }
     };
-
     window.addEventListener("message", onMessage);
-    const interval = window.setInterval(() => {
-      if (detectExtension()) window.clearInterval(interval);
-    }, 400);
-
-    const timeout = window.setTimeout(() => {
-      setChecking(false);
-      window.clearInterval(interval);
-    }, 2500);
-
-    return () => {
-      window.removeEventListener("message", onMessage);
-      window.clearInterval(interval);
-      window.clearTimeout(timeout);
-    };
+    return () => window.removeEventListener("message", onMessage);
   }, [detectExtension]);
 
   return (
     <div className="mb-8 w-full space-y-4">
-      {checking ? (
-        <div className="rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-3 text-center text-xs text-white/35">
-          Checking for your browser companion…
-        </div>
-      ) : extensionInstalled ? (
+      {extensionInstalled ? (
         <div className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/25 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-100/90">
           <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
           Buddy is with you on this browser.

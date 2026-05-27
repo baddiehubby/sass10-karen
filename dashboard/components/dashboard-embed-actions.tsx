@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
-import { CHROME_WEB_STORE_URL } from "@/lib/marketing-links";
+import { CHROME_EXTENSION_DOWNLOAD_URL } from "@/lib/marketing-links";
 import { CopyEmbedCodeButton } from "@/components/copy-embed-code-button";
 
 type DashboardEmbedActionsProps = {
@@ -37,12 +37,12 @@ export function DashboardEmbedActions({ embedCode, hasLicense }: DashboardEmbedA
           Add to WordPress
         </Link>
         <a
-          href={CHROME_WEB_STORE_URL}
+          href={CHROME_EXTENSION_DOWNLOAD_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-900/30 hover:bg-violet-500"
         >
-          Add to Chrome
+          Download .crx
         </a>
         <button
           type="button"
@@ -59,12 +59,12 @@ export function DashboardEmbedActions({ embedCode, hasLicense }: DashboardEmbedA
           Install WordPress Plugin →
         </Link>
         <a
-          href={CHROME_WEB_STORE_URL}
+          href={CHROME_EXTENSION_DOWNLOAD_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="text-indigo-300 hover:text-indigo-200 hover:underline"
         >
-          Add Chrome Extension →
+          Download Chrome Extension (.crx) →
         </a>
         <button
           type="button"

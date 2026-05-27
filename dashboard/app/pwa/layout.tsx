@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 export const metadata: Metadata = {
   title: "Buddy — Mobile Companion",
   description: "Your Sacha Pandit orb, always in your pocket.",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

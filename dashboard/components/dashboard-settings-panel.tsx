@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { CHROME_WEB_STORE_URL } from "@/lib/marketing-links";
+import { CHROME_EXTENSION_DOWNLOAD_URL } from "@/lib/marketing-links";
 import { CopyEmbedCodeButton } from "@/components/copy-embed-code-button";
 import { DashboardEmbedActions } from "@/components/dashboard-embed-actions";
 import { ComplianceActions } from "@/components/compliance-actions";
@@ -73,7 +73,7 @@ export function DashboardSettingsPanel({
         toast.error(data.error || "Could not sync");
         return;
       }
-      window.postMessage({ type: "BUDDY_REQUEST_EXTENSION_SYNC" }, "*");
+      window.postMessage({ type: "BUDDY_REQUEST_EXTENSION_SYNC" }, window.location.origin);
       toast.success("Buddy synced across your devices");
     } finally {
       setSyncing(false);
@@ -180,8 +180,13 @@ export function DashboardSettingsPanel({
           <Link href="/integrations" className="text-violet-300/80 hover:text-violet-200">
             WordPress plugin →
           </Link>
-          <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noopener noreferrer" className="text-violet-300/80 hover:text-violet-200">
-            Chrome extension →
+          <a
+            href={CHROME_EXTENSION_DOWNLOAD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-violet-300/80 hover:text-violet-200"
+          >
+            Download Chrome extension (.crx) →
           </a>
         </div>
       </section>

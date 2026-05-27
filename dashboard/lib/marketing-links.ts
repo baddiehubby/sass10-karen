@@ -1,4 +1,6 @@
-/** Chrome Web Store listing (set NEXT_PUBLIC_CHROME_EXTENSION_URL when published). */
-export const CHROME_WEB_STORE_URL =
-  process.env.NEXT_PUBLIC_CHROME_EXTENSION_URL?.trim() ||
-  "https://chrome.google.com/webstore/detail/buddy-ai/PLACEHOLDER";
+/**
+ * Direct extension download endpoint (no Chrome Web Store redirect).
+ * Can be overridden with NEXT_PUBLIC_CHROME_EXTENSION_URL if you host the .crx elsewhere.
+ */
+export const CHROME_EXTENSION_DOWNLOAD_URL =
+  process.env.NEXT_PUBLIC_CHROME_EXTENSION_URL?.trim() || "/api/download/buddy-extension";

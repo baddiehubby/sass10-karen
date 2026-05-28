@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Companion Dashboard</title>
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      .wrap { max-width: 860px; margin: 0 auto; padding: 24px; }
+      header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+      .orb-mini {
+        width: 48px; height: 48px; border-radius: 50%;
+        background: radial-gradient(circle at 30% 25%, #fff 0%, var(--accent) 45%, #312e81 100%);
+        box-shadow: 0 0 20px var(--accent-glow);
+        animation: pulse 3s ease-in-out infinite;
+      }
+      body.theme-sacha .orb-mini {
+        background: radial-gradient(circle at 30% 25%, #fffbe9 0%, #f59e0b 45%, #8c3f0e 100%);
+        box-shadow: 0 0 20px var(--gold-glow);
+      }
+      @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+      h1 { font-size: 22px; margin: 0; }
+      .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+      .grid { display: grid; gap: 16px; }
+      .chart svg { width: 100%; height: 120px; }
+      .timeline { max-height: 220px; overflow: auto; }
+      .event {
+        display: flex; gap: 10px; align-items: center;
+        padding: 10px 0; border-bottom: 1px solid rgba(148,163,184,0.15);
+        cursor: pointer;
+      }
+      .event:hover { background: rgba(255,255,255,0.03); }
+      .mood-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+      .upgrade-banner {
+        background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(15,23,42,0.9));
+        border-color: rgba(129,140,248,0.35);
+      }
+      body.theme-sacha .upgrade-banner {
+        background: linear-gradient(135deg, rgba(245,158,11,0.22), rgba(15,23,42,0.9));
+        border-color: rgba(251,191,36,0.35);
+      }
+      .premium-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+      .detail {
+        display: none; margin-top: 12px; padding: 12px;
+        background: rgba(0,0,0,0.25); border-radius: 10px; font-size: 13px;
+      }
+      .detail.show { display: block; }
+      .offline-badge {
+        display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 999px;
+        border: 1px solid rgba(52,211,153,0.4); color: #6ee7b7; margin-left: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="orb-mini" id="orbMini"></div>
+        <div>
+          <h1>Your Companion <span class="offline-badge">Offline</span></h1>
+          <p class="sub" id="companionLine">Loading…</p>
+        </div>
+      </header>
+
+      <div class="grid">
+        <section class="card chart">
+          <h2 style="font-size:14px;margin:0 0 12px;color:var(--muted)">Last 7 days</h2>
+          <div id="sparkline"></div>
+        </section>
+
+        <section class="card upgrade-banner" id="upgradeBanner">
+          <h2 style="margin:0 0 8px;font-size:16px" id="upgradeTitle">Upgrade</h2>
+          <p style="margin:0 0 12px;font-size:13px;line-height:1.45;color:var(--muted)" id="upgradeBody"></p>
+          <button type="button" class="btn btn-primary" id="upgradeBtn">Upgrade to Pro — $19/mo</button>
+        </section>
+
+        <section class="card">
+          <h2 style="font-size:14px;margin:0 0 12px;color:var(--muted)">Mood timeline</h2>
+          <div class="timeline" id="timeline"></div>
+          <div class="detail" id="detail"></div>
+        </section>
+
+        <section class="premium-grid" id="lockedFeatures"></section>
+      </div>
+    </div>
+    <script>
+      const MOOD_COLORS = {
+        neutral: "#94a3b8", happy: "#22c55e", thinking: "#f59e0b", concerned: "#ef4444",
+        excited: "#a855f7", sleepy: "#64748b", zen: "#2dd4bf", lit: "#f97316", divine: "#ffd700",
+      };
+
+      let state = null;
+
+      function applyTheme(tenant) {
+        document.body.classList.toggle("theme-sacha", tenant === "sachapandit");
+      }
+
+      function dayKey(d) {
+        return new Date(d).toDateString();
+      }
+
+      function buildSparkline(history) {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          days.push(d.toDateString());
+        }
+        const scores = { neutral: 3, happy: 5, excited: 6, zen: 4, lit: 5, thinking: 3, concerned: 1, sleepy: 2, divine: 7 };
+        const values = days.map((dk) => {
+          const events = history.filter((e) => dayKey(e.timestamp) === dk);
+          if (!events.length) return 3;
+          const avg = events.reduce((s, e) => s + (scores[e.mood] || 3), 0) / events.length;
+          return avg;
+        });
+        const max = 7;
+        const w = 640;
+        const h = 100;
+        const pad = 8;
+        const step = (w - pad * 2) / (values.length - 1 || 1);
+        const points = values.map((v, i) => {
+          const x = pad + i * step;
+          const y = h - pad - (v / max) * (h - pad * 2);
+          return `${x},${y}`;
+        }).join(" ");
+        return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="${points}"/><polyline fill="rgba(129,140,248,0.15)" stroke="none" points="${points} ${w - pad},${h} ${pad},${h}"/></svg>`;
+      }
+
+      function renderLocked(tenant, premium) {
+        const el = document.getElementById("lockedFeatures");
+        const cards = [
+          {
+            title: "Advanced Emotional Analytics",
+            desc: "Deep trend reports and exportable insights.",
+            tenant: "all",
+          },
+          {
+            title: "Personalized Daily Blessings",
+            desc: "Sacred morning whispers tuned to your heart.",
+            tenant: "sachapandit",
+          },
+          {
+            title: "Compliance Reports",
+            desc: "EU AI Act ready emotional safety summaries.",
+            tenant: "buddie",
+          },
+        ];
+        el.innerHTML = cards
+          .filter((c) => c.tenant === "all" || c.tenant === tenant)
+          .map(
+            (c) => `
+          <article class="card locked">
+            <h3 style="margin:0 0 6px;font-size:14px">${c.title}</h3>
+            <div class="blur-preview" style="height:48px;background:linear-gradient(90deg,#334155,#1e293b);border-radius:8px;margin:8px 0"></div>
+            <p style="margin:0 0 10px;font-size:12px;color:var(--muted)">${c.desc}</p>
+            <button type="button" class="btn" data-upgrade>${premium ? "Unlocked" : "Upgrade to unlock"}</button>
+          </article>`,
+          )
+          .join("");
+        el.querySelectorAll("[data-upgrade]").forEach((btn) => {
+          if (premium) btn.disabled = true;
+          else btn.addEventListener("click", () => window.buddyOverlay.openExternal());
+        });
+      }
+
+      function renderTimeline(history) {
+        const list = document.getElementById("timeline");
+        const recent = [...history].reverse().slice(0, 40);
+        list.innerHTML = recent.length
+          ? recent
+              .map(
+                (e) => `
+            <div class="event" data-id="${e.id}">
+              <span class="mood-dot" style="background:${MOOD_COLORS[e.mood] || "#94a3b8"}"></span>
+              <div style="flex:1">
+                <strong style="text-transform:capitalize">${e.mood}</strong>
+                <span style="color:var(--muted);font-size:12px;margin-left:8px">${new Date(e.timestamp).toLocaleString()}</span>
+                <div style="font-size:11px;color:var(--muted)">${e.source}${e.note ? " · " + e.note.slice(0, 60) : ""}</div>
+              </div>
+            </div>`,
+              )
+              .join("")
+          : "<p style='color:var(--muted);font-size:13px'>No moods recorded yet. Your orb is listening locally.</p>";
+
+        list.querySelectorAll(".event").forEach((row) => {
+          row.addEventListener("click", () => {
+            const ev = recent.find((x) => x.id === row.dataset.id);
+            const detail = document.getElementById("detail");
+            detail.classList.add("show");
+            detail.innerHTML = `<strong>${ev.mood}</strong> at ${new Date(ev.timestamp).toLocaleString()}<br>Source: ${ev.source}<br>${ev.note ? "Note: " + ev.note : ""}`;
+          });
+        });
+      }
+
+      function render(data) {
+        state = data;
+        const tenant = data.settings?.tenant || "buddie";
+        const premium = Boolean(data.premiumUnlocked);
+        applyTheme(tenant);
+        const name = data.userProfile?.companionName || (tenant === "sachapandit" ? "Sacha Pandit" : "Buddy");
+        document.getElementById("companionLine").textContent = `${name} · mood: ${data.currentMood || "neutral"}${premium ? " · Pro" : " · Free"}`;
+        document.getElementById("orbMini").style.boxShadow = `0 0 24px ${MOOD_COLORS[data.currentMood] || "#818cf8"}88`;
+        document.getElementById("sparkline").innerHTML = buildSparkline(data.moodHistory || []);
+        renderTimeline(data.moodHistory || []);
+        renderLocked(tenant, premium);
+
+        const title = document.getElementById("upgradeTitle");
+        const body = document.getElementById("upgradeBody");
+        if (tenant === "sachapandit") {
+          title.textContent = "Let your mystic guide you deeper";
+          body.textContent =
+            "Unlock unlimited predictions, sacred geometry themes, and personalized daily blessings.";
+        } else {
+          title.textContent = "Unlock the full power of your emotional companion";
+          body.textContent =
+            "Get real-time hallucination alerts, advanced mood reports, and priority support.";
+        }
+        document.getElementById("upgradeBanner").style.display = premium ? "none" : "block";
+      }
+
+      async function load() {
+        const data = await window.buddyOverlay.getOfflineData();
+        render(data);
+      }
+
+      document.getElementById("upgradeBtn").addEventListener("click", () => window.buddyOverlay.openExternal());
+      window.buddyOverlay.onDataUpdated(() => load());
+      load();
+    </script>
+  </body>
+</html>

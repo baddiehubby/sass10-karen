@@ -1,102 +1,201 @@
-const { app, BrowserWindow, ipcMain, screen } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  Tray,
+  Menu,
+  nativeImage,
+  shell,
+  Notification,
+  dialog,
+} = require("electron");
 const path = require("path");
 const fs = require("fs");
 const AutoLaunch = require("auto-launch");
 const Store = require("electron-store");
+const { createDataStore } = require("./src/data-store");
+const { detectMoodFromText, detectMoodIdle } = require("./src/mood-engine");
 
 const API_BASE = process.env.BUDDY_API_BASE || "https://www.buddieai.com";
-const store = new Store({ name: "buddy-shadow-config" });
-const presencePath = () => path.join(app.getPath("userData"), "buddy-presence.json");
+const CHECKOUT_URLS = {
+  buddie: "https://www.buddieai.com/pricing",
+  sachapandit: "https://www.sachapandit.com/pricing",
+};
 
-let mainWindow = null;
+const rawStore = new Store({ name: "buddy-offline-companion" });
+const data = createDataStore(rawStore);
+
+let orbWindow = null;
+let dashboardWindow = null;
+let settingsWindow = null;
+let tray = null;
+let moodTimer = null;
+let dailyTimer = null;
 let presenceCache = null;
-let pollTimer = null;
+let lastMood = "neutral";
+let negativeStreak = 0;
+let interactionCount = 0;
 
 const buddyAutoLaunch = new AutoLaunch({
   name: "Buddy Shadow Companion",
   path: process.execPath,
 });
 
-function defaultPresence() {
-  return {
-    currentMood: "neutral",
-    moodHistory: [],
-    lastCheckIn: new Date().toISOString(),
-    guidanceQueue: [],
-    companionName: store.get("companionName", "Buddy"),
-    licenseKey: store.get("licenseKey", ""),
-  };
+function checkoutUrl() {
+  const tenant = data.getSettings().tenant;
+  return tenant === "sachapandit" ? CHECKOUT_URLS.sachapandit : CHECKOUT_URLS.buddie;
 }
 
-function writePresenceFile(state) {
+function brandName() {
+  return data.getSettings().tenant === "sachapandit" ? "Sacha Pandit" : "Buddy AI";
+}
+
+async function getActiveWindowTitle() {
   try {
-    fs.writeFileSync(presencePath(), JSON.stringify(state, null, 2), "utf8");
+    const activeWin = require("active-win");
+    const info = await activeWin();
+    return info?.title || "";
   } catch {
-    /* ignore disk errors */
+    return "";
   }
 }
 
-function readPresenceFile() {
+function showNotification(title, body) {
+  if (!data.getSettings().notificationsEnabled) return;
+  if (!Notification.isSupported()) return;
+  const n = new Notification({ title, body });
+  n.show();
+}
+
+function broadcastPresence() {
+  presenceCache = data.getPresenceSnapshot();
+  if (orbWindow && !orbWindow.isDestroyed()) {
+    orbWindow.webContents.send("buddy:presence-updated", presenceCache);
+  }
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.webContents.send("buddy:data-updated", presenceCache);
+  }
+}
+
+async function runMoodScan() {
+  const settings = data.getSettings();
+  const title = await getActiveWindowTitle();
+  let mood;
+  let source;
+  let note = "";
+
+  if (title && title.length > 2) {
+    interactionCount += 1;
+    mood = detectMoodFromText(title, lastMood, interactionCount);
+    source = "window-title";
+    note = title.slice(0, 120);
+  } else {
+    mood = detectMoodIdle(Date.now(), settings.tenant);
+    source = "idle";
+  }
+
+  lastMood = mood;
+  data.addMoodEvent({ mood, source, note });
+  broadcastPresence();
+
+  const negativeMoods = new Set(["concerned", "sleepy"]);
+  if (negativeMoods.has(mood)) {
+    negativeStreak += 1;
+  } else {
+    negativeStreak = 0;
+  }
+
+  if (negativeStreak >= 3) {
+    const msg =
+      settings.tenant === "sachapandit"
+        ? "Your pandit notices you seem heavy. Would you like a moment of calm?"
+        : "Your companion notices you seem heavy. Would you like a moment of calm?";
+    showNotification(brandName(), msg);
+    negativeStreak = 0;
+  }
+}
+
+function checkAbsenceReminder() {
+  const last = data.getLastInteractionAt();
+  if (!last) return;
+  const hours = (Date.now() - last) / 3600000;
+  if (hours >= 24) {
+    showNotification(
+      brandName(),
+      "I have not felt your presence. Even the sun rests, but it always returns.",
+    );
+    data.recordInteraction();
+  }
+}
+
+function scheduleDailyReminder() {
+  if (dailyTimer) clearInterval(dailyTimer);
+  dailyTimer = setInterval(() => {
+    const first = new Date(data.raw.get("firstLaunchAt") || Date.now());
+    const now = new Date();
+    if (now.getHours() !== first.getHours() || now.getMinutes() !== first.getMinutes()) return;
+
+    const history = data.getMoodHistory();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yKey = yesterday.toDateString();
+    const yEvents = history.filter((e) => new Date(e.timestamp).toDateString() === yKey);
+    const counts = {};
+    for (const e of yEvents) counts[e.mood] = (counts[e.mood] || 0) + 1;
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "calm";
+    showNotification(
+      brandName(),
+      `Yesterday you felt mostly ${top}. Today, let your light shine.`,
+    );
+  }, 60_000);
+}
+
+async function verifyLicenseOnline() {
+  const profile = data.getUserProfile();
+  const key = String(profile.licenseKey || "").trim();
+  if (!key) {
+    data.setPremiumUnlocked(false);
+    data.setUserProfile({ tier: "free" });
+    return false;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const raw = fs.readFileSync(presencePath(), "utf8");
-    return JSON.parse(raw);
+    const domain =
+      data.getSettings().tenant === "sachapandit" ? "www.sachapandit.com" : "www.buddieai.com";
+    const res = await fetch(
+      `${API_BASE}/api/licenses/verify?key=${encodeURIComponent(key)}&domain=${encodeURIComponent(domain)}`,
+      { signal: controller.signal },
+    );
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error("verify failed");
+    const body = await res.json();
+    const valid = Boolean(body.valid);
+    data.setPremiumUnlocked(valid);
+    data.setUserProfile({ tier: valid ? "pro" : "free" });
+    return valid;
   } catch {
-    return null;
+    clearTimeout(timeout);
+    return data.isPremium();
   }
 }
 
-async function fetchPresenceFromApi() {
-  const licenseKey = String(store.get("licenseKey", "")).trim();
-  if (!licenseKey) return readPresenceFile() || defaultPresence();
-
-  const response = await fetch(
-    `${API_BASE}/api/presence/state?licenseKey=${encodeURIComponent(licenseKey)}`,
-    { headers: { Accept: "application/json" } },
-  );
-  if (!response.ok) return readPresenceFile() || defaultPresence();
-  const data = await response.json();
-  const state = {
-    currentMood: data.currentMood || "neutral",
-    moodHistory: data.moodHistory || [],
-    lastCheckIn: data.lastCheckIn || new Date().toISOString(),
-    guidanceQueue: data.guidanceQueue || [],
-    companionName: data.companionName || "Buddy",
-    licenseKey,
-  };
-  writePresenceFile(state);
-  store.set("companionName", state.companionName);
-  return state;
+function preloadPath(name) {
+  return path.join(__dirname, name);
 }
 
-function broadcastPresence(state) {
-  presenceCache = state;
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send("buddy:presence-updated", state);
-  }
-}
-
-async function refreshPresence() {
-  try {
-    const state = await fetchPresenceFromApi();
-    broadcastPresence(state);
-  } catch {
-    const fallback = readPresenceFile() || defaultPresence();
-    broadcastPresence(fallback);
-  }
-}
-
-function createOverlayWindow() {
+function createOrbWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   const winW = 120;
   const winH = 120;
-  const x = width - winW - 24;
-  const y = height - winH - 24;
 
-  mainWindow = new BrowserWindow({
+  orbWindow = new BrowserWindow({
     width: winW,
     height: winH,
-    x,
-    y,
+    x: width - winW - 24,
+    y: height - winH - 24,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -106,75 +205,266 @@ function createOverlayWindow() {
     hasShadow: false,
     show: true,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: preloadPath("preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
     },
   });
 
-  mainWindow.setIgnoreMouseEvents(true, { forward: true });
+  orbWindow.setIgnoreMouseEvents(true, { forward: true });
 
-  if (typeof mainWindow.setContentProtection === "function") {
-    mainWindow.setContentProtection(true);
+  if (typeof orbWindow.setContentProtection === "function") {
+    orbWindow.setContentProtection(true);
   }
 
-  mainWindow.once("ready-to-show", () => {
+  orbWindow.once("ready-to-show", () => {
     try {
       const { excludeFromCapture } = require("./win-capture-exclude");
-      excludeFromCapture(mainWindow);
+      excludeFromCapture(orbWindow);
     } catch {
-      /* optional Windows module */
+      /* optional */
     }
   });
 
-  // Local orb only — never load remote site (avoids SSR/API failures in overlay).
-  mainWindow.loadFile("orb.html");
+  orbWindow.loadFile("orb.html");
 
-  mainWindow.on("closed", () => {
-    mainWindow = null;
+  orbWindow.webContents.on("context-menu", (_e, params) => {
+    showOrbContextMenu(params.x, params.y);
+  });
+
+  orbWindow.on("closed", () => {
+    orbWindow = null;
   });
 }
 
-ipcMain.handle("buddy:get-presence", () => presenceCache || readPresenceFile() || defaultPresence());
-
-ipcMain.on("buddy:set-interactive", (_event, interactive) => {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  if (interactive) {
-    mainWindow.setIgnoreMouseEvents(false);
-    mainWindow.setFocusable(true);
-  } else {
-    mainWindow.setIgnoreMouseEvents(true, { forward: true });
-    mainWindow.setFocusable(false);
+function createDashboardWindow() {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.focus();
+    return;
   }
-});
+  dashboardWindow = new BrowserWindow({
+    width: 900,
+    height: 700,
+    minWidth: 720,
+    minHeight: 560,
+    title: `${brandName()} — Offline Dashboard`,
+    webPreferences: {
+      preload: preloadPath("preload.js"),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+    },
+  });
+  dashboardWindow.loadFile("dashboard.html");
+  dashboardWindow.on("closed", () => {
+    dashboardWindow = null;
+  });
+}
+
+function createSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus();
+    return;
+  }
+  settingsWindow = new BrowserWindow({
+    width: 520,
+    height: 640,
+    title: `${brandName()} — Settings`,
+    webPreferences: {
+      preload: preloadPath("preload.js"),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+    },
+  });
+  settingsWindow.loadFile("settings.html");
+  settingsWindow.on("closed", () => {
+    settingsWindow = null;
+  });
+}
+
+function showOrbContextMenu(x, y) {
+  const menu = Menu.buildFromTemplate([
+    { label: "Open Dashboard", click: () => createDashboardWindow() },
+    { label: "Settings", click: () => createSettingsWindow() },
+    {
+      label: "Upgrade to Pro",
+      click: () => shell.openExternal(checkoutUrl()),
+    },
+    { type: "separator" },
+    { label: "Quit", click: () => app.quit() },
+  ]);
+  if (orbWindow && !orbWindow.isDestroyed()) {
+    menu.popup({ window: orbWindow, x, y });
+  }
+}
+
+function createTray() {
+  const icon = nativeImage.createEmpty();
+  tray = new Tray(icon);
+  tray.setToolTip(brandName());
+  const menu = Menu.buildFromTemplate([
+    { label: "Show Orb", click: () => orbWindow?.show() },
+    { label: "Open Dashboard", click: () => createDashboardWindow() },
+    { label: "Settings", click: () => createSettingsWindow() },
+    { type: "separator" },
+    { label: "Upgrade to Pro", click: () => shell.openExternal(checkoutUrl()) },
+    { type: "separator" },
+    { label: "Quit", click: () => app.quit() },
+  ]);
+  tray.setContextMenu(menu);
+  tray.on("click", () => createDashboardWindow());
+}
+
+function registerIpc() {
+  ipcMain.handle("buddy:get-presence", () => presenceCache || data.getPresenceSnapshot());
+
+  ipcMain.handle("buddy:get-offline-data", () => ({
+    ...data.exportAll(),
+    ...data.getPresenceSnapshot(),
+    premiumUnlocked: data.isPremium(),
+  }));
+
+  ipcMain.handle("buddy:save-settings", (_e, patch) => {
+    const settings = data.setSettings(patch || {});
+    if (patch?.companionName) data.setUserProfile({ companionName: patch.companionName });
+    broadcastPresence();
+    return settings;
+  });
+
+  ipcMain.handle("buddy:save-profile", (_e, patch) => {
+    const profile = data.setUserProfile(patch || {});
+    broadcastPresence();
+    return profile;
+  });
+
+  ipcMain.handle("buddy:record-interaction", () => {
+    data.recordInteraction();
+    interactionCount += 1;
+    return true;
+  });
+
+  ipcMain.handle("buddy:open-dashboard", () => {
+    createDashboardWindow();
+    return true;
+  });
+
+  ipcMain.handle("buddy:open-settings", () => {
+    createSettingsWindow();
+    return true;
+  });
+
+  ipcMain.handle("buddy:open-external", (_e, url) => {
+    if (url) shell.openExternal(String(url));
+    else shell.openExternal(checkoutUrl());
+    return true;
+  });
+
+  ipcMain.handle("buddy:dismiss-upgrade", () => {
+    data.setUpgradeDismissedAt(new Date().toISOString());
+    return true;
+  });
+
+  ipcMain.handle("buddy:verify-license", async (_e, key) => {
+    if (key) data.setUserProfile({ licenseKey: String(key).trim() });
+    const valid = await verifyLicenseOnline();
+    broadcastPresence();
+    return { valid, premium: data.isPremium(), tier: data.getUserProfile().tier };
+  });
+
+  ipcMain.handle("buddy:export-data", async () => {
+    const payload = data.exportAll();
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      title: "Export mood data",
+      defaultPath: path.join(app.getPath("desktop"), "companion-mood-export.json"),
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (canceled || !filePath) return { ok: false };
+    fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), "utf8");
+    return { ok: true, filePath };
+  });
+
+  ipcMain.handle("buddy:delete-data", async () => {
+    const { response } = await dialog.showMessageBox({
+      type: "warning",
+      buttons: ["Cancel", "Delete"],
+      defaultId: 0,
+      message: "Delete all local companion data?",
+      detail: "This cannot be undone.",
+    });
+    if (response !== 1) return { ok: false };
+    data.clearAll();
+    lastMood = "neutral";
+    negativeStreak = 0;
+    broadcastPresence();
+    return { ok: true };
+  });
+
+  ipcMain.handle("buddy:manual-mood-note", (_e, payload) => {
+    const text = String(payload?.text || "").trim();
+    if (!text) return null;
+    data.recordInteraction();
+    interactionCount += 1;
+    const mood = detectMoodFromText(text, lastMood, interactionCount);
+    lastMood = mood;
+    const entry = data.addMoodEvent({ mood, source: "user-input", note: text });
+    broadcastPresence();
+    return entry;
+  });
+
+  ipcMain.on("buddy:set-interactive", (_event, interactive) => {
+    if (!orbWindow || orbWindow.isDestroyed()) return;
+    if (interactive) {
+      orbWindow.setIgnoreMouseEvents(false);
+      orbWindow.setFocusable(true);
+      data.recordInteraction();
+    } else {
+      orbWindow.setIgnoreMouseEvents(true, { forward: true });
+      orbWindow.setFocusable(false);
+    }
+  });
+}
 
 app.whenReady().then(async () => {
+  if (process.platform === "win32") {
+    app.setAppUserModelId("com.buddieai.shadow-companion");
+  }
+
   const envLicense = String(process.env.BUDDY_LICENSE_KEY || "").trim();
-  if (envLicense) store.set("licenseKey", envLicense);
+  if (envLicense) data.setUserProfile({ licenseKey: envLicense });
+
+  registerIpc();
+  createTray();
+  createOrbWindow();
+  broadcastPresence();
+
+  await verifyLicenseOnline();
+  broadcastPresence();
+
+  await runMoodScan();
+  moodTimer = setInterval(() => void runMoodScan(), 30_000);
+  checkAbsenceReminder();
+  setInterval(checkAbsenceReminder, 60 * 60 * 1000);
+  scheduleDailyReminder();
 
   try {
-    const enabled = store.get("autoLaunch", true);
+    const enabled = rawStore.get("autoLaunch", true);
     if (enabled) {
       const isEnabled = await buddyAutoLaunch.isEnabled();
       if (!isEnabled) await buddyAutoLaunch.enable();
     }
   } catch {
-    /* auto-launch may fail in dev */
+    /* dev */
   }
-
-  createOverlayWindow();
-  const cached = readPresenceFile() || defaultPresence();
-  broadcastPresence(cached);
-  void refreshPresence();
-  pollTimer = setInterval(() => void refreshPresence(), 60_000);
 });
 
 app.on("window-all-closed", () => {
-  if (pollTimer) clearInterval(pollTimer);
+  if (moodTimer) clearInterval(moodTimer);
+  if (dailyTimer) clearInterval(dailyTimer);
   if (process.platform !== "darwin") app.quit();
 });
 
 app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createOverlayWindow();
+  if (!orbWindow) createOrbWindow();
 });

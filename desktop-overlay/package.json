@@ -16,7 +16,17 @@
     "directories": {
       "output": "dist"
     },
-    "files": ["main.js", "preload.js", "orb.html", "win-capture-exclude.js", "package.json"],
+    "files": [
+      "main.js",
+      "preload.js",
+      "orb.html",
+      "dashboard.html",
+      "settings.html",
+      "shared.css",
+      "src/**/*",
+      "win-capture-exclude.js",
+      "package.json"
+    ],
     "win": {
       "target": ["portable"],
       "artifactName": "BuddyShadowCompanion-${version}-win.exe",
@@ -29,6 +39,7 @@
     }
   },
   "dependencies": {
+    "active-win": "^8.2.1",
     "auto-launch": "^5.0.6",
     "electron-store": "^8.2.0",
     "koffi": "^2.9.0"

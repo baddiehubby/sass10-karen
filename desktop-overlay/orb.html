@@ -228,10 +228,40 @@
         z-index: 5;
       }
       .guidance.visible { opacity: 1; transform: translateY(0); }
+      .note-panel {
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 200px;
+        margin-bottom: 6px;
+        padding: 6px;
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid rgba(251, 191, 36, 0.35);
+        display: none;
+        z-index: 10;
+      }
+      .note-panel.show { display: block; }
+      .note-panel input {
+        width: 100%;
+        border: none;
+        background: rgba(0, 0, 0, 0.3);
+        color: #fef3c7;
+        font-size: 11px;
+        padding: 6px 8px;
+        border-radius: 6px;
+      }
+      .root.theme-buddy .particle { background: rgba(167, 139, 250, 0.75); }
+      .root.theme-buddy .sacred-ring { border-color: rgba(129, 140, 248, 0.4); }
+      .root.theme-buddy .orb {
+        background: radial-gradient(circle at 35% 30%, #fbcfe8 0%, #7c3aed 45%, #312e81 100%);
+        box-shadow: 0 0 28px rgba(124, 58, 237, 0.45), inset 0 -8px 18px rgba(15, 23, 42, 0.35);
+      }
     </style>
   </head>
   <body>
-    <div class="stage" id="stage">
+    <div class="stage root" id="stage">
       <div class="particles" aria-hidden="true">
         <span class="particle"></span>
         <span class="particle"></span>
@@ -249,6 +279,9 @@
         </div>
       </div>
       <div class="guidance" id="guidance"></div>
+      <form class="note-panel" id="notePanel">
+        <input id="noteInput" type="text" placeholder="How are you feeling?" maxlength="200" />
+      </form>
     </div>
     <script>
       (function () {
@@ -330,6 +363,7 @@
         }
 
         hit.addEventListener("click", function () {
+          window.buddyOverlay?.recordInteraction?.();
           orb.classList.add("pulse-once");
           setTimeout(function () {
             orb.classList.remove("pulse-once");
@@ -341,6 +375,32 @@
           showGuidance(MOOD_MESSAGES[key] || MOOD_MESSAGES.neutral);
         });
 
+        hit.addEventListener("dblclick", function (e) {
+          e.preventDefault();
+          window.buddyOverlay?.openDashboard?.();
+        });
+
+        const notePanel = document.getElementById("notePanel");
+        const noteInput = document.getElementById("noteInput");
+        hit.addEventListener("contextmenu", function (e) {
+          e.preventDefault();
+        });
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "/" && e.target !== noteInput) {
+            notePanel.classList.toggle("show");
+            if (notePanel.classList.contains("show")) noteInput.focus();
+          }
+        });
+        notePanel.addEventListener("submit", function (e) {
+          e.preventDefault();
+          const text = noteInput.value.trim();
+          if (!text) return;
+          window.buddyOverlay?.submitMoodNote?.({ text }).then(function () {
+            noteInput.value = "";
+            notePanel.classList.remove("show");
+          });
+        });
+
         hit.addEventListener("mouseenter", function () {
           window.buddyOverlay?.setInteractive?.(true);
         });
@@ -348,12 +408,19 @@
           window.buddyOverlay?.setInteractive?.(false);
         });
 
+        function applyTenantTheme(state) {
+          const tenant = state?.settings?.tenant || "buddie";
+          stage.classList.toggle("theme-buddy", tenant === "buddie");
+          stage.classList.toggle("theme-sacha", tenant === "sachapandit");
+        }
+
         async function loadPresence() {
           applyMood(readLocalMood());
           try {
             const state = await window.buddyOverlay?.getPresence?.();
-            if (state && state.currentMood) {
-              applyMood(state.currentMood);
+            if (state) {
+              applyTenantTheme(state);
+              if (state.currentMood) applyMood(state.currentMood);
               if (state.companionName) hit.title = state.companionName;
               const next = state.guidanceQueue && state.guidanceQueue[0] && state.guidanceQueue[0].text;
               if (next) showGuidance(next);
@@ -365,9 +432,9 @@
 
         if (window.buddyOverlay?.onPresenceUpdate) {
           window.buddyOverlay.onPresenceUpdate(function (state) {
+            applyTenantTheme(state);
             if (state && state.currentMood) applyMood(state.currentMood);
-            const next = state.guidanceQueue && state.guidanceQueue[0] && state.guidanceQueue[0].text;
-            if (next) showGuidance(next);
+            if (state.companionName) hit.title = state.companionName;
           });
         }
 

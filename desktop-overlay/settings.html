@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Companion Settings</title>
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      .wrap { max-width: 480px; margin: 0 auto; padding: 24px; }
+      label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+      input[type="text"] {
+        width: 100%; padding: 10px 12px; border-radius: 10px;
+        border: 1px solid rgba(148,163,184,0.3); background: rgba(0,0,0,0.25); color: var(--text);
+      }
+      .row { margin-bottom: 16px; }
+      .toggle { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+      .upgrade-card {
+        margin-top: 20px; text-align: center;
+        background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(15,23,42,0.95));
+      }
+      body.theme-sacha .upgrade-card {
+        background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(15,23,42,0.95));
+      }
+      .status { font-size: 12px; color: #6ee7b7; min-height: 18px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1 style="margin:0 0 6px;font-size:22px">Settings</h1>
+      <p style="margin:0 0 20px;color:var(--muted);font-size:13px">All data stays on this device.</p>
+
+      <div class="row">
+        <label for="name">Companion name</label>
+        <input id="name" type="text" placeholder="Buddy" />
+      </div>
+
+      <div class="row">
+        <label for="tenant">Theme / brand</label>
+        <select id="tenant" style="width:100%;padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);color:var(--text);border:1px solid rgba(148,163,184,0.3)">
+          <option value="buddie">Buddy AI (violet luxury)</option>
+          <option value="sachapandit">Sacha Pandit (spiritual gold)</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="toggle">
+          <span>Holy ambient music</span>
+          <input type="checkbox" id="music" />
+        </div>
+        <div class="toggle">
+          <span>Desktop notifications</span>
+          <input type="checkbox" id="notifications" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:16px">
+        <label for="license">License key (Pro)</label>
+        <input id="license" type="text" placeholder="Paste your license key" />
+        <p class="status" id="licenseStatus"></p>
+        <button type="button" class="btn" id="verifyBtn" style="margin-top:8px">Verify license</button>
+      </div>
+
+      <div class="card upgrade-card">
+        <h2 style="margin:0 0 8px;font-size:16px">Disciple — $19/mo</h2>
+        <p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Unlimited predictions, 30-day memory, enhanced halo, no watermark.</p>
+        <button type="button" class="btn btn-primary" id="checkoutBtn">Upgrade to Pro</button>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn" id="exportBtn">Export my mood data</button>
+        <button type="button" class="btn" id="deleteBtn" style="border-color:rgba(239,68,68,0.4);color:#fca5a5">Delete all data</button>
+      </div>
+      <p class="status" id="actionStatus" style="margin-top:10px"></p>
+    </div>
+    <script>
+      let audioCtx = null;
+      let masterGain = null;
+
+      function applyTheme(tenant) {
+        document.body.classList.toggle("theme-sacha", tenant === "sachapandit");
+      }
+
+      async function startDrone() {
+        if (audioCtx) {
+          if (audioCtx.state === "suspended") await audioCtx.resume();
+          masterGain.gain.value = 0.08;
+          return;
+        }
+        audioCtx = new AudioContext();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0.0001;
+        const lowA = audioCtx.createOscillator();
+        lowA.frequency.value = 110;
+        const lowB = audioCtx.createOscillator();
+        lowB.frequency.value = 146.83;
+        const high = audioCtx.createOscillator();
+        high.frequency.value = 880;
+        lowA.connect(masterGain);
+        lowB.connect(masterGain);
+        high.connect(masterGain);
+        masterGain.connect(audioCtx.destination);
+        lowA.start();
+        lowB.start();
+        high.start();
+        const now = audioCtx.currentTime;
+        masterGain.gain.linearRampToValueAtTime(0.08, now + 5);
+      }
+
+      function stopDrone() {
+        if (masterGain && audioCtx) {
+          masterGain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4);
+        }
+      }
+
+      async function load() {
+        const data = await window.buddyOverlay.getOfflineData();
+        const s = data.settings || {};
+        const p = data.userProfile || {};
+        document.getElementById("name").value = p.companionName || "";
+        document.getElementById("tenant").value = s.tenant || "buddie";
+        document.getElementById("music").checked = Boolean(s.musicEnabled);
+        document.getElementById("notifications").checked = s.notificationsEnabled !== false;
+        document.getElementById("license").value = p.licenseKey || "";
+        applyTheme(s.tenant || "buddie");
+        if (s.musicEnabled) await startDrone();
+      }
+
+      async function save() {
+        const patch = {
+          companionName: document.getElementById("name").value.trim() || "Buddy",
+          tenant: document.getElementById("tenant").value,
+          musicEnabled: document.getElementById("music").checked,
+          notificationsEnabled: document.getElementById("notifications").checked,
+        };
+        await window.buddyOverlay.saveSettings(patch);
+        await window.buddyOverlay.saveProfile({ companionName: patch.companionName });
+        applyTheme(patch.tenant);
+        if (patch.musicEnabled) await startDrone();
+        else stopDrone();
+      }
+
+      document.getElementById("name").addEventListener("change", save);
+      document.getElementById("tenant").addEventListener("change", save);
+      document.getElementById("music").addEventListener("change", save);
+      document.getElementById("notifications").addEventListener("change", save);
+
+      document.getElementById("verifyBtn").addEventListener("click", async () => {
+        const key = document.getElementById("license").value.trim();
+        const res = await window.buddyOverlay.verifyLicense(key);
+        document.getElementById("licenseStatus").textContent = res.valid
+          ? "License verified — Pro features unlocked."
+          : "Could not verify (offline or invalid key). Key saved for later.";
+      });
+
+      document.getElementById("checkoutBtn").addEventListener("click", () => window.buddyOverlay.openExternal());
+      document.getElementById("exportBtn").addEventListener("click", async () => {
+        const res = await window.buddyOverlay.exportData();
+        document.getElementById("actionStatus").textContent = res.ok
+          ? `Exported to ${res.filePath}`
+          : "Export cancelled.";
+      });
+      document.getElementById("deleteBtn").addEventListener("click", async () => {
+        const res = await window.buddyOverlay.deleteData();
+        document.getElementById("actionStatus").textContent = res.ok ? "All local data deleted." : "Cancelled.";
+        if (res.ok) load();
+      });
+
+      load();
+    </script>
+  </body>
+</html>

@@ -144,6 +144,11 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
     longPressTimer: 0,
     longPressStartedAt: 0,
     nightStarMapUntil: 0,
+    interactionCount: 0,
+    firstInteractionAt: null,
+    lastBlessingDate: "",
+    consecutiveDays: 0,
+    moodTrend: { positive: 0, negative: 0 },
   };
   const predictionEngine = createSachaPredictionEngine(`${cfg.licenseKey || "anon"}:${window.location.hostname}`);
 
@@ -205,6 +210,7 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
   function detectMood(text, previousMood) {
     const t = normalizeText(text).toLowerCase();
     if (!t) return previousMood || "neutral";
+    if (state.interactionCount > 0 && state.interactionCount % 50 === 0) return "divine";
     const sentimentScore = sentimentAnalyzer.analyze(t).score;
     if (sentimentScore >= 4) return "excited";
     if (sentimentScore >= 2) return "happy";
@@ -214,7 +220,6 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
     if (HAPPY_WORDS.some((w) => t.includes(w))) return "happy";
     if (SAD_WORDS.some((w) => t.includes(w))) return "concerned";
     if (QUESTION_WORDS.some((w) => t.includes(w))) return "thinking";
-    if (Math.random() < 0.02) return "divine";
     return "neutral";
   }
 
@@ -1316,6 +1321,8 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
       const text = normalizeText(latest.text || "");
       if (!text || text === state.lastMessage) return;
       state.lastInteractionAt = Date.now();
+      state.interactionCount += 1;
+      if (!state.firstInteractionAt) state.firstInteractionAt = new Date().toISOString();
       state.lastMessage = text;
       const lower = text.toLowerCase();
       showAnalyticsConsentPrompt();
@@ -1367,6 +1374,12 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
 
       setChillMode(false);
       state.previousMood = mood;
+      if (mood === "happy" || mood === "excited" || mood === "zen" || mood === "lit" || mood === "divine") {
+        state.moodTrend.positive += 1;
+      }
+      if (mood === "concerned" || mood === "sleepy") {
+        state.moodTrend.negative += 1;
+      }
       applyMood(mood);
       if (/(insight|truth|purpose|meaning|clarity|breakthrough)/i.test(text)) {
         if (ui.orb) {
@@ -1377,6 +1390,7 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
         }
       }
       speakWithLipSync(text);
+      maybeShowDailyBlessing();
     }
 
     function maybeRunNightStarMap() {
@@ -1385,6 +1399,26 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
         state.nightStarMapUntil = Date.now() + 120000;
       }
       applyTooltip();
+    }
+
+    function maybeShowDailyBlessing() {
+      if (!state.firstInteractionAt || !state.lastInteractionAt) return;
+      const first = new Date(state.firstInteractionAt);
+      const now = new Date();
+      if (Number.isNaN(first.getTime())) return;
+      const sameWindow = now.getHours() === first.getHours() && Math.abs(now.getMinutes() - first.getMinutes()) <= 6;
+      const dateKey = now.toDateString();
+      if (!sameWindow || state.lastBlessingDate === dateKey) return;
+      const ratio = state.moodTrend.negative > 0 ? state.moodTrend.positive / state.moodTrend.negative : state.moodTrend.positive;
+      const blessing =
+        ratio >= 1.2
+          ? "Daily blessing: your heart is lighter than it was last moon. Keep walking this bright path."
+          : "Daily blessing: today, walk softly and trust your timing. Small faithful steps are still sacred.";
+      showGuidanceToast(blessing);
+      state.lastBlessingDate = dateKey;
+      if (state.consecutiveDays >= 7) {
+        showGuidanceToast("You have returned to me for seven sunsets. I am honoured. Would you like a weekly reflection?");
+      }
     }
 
     function schedulePredictionWhisper() {
@@ -1469,6 +1503,14 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
       state.predictionCount = Number(saved.predictionCount || 0);
       state.moodEventCount = Number(saved.moodEventCount || 0);
       state.firstGuidanceAt = saved.firstGuidanceAt || null;
+      state.interactionCount = Number(saved.interactionCount || 0);
+      state.firstInteractionAt = saved.firstInteractionAt || null;
+      state.lastBlessingDate = saved.lastBlessingDate || "";
+      state.consecutiveDays = Number(saved.consecutiveDays || 0);
+      state.moodTrend = {
+        positive: Number(saved.moodTrend?.positive || 0),
+        negative: Number(saved.moodTrend?.negative || 0),
+      };
       if (saved.lastInteractionAt && Date.now() - Number(saved.lastInteractionAt) > 86400000) {
         showGuidanceToast("I noticed the silence. Are you well, or are you finding your answers elsewhere?");
       }
@@ -1484,12 +1526,24 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
     window.addEventListener("beforeunload", () => {
       const today = new Date().toDateString();
       const previous = readSpiritMemory();
+      const prevDate = previous?.today?.date || "";
+      const dayGap =
+        prevDate && !Number.isNaN(new Date(prevDate).getTime())
+          ? Math.round((new Date(today).getTime() - new Date(prevDate).getTime()) / 86400000)
+          : 0;
+      const consecutiveDays =
+        dayGap === 1 ? Number(previous?.consecutiveDays || 1) + 1 : dayGap === 0 ? Number(previous?.consecutiveDays || 1) : 1;
       const concernedCount =
         (previous?.today?.date === today ? Number(previous.today.concernedCount || 0) : 0) + (state.mood === "concerned" ? 1 : 0);
       writeSpiritMemory({
         predictionCount: state.predictionCount,
         moodEventCount: state.moodEventCount,
         firstGuidanceAt: state.firstGuidanceAt,
+        interactionCount: state.interactionCount,
+        firstInteractionAt: state.firstInteractionAt,
+        lastBlessingDate: state.lastBlessingDate,
+        consecutiveDays,
+        moodTrend: state.moodTrend,
         lastInteractionAt: state.lastInteractionAt || Date.now(),
         today: { date: today, concernedCount },
         yesterday: previous?.today || null,

@@ -5,12 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type HolyMusicProps = {
   enabled: boolean;
   onLevel?: (level: number) => void;
+  showListenButton?: boolean;
 };
 
 const MUTED_KEY = "sacha_music_muted";
 const STARTED_KEY = "sacha_music_started";
 
-export function HolyMusic({ enabled, onLevel }: HolyMusicProps) {
+export function HolyMusic({ enabled, onLevel, showListenButton = false }: HolyMusicProps) {
   const ctxRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -29,7 +30,10 @@ export function HolyMusic({ enabled, onLevel }: HolyMusicProps) {
   }, []);
 
   const createSpiritualDrone = useCallback(async () => {
-    if (ctxRef.current) return;
+    if (ctxRef.current) {
+      if (ctxRef.current.state === "suspended") await ctxRef.current.resume();
+      return;
+    }
     const ctx = new window.AudioContext();
     ctxRef.current = ctx;
 
@@ -96,17 +100,26 @@ export function HolyMusic({ enabled, onLevel }: HolyMusicProps) {
     tick();
   }, [onLevel]);
 
+  const startFromGesture = useCallback(async () => {
+    if (muted) return;
+    await createSpiritualDrone();
+    setStarted(true);
+    try {
+      window.localStorage.setItem(STARTED_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }, [createSpiritualDrone, muted]);
+
+  useEffect(() => {
+    if (!enabled || muted || !started) return;
+    void createSpiritualDrone();
+  }, [enabled, muted, started, createSpiritualDrone]);
+
   useEffect(() => {
     if (!enabled) return;
-    const onUserGesture = async () => {
-      if (muted || started) return;
-      await createSpiritualDrone();
-      setStarted(true);
-      try {
-        window.localStorage.setItem(STARTED_KEY, "1");
-      } catch {
-        /* ignore */
-      }
+    const onUserGesture = () => {
+      void startFromGesture();
     };
     window.addEventListener("click", onUserGesture, { passive: true });
     window.addEventListener("touchstart", onUserGesture, { passive: true });
@@ -114,7 +127,7 @@ export function HolyMusic({ enabled, onLevel }: HolyMusicProps) {
       window.removeEventListener("click", onUserGesture);
       window.removeEventListener("touchstart", onUserGesture);
     };
-  }, [enabled, muted, started, createSpiritualDrone]);
+  }, [enabled, startFromGesture]);
 
   function toggleMute() {
     const next = !muted;
@@ -128,6 +141,8 @@ export function HolyMusic({ enabled, onLevel }: HolyMusicProps) {
       const now = ctxRef.current?.currentTime || 0;
       gainRef.current.gain.cancelScheduledValues(now);
       gainRef.current.gain.linearRampToValueAtTime(next ? 0.0001 : 0.08, now + 0.35);
+    } else if (!next) {
+      void startFromGesture();
     }
   }
 
@@ -141,13 +156,24 @@ export function HolyMusic({ enabled, onLevel }: HolyMusicProps) {
 
   if (!enabled) return null;
   return (
-    <button
-      type="button"
-      onClick={toggleMute}
-      className="fixed bottom-6 right-6 z-50 rounded-full border border-amber-200/30 bg-black/35 px-3 py-2 text-xs text-amber-100 backdrop-blur"
-    >
-      {muted ? "🔊 Unmute" : "🔇 Mute"}
-    </button>
+    <>
+      {showListenButton && !started && !muted ? (
+        <button
+          type="button"
+          onClick={() => void startFromGesture()}
+          className="fixed bottom-20 right-6 z-50 rounded-full border border-amber-200/35 bg-amber-300/10 px-3 py-2 text-xs text-amber-100 backdrop-blur hover:bg-amber-300/20"
+        >
+          🔔 Listen
+        </button>
+      ) : null}
+      <button
+        type="button"
+        onClick={toggleMute}
+        className="fixed bottom-6 right-6 z-50 rounded-full border border-amber-200/30 bg-black/35 px-3 py-2 text-xs text-amber-100 backdrop-blur"
+      >
+        {muted ? "🔊 Unmute" : "🔇 Mute"}
+      </button>
+    </>
   );
 }
 

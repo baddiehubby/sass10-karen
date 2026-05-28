@@ -30,7 +30,7 @@ export default function SachaPanditPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#090b1a] text-amber-100">
-      <HolyMusic enabled onLevel={() => undefined} />
+      <HolyMusic enabled showListenButton onLevel={() => undefined} />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,#312e81_0%,#140f2d_40%,#090b1a_100%)]" />
       <div className="stars absolute inset-0 opacity-80" />
       <div
@@ -54,7 +54,7 @@ export default function SachaPanditPage() {
             href="/login"
             className="inline-flex rounded-full border border-amber-300/40 bg-amber-400/10 px-6 py-3 text-base font-semibold text-amber-100 hover:bg-amber-300/20"
           >
-            Meet your Pandit -&gt;
+            Meet your Pandit →
           </Link>
           <p className="mt-4 text-sm text-amber-100/80">
             Free forever. Wisdom from every culture. No credit card needed. Your soul is safe here.

@@ -36,7 +36,7 @@ export default async function DashboardPage() {
     where: { id: userId },
     select: { companionName: true, createdAt: true },
   });
-  const companionName = user?.companionName?.trim() || "Buddy";
+  const companionName = user?.companionName?.trim() || branding.shortName;
 
   const licenses = await prisma.license.findMany({
     where: { userId },

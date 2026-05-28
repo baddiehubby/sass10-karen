@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Buddy Shadow Companion</title>
+    <title>Shadow Companion Orb</title>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body {
@@ -11,7 +11,6 @@
         height: 120px;
         overflow: hidden;
         background: transparent;
-        -webkit-app-region: no-drag;
         user-select: none;
       }
       .stage {
@@ -32,7 +31,7 @@
         width: 4px;
         height: 4px;
         border-radius: 50%;
-        background: rgba(167, 139, 250, 0.7);
+        background: rgba(251, 191, 36, 0.75);
         animation: float 4s ease-in-out infinite;
       }
       .particle:nth-child(1) { top: 12%; left: 18%; animation-delay: 0s; }
@@ -40,23 +39,23 @@
       .particle:nth-child(3) { top: 20%; right: 14%; animation-delay: 1.4s; }
       .particle:nth-child(4) { bottom: 16%; right: 22%; animation-delay: 2s; }
       @keyframes float {
-        0%, 100% { transform: translateY(0) scale(1); opacity: 0.5; }
-        50% { transform: translateY(-6px) scale(1.2); opacity: 1; }
+        0%, 100% { transform: translateY(0) scale(1); opacity: 0.45; }
+        50% { transform: translateY(-7px) scale(1.15); opacity: 1; }
       }
       .sacred-ring {
         position: absolute;
-        width: 88px;
-        height: 88px;
+        width: 92px;
+        height: 92px;
         border-radius: 50%;
-        border: 1px solid rgba(167, 139, 250, 0.35);
-        animation: ring-spin 18s linear infinite;
+        border: 1px solid rgba(251, 191, 36, 0.4);
+        animation: ring-spin 20s linear infinite;
       }
       .sacred-ring::before {
         content: "";
         position: absolute;
-        inset: 6px;
+        inset: 5px;
         border-radius: 50%;
-        border: 1px dashed rgba(129, 140, 248, 0.25);
+        border: 1px dashed rgba(255, 215, 0, 0.28);
       }
       @keyframes ring-spin {
         from { transform: rotate(0deg); }
@@ -64,8 +63,8 @@
       }
       .orb-hit {
         position: relative;
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
         cursor: pointer;
         z-index: 3;
@@ -77,12 +76,10 @@
         width: 72px;
         height: 72px;
         border-radius: 50%;
-        background: radial-gradient(circle at 35% 30%, #c4b5fd 0%, #7c3aed 45%, #312e81 100%);
-        box-shadow:
-          0 0 28px rgba(124, 58, 237, 0.55),
-          inset 0 -8px 18px rgba(15, 23, 42, 0.35);
-        animation: breathe 3.2s ease-in-out infinite;
-        transition: background 0.8s ease, box-shadow 0.8s ease;
+        background: radial-gradient(circle at 35% 30%, #fffbe9 0%, #d4a373 42%, #8c3f0e 100%);
+        box-shadow: 0 0 28px rgba(251, 191, 36, 0.45), inset 0 -8px 18px rgba(15, 23, 42, 0.35);
+        animation: breathe 3.4s ease-in-out infinite;
+        transition: background 0.7s ease, box-shadow 0.7s ease;
         pointer-events: none;
       }
       .orb::after {
@@ -93,40 +90,111 @@
         width: 22%;
         height: 14%;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.38);
         filter: blur(1px);
       }
+      .face {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .eyes {
+        position: absolute;
+        top: 34px;
+        left: 22px;
+        right: 22px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .eye {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(15, 23, 42, 0.42);
+        transition: transform 0.3s ease;
+      }
+      .mouth {
+        position: absolute;
+        bottom: 26px;
+        left: 50%;
+        width: 22px;
+        height: 10px;
+        margin-left: -11px;
+        border-bottom: 2px solid rgba(15, 23, 42, 0.45);
+        border-radius: 0 0 12px 12px;
+        transition: transform 0.3s ease;
+      }
       .orb.mood-happy {
-        background: radial-gradient(circle at 35% 30%, #fde68a 0%, #f59e0b 50%, #b45309 100%);
-        box-shadow: 0 0 32px rgba(245, 158, 11, 0.5);
+        background: radial-gradient(circle at 35% 30%, #fef3c7 0%, #f4a261 48%, #b45309 100%);
+        box-shadow: 0 0 32px rgba(244, 162, 97, 0.55);
       }
       .orb.mood-concerned {
-        background: radial-gradient(circle at 35% 30%, #fca5a5 0%, #ef4444 50%, #7f1d1d 100%);
-        box-shadow: 0 0 32px rgba(239, 68, 68, 0.45);
+        background: radial-gradient(circle at 35% 30%, #fecaca 0%, #e76f51 50%, #7f1d1d 100%);
+        box-shadow: 0 0 30px rgba(231, 111, 81, 0.45);
       }
       .orb.mood-thinking {
-        background: radial-gradient(circle at 35% 30%, #93c5fd 0%, #3b82f6 50%, #1e3a8a 100%);
-        box-shadow: 0 0 32px rgba(59, 130, 246, 0.45);
+        background: radial-gradient(circle at 35% 30%, #e9d5ff 0%, #9c89b8 50%, #4c1d95 100%);
+        box-shadow: 0 0 30px rgba(156, 137, 184, 0.5);
       }
       .orb.mood-excited {
-        background: radial-gradient(circle at 35% 30%, #f9a8d4 0%, #ec4899 50%, #831843 100%);
-        box-shadow: 0 0 32px rgba(236, 72, 153, 0.5);
+        background: radial-gradient(circle at 35% 30%, #fde68a 0%, #e9c46a 50%, #ca8a04 100%);
+        box-shadow: 0 0 32px rgba(233, 196, 106, 0.55);
       }
       .orb.mood-sleepy {
-        background: radial-gradient(circle at 35% 30%, #a5b4fc 0%, #6366f1 50%, #312e81 100%);
-        box-shadow: 0 0 28px rgba(99, 102, 241, 0.4);
+        background: radial-gradient(circle at 35% 30%, #cbd5e1 0%, #8d99ae 50%, #334155 100%);
+        box-shadow: 0 0 28px rgba(141, 153, 174, 0.4);
       }
+      .orb.mood-zen {
+        background: radial-gradient(circle at 35% 30%, #ccfbf1 0%, #2a9d8f 50%, #134e4a 100%);
+        box-shadow: 0 0 30px rgba(42, 157, 143, 0.5);
+      }
+      .orb.mood-lit {
+        background: radial-gradient(circle at 35% 30%, #ffedd5 0%, #f77f00 50%, #9a3412 100%);
+        box-shadow: 0 0 34px rgba(247, 127, 0, 0.55);
+      }
+      .orb.mood-divine {
+        background: radial-gradient(circle at 35% 30%, #fffef0 0%, #ffd700 45%, #b8860b 100%);
+        box-shadow: 0 0 40px rgba(255, 215, 0, 0.75), 0 0 60px rgba(255, 200, 80, 0.4);
+        animation: breathe 2.8s ease-in-out infinite, divine-glow 1.4s ease-in-out infinite;
+      }
+      @keyframes divine-glow {
+        0%, 100% { filter: brightness(1); }
+        50% { filter: brightness(1.2); }
+      }
+      .orb.mood-concerned .mouth { transform: scaleY(0.6); border-radius: 12px 12px 0 0; border-bottom: none; border-top: 2px solid rgba(15, 23, 42, 0.4); }
+      .orb.mood-happy .mouth, .orb.mood-excited .mouth, .orb.mood-divine .mouth { transform: scaleY(1.2); }
+      .orb.mood-thinking .eye { transform: scaleY(0.55); }
+      .orb.mood-sleepy .eye { transform: scaleY(0.25); }
       @keyframes breathe {
         0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.06); }
+        50% { transform: scale(1.07); }
       }
-      .orb.pulse-once {
-        animation: pulse-click 0.55s ease-out;
-      }
+      .orb.pulse-once { animation: pulse-click 0.55s ease-out; }
       @keyframes pulse-click {
         0% { transform: scale(1); }
-        40% { transform: scale(1.18); }
+        40% { transform: scale(1.16); }
         100% { transform: scale(1); }
+      }
+      .blessing-ring {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 40px;
+        height: 40px;
+        margin: -20px 0 0 -20px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 215, 0, 0.7);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 4;
+      }
+      .blessing-ring.pop { animation: blessing-expand 0.75s ease-out forwards; }
+      @keyframes blessing-expand {
+        0% { transform: scale(0.7); opacity: 0.9; }
+        100% { transform: scale(2.4); opacity: 0; }
       }
       .sparkle {
         position: absolute;
@@ -145,13 +213,13 @@
         position: absolute;
         bottom: 100%;
         right: 0;
-        max-width: 200px;
+        max-width: 210px;
         margin-bottom: 8px;
         padding: 8px 10px;
         border-radius: 10px;
-        background: rgba(15, 23, 42, 0.92);
-        border: 1px solid rgba(167, 139, 250, 0.35);
-        color: #e9d5ff;
+        background: rgba(15, 23, 42, 0.94);
+        border: 1px solid rgba(250, 204, 21, 0.35);
+        color: #fef3c7;
         font: 11px/1.35 system-ui, sans-serif;
         opacity: 0;
         transform: translateY(6px);
@@ -159,10 +227,7 @@
         pointer-events: none;
         z-index: 5;
       }
-      .guidance.visible {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      .guidance.visible { opacity: 1; transform: translateY(0); }
     </style>
   </head>
   <body>
@@ -174,84 +239,146 @@
         <span class="particle"></span>
       </div>
       <div class="sacred-ring" aria-hidden="true"></div>
-      <div class="orb-hit" id="hit" title="Buddy">
-        <div class="orb mood-neutral" id="orb"></div>
+      <div class="blessing-ring" id="blessingRing"></div>
+      <div class="orb-hit" id="hit" title="Companion">
+        <div class="orb mood-neutral" id="orb">
+          <div class="face" aria-hidden="true">
+            <div class="eyes"><span class="eye"></span><span class="eye"></span></div>
+            <div class="mouth"></div>
+          </div>
+        </div>
       </div>
       <div class="guidance" id="guidance"></div>
     </div>
     <script>
-      const orb = document.getElementById("orb");
-      const hit = document.getElementById("hit");
-      const guidance = document.getElementById("guidance");
-      const stage = document.getElementById("stage");
+      (function () {
+        const orb = document.getElementById("orb");
+        const hit = document.getElementById("hit");
+        const guidance = document.getElementById("guidance");
+        const stage = document.getElementById("stage");
+        const blessingRing = document.getElementById("blessingRing");
+        const LOCAL_MOOD_KEY = "shadow_orb_mood_v1";
 
-      const MOOD_MESSAGES = {
-        neutral: "I'm here with you.",
-        happy: "Beautiful energy — keep going.",
-        concerned: "Take a breath. You've got this.",
-        thinking: "Pause when you need clarity.",
-        excited: "That momentum looks great.",
-        sleepy: "Rest is part of the work.",
-      };
-
-      function applyMood(mood) {
-        orb.className = "orb mood-" + (mood || "neutral");
-      }
-
-      function showGuidance(text) {
-        guidance.textContent = text;
-        guidance.classList.add("visible");
-        setTimeout(() => guidance.classList.remove("visible"), 3200);
-      }
-
-      function burstSparkles() {
-        const rect = hit.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        for (let i = 0; i < 10; i++) {
-          const el = document.createElement("span");
-          el.className = "sparkle";
-          const angle = (Math.PI * 2 * i) / 10;
-          const dist = 28 + Math.random() * 18;
-          el.style.left = cx - stage.getBoundingClientRect().left + "px";
-          el.style.top = cy - stage.getBoundingClientRect().top + "px";
-          el.style.setProperty("--tx", Math.cos(angle) * dist + "px");
-          el.style.setProperty("--ty", Math.sin(angle) * dist + "px");
-          stage.appendChild(el);
-          setTimeout(() => el.remove(), 700);
-        }
-      }
-
-      hit.addEventListener("click", () => {
-        orb.classList.add("pulse-once");
-        setTimeout(() => orb.classList.remove("pulse-once"), 560);
-        burstSparkles();
-        const mood = orb.className.match(/mood-(\w+)/)?.[1] || "neutral";
-        showGuidance(MOOD_MESSAGES[mood] || MOOD_MESSAGES.neutral);
-      });
-
-      hit.addEventListener("mouseenter", () => {
-        window.buddyOverlay?.setInteractive(true);
-      });
-      hit.addEventListener("mouseleave", () => {
-        window.buddyOverlay?.setInteractive(false);
-      });
-
-      async function loadPresence() {
-        const state = (await window.buddyOverlay?.getPresence?.()) || {
-          currentMood: "neutral",
-          companionName: "Buddy",
+        const MOODS = ["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "zen", "lit", "divine"];
+        const MOOD_MESSAGES = {
+          neutral: "I'm here with you.",
+          happy: "Beautiful energy — keep going.",
+          concerned: "Take a breath. You've got this.",
+          thinking: "Pause when you need clarity.",
+          excited: "That momentum looks great.",
+          sleepy: "Rest is part of the work.",
+          zen: "Silence is speaking clearly today.",
+          lit: "Your fire is bright — aim it with care.",
+          divine: "A rare blessing is near. Receive more, force less.",
         };
-        applyMood(state.currentMood);
-        const next = state.guidanceQueue?.[0]?.text;
-        if (next) showGuidance(next);
-      }
+        const LOCAL_WHISPERS = [
+          "Mercury is in retrograde, but your vibes are in forward. Carry on.",
+          "I see a door opening where you least expect it. Probably near food.",
+          "Breathe with me. In… and out…",
+        ];
 
-      window.buddyOverlay?.onPresenceUpdate?.((state) => {
-        applyMood(state.currentMood);
-      });
+        function applyMood(mood) {
+          const safe = MOODS.includes(mood) ? mood : "neutral";
+          orb.className = "orb mood-" + safe;
+          try {
+            localStorage.setItem(LOCAL_MOOD_KEY, safe);
+          } catch (_) {}
+        }
 
-      loadPresence();
+        function readLocalMood() {
+          try {
+            const m = localStorage.getItem(LOCAL_MOOD_KEY);
+            if (m && MOODS.includes(m)) return m;
+          } catch (_) {}
+          return "neutral";
+        }
+
+        function showGuidance(text) {
+          if (!text) return;
+          guidance.textContent = text;
+          guidance.classList.add("visible");
+          setTimeout(function () {
+            guidance.classList.remove("visible");
+          }, 3200);
+        }
+
+        function burstSparkles() {
+          const rect = hit.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const stageRect = stage.getBoundingClientRect();
+          for (let i = 0; i < 10; i++) {
+            const el = document.createElement("span");
+            el.className = "sparkle";
+            const angle = (Math.PI * 2 * i) / 10;
+            const dist = 28 + Math.random() * 18;
+            el.style.left = cx - stageRect.left + "px";
+            el.style.top = cy - stageRect.top + "px";
+            el.style.setProperty("--tx", Math.cos(angle) * dist + "px");
+            el.style.setProperty("--ty", Math.sin(angle) * dist + "px");
+            stage.appendChild(el);
+            setTimeout(function () {
+              el.remove();
+            }, 700);
+          }
+        }
+
+        function triggerBlessingRipple() {
+          blessingRing.classList.remove("pop");
+          void blessingRing.offsetWidth;
+          blessingRing.classList.add("pop");
+        }
+
+        hit.addEventListener("click", function () {
+          orb.classList.add("pulse-once");
+          setTimeout(function () {
+            orb.classList.remove("pulse-once");
+          }, 560);
+          burstSparkles();
+          triggerBlessingRipple();
+          const mood = orb.className.match(/mood-(\w+)/);
+          const key = mood ? mood[1] : "neutral";
+          showGuidance(MOOD_MESSAGES[key] || MOOD_MESSAGES.neutral);
+        });
+
+        hit.addEventListener("mouseenter", function () {
+          window.buddyOverlay?.setInteractive?.(true);
+        });
+        hit.addEventListener("mouseleave", function () {
+          window.buddyOverlay?.setInteractive?.(false);
+        });
+
+        async function loadPresence() {
+          applyMood(readLocalMood());
+          try {
+            const state = await window.buddyOverlay?.getPresence?.();
+            if (state && state.currentMood) {
+              applyMood(state.currentMood);
+              if (state.companionName) hit.title = state.companionName;
+              const next = state.guidanceQueue && state.guidanceQueue[0] && state.guidanceQueue[0].text;
+              if (next) showGuidance(next);
+              return;
+            }
+          } catch (_) {}
+          showGuidance(LOCAL_WHISPERS[Math.floor(Math.random() * LOCAL_WHISPERS.length)]);
+        }
+
+        if (window.buddyOverlay?.onPresenceUpdate) {
+          window.buddyOverlay.onPresenceUpdate(function (state) {
+            if (state && state.currentMood) applyMood(state.currentMood);
+            const next = state.guidanceQueue && state.guidanceQueue[0] && state.guidanceQueue[0].text;
+            if (next) showGuidance(next);
+          });
+        }
+
+        loadPresence();
+        setInterval(function () {
+          if (!window.buddyOverlay) {
+            const idx = Math.floor(Date.now() / 12000) % MOODS.length;
+            applyMood(MOODS[idx]);
+          }
+        }, 12000);
+      })();
     </script>
   </body>
 </html>

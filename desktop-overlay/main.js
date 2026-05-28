@@ -128,7 +128,8 @@ function createOverlayWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, "orb.html"));
+  // Local orb only — never load remote site (avoids SSR/API failures in overlay).
+  mainWindow.loadFile("orb.html");
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -163,9 +164,10 @@ app.whenReady().then(async () => {
   }
 
   createOverlayWindow();
-  await refreshPresence();
-
-  pollTimer = setInterval(refreshPresence, 60_000);
+  const cached = readPresenceFile() || defaultPresence();
+  broadcastPresence(cached);
+  void refreshPresence();
+  pollTimer = setInterval(() => void refreshPresence(), 60_000);
 });
 
 app.on("window-all-closed", () => {

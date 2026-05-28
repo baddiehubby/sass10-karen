@@ -1,12 +1,11 @@
 import { ImmersiveHomepage } from "@/components/immersive-homepage";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { resolveTenantByHost } from "@/lib/tenant";
+import SachaPanditPage from "@/app/sachapandit/page";
+import { getTenantFromRequest } from "@/lib/tenant-request";
 
 export default function HomePage() {
-  const host = headers().get("host");
-  if (resolveTenantByHost(host) === "sachapandit") {
-    redirect("/sachapandit");
+  const tenant = getTenantFromRequest();
+  if (tenant === "sachapandit") {
+    return <SachaPanditPage />;
   }
   return <ImmersiveHomepage />;
 }

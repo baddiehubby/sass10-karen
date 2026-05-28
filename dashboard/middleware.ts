@@ -1,6 +1,7 @@
 import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getTenant, TENANT_COOKIE, TENANT_HEADER } from "@/lib/tenant";
 
 const middlewareSecret = process.env.NEXTAUTH_SECRET;
 
@@ -75,6 +76,27 @@ function isPublicApi(pathname: string) {
   return PUBLIC_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+function applyTenantContext(req: NextRequest, res: NextResponse) {
+  const host = req.headers.get("host") || req.nextUrl.hostname;
+  const tenant = getTenant(host);
+  res.cookies.set(TENANT_COOKIE, tenant, {
+    path: "/",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  res.headers.set(TENANT_HEADER, tenant);
+  return res;
+}
+
+function nextWithTenant(req: NextRequest) {
+  const host = req.headers.get("host") || req.nextUrl.hostname;
+  const tenant = getTenant(host);
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set(TENANT_HEADER, tenant);
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  return applyTenantContext(req, res);
+}
+
 function withCorsForWidgetApis(req: NextRequest, res: NextResponse) {
   const p = req.nextUrl.pathname;
   if (
@@ -106,7 +128,7 @@ export async function middleware(req: NextRequest) {
     if (!allowRate(rateKey, max, WINDOW_MS)) {
       const res = NextResponse.json({ error: "Too many requests" }, { status: 429 });
       applySecurityHeaders(res);
-      return withCorsForWidgetApis(req, res);
+      return withCorsForWidgetApis(req, applyTenantContext(req, res));
     }
 
     if (!isPublicApi(pathname)) {
@@ -114,7 +136,7 @@ export async function middleware(req: NextRequest) {
       if (!token) {
         const res = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         applySecurityHeaders(res);
-        return withCorsForWidgetApis(req, res);
+        return withCorsForWidgetApis(req, applyTenantContext(req, res));
       }
     }
   }
@@ -127,13 +149,13 @@ export async function middleware(req: NextRequest) {
     if (!token) {
       const login = new URL("/login", req.url);
       login.searchParams.set("callbackUrl", pathname);
-      const res = NextResponse.redirect(login);
+      const res = applyTenantContext(req, NextResponse.redirect(login));
       applySecurityHeaders(res, { document: true });
       return res;
     }
     if (!token.eidataConsentCompleted) {
       const consent = new URL("/consent", req.url);
-      const res = NextResponse.redirect(consent);
+      const res = applyTenantContext(req, NextResponse.redirect(consent));
       applySecurityHeaders(res, { document: true });
       return res;
     }
@@ -143,7 +165,7 @@ export async function middleware(req: NextRequest) {
     const token = await getToken({ req, secret: middlewareSecret });
     if (!token) {
       const login = new URL("/login", req.url);
-      const res = NextResponse.redirect(login);
+      const res = applyTenantContext(req, NextResponse.redirect(login));
       applySecurityHeaders(res, { document: true });
       return res;
     }
@@ -153,17 +175,27 @@ export async function middleware(req: NextRequest) {
     const token = await getToken({ req, secret: middlewareSecret });
     if (!token) {
       const login = new URL("/login", req.url);
-      const res = NextResponse.redirect(login);
+      const res = applyTenantContext(req, NextResponse.redirect(login));
       applySecurityHeaders(res, { document: true });
       return res;
     }
   }
 
-  const res = NextResponse.next();
+  const res = nextWithTenant(req);
   applySecurityHeaders(res, { document: true });
   return withCorsForWidgetApis(req, res);
 }
 
 export const config = {
-  matcher: ["/api/:path*", "/dashboard", "/dashboard/:path*", "/consent", "/debiopwr"],
+  matcher: [
+    "/",
+    "/login",
+    "/sachapandit",
+    "/sachapandit/:path*",
+    "/api/:path*",
+    "/dashboard",
+    "/dashboard/:path*",
+    "/consent",
+    "/debiopwr",
+  ],
 };

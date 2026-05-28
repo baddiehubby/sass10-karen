@@ -1,4 +1,4 @@
-import { resolveTenantByHost, TENANT_CONFIGS, type TenantKey } from "@/lib/tenant";
+import { getTenant, tenantSlugToKey, TENANT_CONFIGS, type TenantKey, type TenantSlug } from "@/lib/tenant";
 
 export type TenantBranding = {
   tenant: TenantKey;
@@ -24,7 +24,11 @@ export function brandingForTenant(tenant: TenantKey): TenantBranding {
   };
 }
 
+export function brandingFromTenantSlug(slug: TenantSlug): TenantBranding {
+  return brandingForTenant(tenantSlugToKey(slug));
+}
+
 export function brandingFromHostname(hostname: string | null | undefined): TenantBranding {
-  return brandingForTenant(resolveTenantByHost(hostname));
+  return brandingFromTenantSlug(getTenant(hostname));
 }
 

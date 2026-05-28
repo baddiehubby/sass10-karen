@@ -1,6 +1,12 @@
 export type CompanionType = "buddy" | "sachapandit";
 export type TenantKey = CompanionType;
 
+/** Host-based tenant slug used in cookies, headers, and routing. */
+export type TenantSlug = "buddie" | "sachapandit";
+
+export const TENANT_COOKIE = "x-tenant";
+export const TENANT_HEADER = "x-tenant";
+
 export type PersonaTraits = {
   wisdomLevel: number;
   sassLevel: number;
@@ -125,10 +131,19 @@ export function resolveTenantPersona(input: unknown): TenantPersona {
   return TENANT_PERSONAS[normalizeCompanionType(input)];
 }
 
-export function resolveTenantByHost(hostname: string | null | undefined): TenantKey {
+export function getTenant(hostname: string | null | undefined): TenantSlug {
   const host = String(hostname || "").toLowerCase();
   if (host.includes("sachapandit.com")) return "sachapandit";
-  return "buddy";
+  if (host.includes("buddieai.com")) return "buddie";
+  return "buddie";
+}
+
+export function tenantSlugToKey(slug: TenantSlug): TenantKey {
+  return slug === "sachapandit" ? "sachapandit" : "buddy";
+}
+
+export function resolveTenantByHost(hostname: string | null | undefined): TenantKey {
+  return tenantSlugToKey(getTenant(hostname));
 }
 
 export function resolveTenantConfig(input: unknown): TenantConfig {

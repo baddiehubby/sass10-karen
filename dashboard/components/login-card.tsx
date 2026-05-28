@@ -6,19 +6,24 @@ import { useSearchParams } from "next/navigation";
 import { CinematicOrb, getTimeTheme, TIME_THEME_COLORS } from "@/components/cinematic-orb";
 import { PrivacyBadge } from "@/components/privacy-badge";
 import { getClientSignInCallbackUrl } from "@/lib/site-url";
-import { brandingFromHostname } from "@/lib/tenant-brand";
+import { brandingFromHostname, brandingFromTenantSlug } from "@/lib/tenant-brand";
+import type { TenantSlug } from "@/lib/tenant";
 
 type LoginCardProps = {
   nextAuthUrl: string;
+  tenant?: TenantSlug;
 };
 
-export function LoginCard({ nextAuthUrl }: LoginCardProps) {
+export function LoginCard({ nextAuthUrl, tenant }: LoginCardProps) {
   const searchParams = useSearchParams();
   const callbackUrl = getClientSignInCallbackUrl(searchParams.get("callbackUrl"));
   const authError = searchParams.get("error");
   const theme = getTimeTheme();
   const colors = TIME_THEME_COLORS[theme];
-  const branding = brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : "");
+  const branding =
+    tenant != null
+      ? brandingFromTenantSlug(tenant)
+      : brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : "");
   const oauthRedirectUri =
     branding.tenant === "sachapandit"
       ? "https://www.sachapandit.com/api/auth/callback/google"

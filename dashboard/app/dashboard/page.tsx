@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { DashboardHome } from "@/components/dashboard-home";
@@ -7,12 +8,16 @@ import { ensureFreeLicenseForUser, isLicenseActive, isPaidPlan } from "@/lib/fre
 import { prisma } from "@/lib/prisma";
 import { getAppBaseUrl } from "@/lib/site-url";
 import { getWidgetScriptUrl } from "@/lib/widget-cdn";
+import { brandingFromHostname } from "@/lib/tenant-brand";
+import { TENANT_CONFIGS } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
+  const host = headers().get("host");
+  const branding = brandingFromHostname(host);
   const isAdmin = Boolean((session.user as { isAdmin?: boolean }).isAdmin);
 
   let userId = session.user.id;
@@ -106,6 +111,8 @@ export default async function DashboardPage() {
       hasLicense={Boolean(orbLicense)}
       isFreeOnly={isFreeOnly}
       isAdmin={isAdmin}
+      brandName={branding.name}
+      holyMusicEnabled={TENANT_CONFIGS[branding.tenant].features.holyMusic}
     />
   );
 }

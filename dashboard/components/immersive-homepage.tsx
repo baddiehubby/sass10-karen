@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CinematicOrb, getTimeTheme, TIME_THEME_COLORS, type TimeTheme } from "@/components/cinematic-orb";
 import { PrivacyBadge } from "@/components/privacy-badge";
+import { brandingFromHostname } from "@/lib/tenant-brand";
 
 const WHISPERS = [
   "You seem far away tonight.",
@@ -31,6 +32,7 @@ function nextDelayMs() {
 
 export function ImmersiveHomepage() {
   const router = useRouter();
+  const [brand, setBrand] = useState(() => brandingFromHostname(""));
   const [theme] = useState<TimeTheme>(() => getTimeTheme());
   const colors = TIME_THEME_COLORS[theme];
   const mouseRef = useRef({ x: 0, y: 0 });
@@ -41,6 +43,10 @@ export function ImmersiveHomepage() {
   const [whisperVisible, setWhisperVisible] = useState(false);
   const [showCta, setShowCta] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  useEffect(() => {
+    setBrand(brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : ""));
+  }, []);
+
   const prevWhisperRef = useRef<string | null>(null);
   const ctaShownRef = useRef(false);
 
@@ -140,7 +146,7 @@ export function ImmersiveHomepage() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="pointer-events-none mb-2 max-w-[90vw] text-center text-xs font-light tracking-wide text-slate-400 sm:mb-3 sm:text-sm"
         >
-          Your AI companion, always listening.
+          {brand.tenant === "sachapandit" ? "Sacha Pandit, always listening." : "Your AI companion, always listening."}
         </motion.p>
         <CinematicOrb
           theme={theme}
@@ -181,10 +187,12 @@ export function ImmersiveHomepage() {
                 onClick={() => router.push("/login")}
                 className="text-sm tracking-wide text-white/45 transition-colors hover:text-white/75"
               >
-                Keep your orb alive →
+                {brand.tenant === "sachapandit" ? "Meet your Pandit →" : "Keep your orb alive →"}
               </button>
               <p className="mt-3 max-w-xs text-center text-xs text-slate-500">
-                No credit card needed. Your Buddy stays free forever. Upgrade when you&apos;re ready.
+                {brand.tenant === "sachapandit"
+                  ? "Free forever. Wisdom from every culture. No credit card needed. Your soul is safe here."
+                  : "No credit card needed. Your Buddy stays free forever. Upgrade when you're ready."}
               </p>
               <motion.div
                 initial={{ opacity: 0 }}

@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { HolyMusic } from "@/components/HolyMusic";
 
 export default function SachaPanditPage() {
   const [showWisdom, setShowWisdom] = useState(false);
   const [showCta, setShowCta] = useState(false);
+  const [mx, setMx] = useState(0);
+  const [my, setMy] = useState(0);
 
   useEffect(() => {
     const wisdom = window.setTimeout(() => setShowWisdom(true), 8000);
@@ -16,11 +19,24 @@ export default function SachaPanditPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      setMx((e.clientX / window.innerWidth - 0.5) * 14);
+      setMy((e.clientY / window.innerHeight - 0.5) * 14);
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#090b1a] text-amber-100">
+      <HolyMusic enabled onLevel={() => undefined} />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,#312e81_0%,#140f2d_40%,#090b1a_100%)]" />
       <div className="stars absolute inset-0 opacity-80" />
-      <div className="pointer-events-none absolute left-1/2 top-[50%] h-[65vh] w-[65vh] max-h-[780px] max-w-[780px] -translate-x-1/2 -translate-y-1/2">
+      <div
+        className="pointer-events-none absolute left-1/2 top-[50%] h-[65vh] w-[65vh] max-h-[780px] max-w-[780px] -translate-x-1/2 -translate-y-1/2"
+        style={{ transform: `translate(calc(-50% + ${mx}px), calc(-50% + ${my}px))` }}
+      >
         <div className="mandala absolute inset-0 rounded-full" />
         <div className="orb absolute left-1/2 top-1/2 h-[58%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full" />
       </div>
@@ -35,7 +51,7 @@ export default function SachaPanditPage() {
           className={`mt-7 transition-all duration-700 ${showCta ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}
         >
           <Link
-            href="/register"
+            href="/login"
             className="inline-flex rounded-full border border-amber-300/40 bg-amber-400/10 px-6 py-3 text-base font-semibold text-amber-100 hover:bg-amber-300/20"
           >
             Meet your Pandit -&gt;
@@ -47,6 +63,7 @@ export default function SachaPanditPage() {
         <p className="mt-6 rounded-full border border-amber-200/20 bg-black/30 px-4 py-2 text-xs text-amber-100/90">
           🔒 Your emotions never leave this device. Sacred, private, yours.
         </p>
+        <p className="mt-3 text-xs text-amber-200/70">Tap anywhere to enter the sound temple.</p>
       </section>
 
       <style jsx>{`

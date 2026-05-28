@@ -10,6 +10,7 @@ import { MoodSparkline } from "@/components/mood-sparkline";
 import { PrivacyBadge } from "@/components/privacy-badge";
 import { ShadowCompanionDownload } from "@/components/shadow-companion-download";
 import { ShadowCompanionRegister } from "@/components/shadow-companion-register";
+import { HolyMusic } from "@/components/HolyMusic";
 import { formatMomentSentence, formatRelativeTime, pronounForName } from "@/lib/dashboard-format";
 
 export type DashboardHomeProps = {
@@ -24,6 +25,8 @@ export type DashboardHomeProps = {
   hasLicense: boolean;
   isFreeOnly: boolean;
   isAdmin?: boolean;
+  brandName?: string;
+  holyMusicEnabled?: boolean;
 };
 
 export function DashboardHome({
@@ -38,10 +41,13 @@ export function DashboardHome({
   hasLicense,
   isFreeOnly,
   isAdmin = false,
+  brandName = "Buddy AI",
+  holyMusicEnabled = false,
 }: DashboardHomeProps) {
   const moodLabel = topMood === "—" ? "listening" : topMood;
   const pronoun = pronounForName(companionName);
   const [analyticsOptIn, setAnalyticsOptIn] = useState(false);
+  const [audioPulse, setAudioPulse] = useState(0);
 
   useEffect(() => {
     try {
@@ -58,6 +64,7 @@ export function DashboardHome({
         background: "radial-gradient(ellipse 80% 50% at 50% 20%, rgba(99,102,241,0.08) 0%, transparent 60%)",
       }}
     >
+      <HolyMusic enabled={holyMusicEnabled} onLevel={setAudioPulse} />
       <Suspense fallback={null}>
         <DashboardCelebration />
       </Suspense>
@@ -71,12 +78,13 @@ export function DashboardHome({
         licenseKey={licenseKey}
         scriptUrl={scriptUrl}
         apiBase={apiBase}
+        audioPulse={audioPulse}
       />
 
       <PrivacyBadge variant="dashboard" className="mt-4" optedIn={analyticsOptIn} />
 
       <p className="mt-10 text-base font-light tracking-wide text-white/75 md:text-lg">
-        Your Buddy is <span className="capitalize text-violet-200/90">{moodLabel}</span>. {pronoun} been with you
+        Your {brandName} is <span className="capitalize text-violet-200/90">{moodLabel}</span>. {pronoun} been with you
         for{" "}
         <span className="text-white/90">
           {daysTogether} {daysTogether === 1 ? "day" : "days"}
@@ -88,7 +96,7 @@ export function DashboardHome({
         <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/30">Mood timeline</p>
         <MoodSparkline events={sparklineEvents} />
         <p className="mt-3 text-center text-xs text-emerald-200/75">
-          Thanks to users like you, Buddy&apos;s emotional intelligence improves every day.
+          Thanks to users like you, {brandName}&apos;s emotional intelligence improves every day.
         </p>
       </div>
 
@@ -99,7 +107,7 @@ export function DashboardHome({
             <li className="text-sm font-light text-white/35">
               {hasLicense
                 ? "No moments yet. Your orb is listening — embed it on your site to begin."
-                : "Sign in to activate your free Buddy — moments will appear here."}
+                : `Sign in to activate your free ${brandName} - moments will appear here.`}
             </li>
           ) : (
             recentMoments.slice(0, 5).map((ev) => (

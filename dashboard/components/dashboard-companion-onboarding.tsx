@@ -17,12 +17,14 @@ import {
   type BeforeInstallPromptEvent,
 } from "@/lib/pwa-install";
 import { getPublicAppBaseUrl } from "@/lib/site-url";
+import { brandingFromHostname } from "@/lib/tenant-brand";
 
 type DashboardCompanionOnboardingProps = {
   licenseKey: string | null;
 };
 
 export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionOnboardingProps) {
+  const brand = brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : "");
   const [extensionInstalled, setExtensionInstalled] = useState(() => isExtensionInstalled());
   const [pwaInstalled, setPwaInstalled] = useState(() => isPwaInstalled());
   const [iosHelp, setIosHelp] = useState(false);
@@ -85,19 +87,19 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
         <div className="luxury-card flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-100/90">
           <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
           {pwaInstalled && extensionInstalled
-            ? "Buddy is with you everywhere — app and browser."
+            ? `${brand.name} is with you everywhere - app and browser.`
             : pwaInstalled
-              ? "Buddy is with you everywhere."
-              : "Your Buddy is with you on all your conversations."}
+              ? `${brand.name} is with you everywhere.`
+              : `Your ${brand.shortName} is with you on all your conversations.`}
         </div>
       ) : (
         <article className="install-card-pulse luxury-glass luxury-card rounded-2xl border border-amber-400/25 p-5 shadow-lg shadow-violet-950/30">
           <p className="text-center text-xs uppercase tracking-[0.24em] text-amber-200/80">✨ Premium companion</p>
           <h2 className="mt-2 text-center text-lg font-light text-white/95">
-            Take Buddy Everywhere — Instantly
+            Take {brand.shortName} Everywhere - Instantly
           </h2>
           <p className="mt-2 text-center text-sm font-light text-white/55">
-            Install as an app. Your Buddy appears on every AI chat — ChatGPT, Claude, Gemini — automatically.
+            Install as an app. Your {brand.shortName} appears on every AI chat - ChatGPT, Claude, Gemini - automatically.
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <button
@@ -105,7 +107,7 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
               onClick={() => void handleInstall()}
               className="premium-btn-glow inline-flex rounded-full border border-amber-300/30 bg-gradient-to-r from-violet-600/80 to-indigo-600/80 px-6 py-2.5 text-sm font-medium text-white"
             >
-              Install Buddy Now
+              Install {brand.shortName} Now
             </button>
             <a
               href={CHROME_EXTENSION_DOWNLOAD_URL}
@@ -127,7 +129,7 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
             </a>
           </div>
           <p className="mt-4 text-center text-xs tracking-wide text-white/50">
-            Your Buddy will appear on ChatGPT, Claude, Gemini, and any AI chat — automatically.
+            Your {brand.shortName} will appear on ChatGPT, Claude, Gemini, and any AI chat - automatically.
           </p>
           <p className="mt-3 text-center text-xs leading-relaxed text-white/45">
             Chrome extension:{" "}
@@ -152,7 +154,7 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
       )}
 
       <article className="luxury-card rounded-2xl border border-white/8 bg-white/[0.03] p-5">
-        <h3 className="text-center text-sm font-medium text-white/75">Take Buddy on your phone</h3>
+        <h3 className="text-center text-sm font-medium text-white/75">Take {brand.shortName} on your phone</h3>
         <p className="mt-1 text-center text-xs font-light text-white/40">
           Scan to open your pocket companion — one tap to install.
         </p>

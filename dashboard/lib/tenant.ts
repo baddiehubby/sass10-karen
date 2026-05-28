@@ -1,4 +1,5 @@
 export type CompanionType = "buddy" | "sachapandit";
+export type TenantKey = CompanionType;
 
 export type PersonaTraits = {
   wisdomLevel: number;
@@ -15,6 +16,23 @@ export type TenantPersona = {
   traits: PersonaTraits;
   moodPalette: Record<string, string>;
   signatureLine?: string;
+};
+
+export type TenantFeatures = {
+  spiritualMode: boolean;
+  holyMusic: boolean;
+  divineHalo: boolean;
+  predictions: boolean;
+  ritualMode: boolean;
+};
+
+export type TenantConfig = {
+  id: TenantKey;
+  domain: string;
+  name: string;
+  theme: string;
+  persona: string;
+  features: TenantFeatures;
 };
 
 const DEFAULT_PERSONA: TenantPersona = {
@@ -68,10 +86,51 @@ export const TENANT_PERSONAS: Record<CompanionType, TenantPersona> = {
   },
 };
 
+export const TENANT_CONFIGS: Record<TenantKey, TenantConfig> = {
+  buddy: {
+    id: "buddy",
+    domain: "www.buddieai.com",
+    name: "Buddy AI",
+    theme: "indigo-default",
+    persona: "friendly-assistant",
+    features: {
+      spiritualMode: false,
+      holyMusic: false,
+      divineHalo: false,
+      predictions: false,
+      ritualMode: false,
+    },
+  },
+  sachapandit: {
+    id: "sachapandit",
+    domain: "www.sachapandit.com",
+    name: "Sacha Pandit",
+    theme: "orange-spiritual",
+    persona: "spiritual-guide",
+    features: {
+      spiritualMode: true,
+      holyMusic: true,
+      divineHalo: true,
+      predictions: true,
+      ritualMode: true,
+    },
+  },
+};
+
 export function normalizeCompanionType(input: unknown): CompanionType {
   return input === "sachapandit" ? "sachapandit" : "buddy";
 }
 
 export function resolveTenantPersona(input: unknown): TenantPersona {
   return TENANT_PERSONAS[normalizeCompanionType(input)];
+}
+
+export function resolveTenantByHost(hostname: string | null | undefined): TenantKey {
+  const host = String(hostname || "").toLowerCase();
+  if (host.includes("sachapandit.com")) return "sachapandit";
+  return "buddy";
+}
+
+export function resolveTenantConfig(input: unknown): TenantConfig {
+  return TENANT_CONFIGS[normalizeCompanionType(input)];
 }

@@ -1,8 +1,5 @@
-/**
- * Canonical site URL for OAuth, redirects, and absolute links.
- * Production always uses www.buddieai.com — never Vercel preview hostnames.
- */
-export const PRODUCTION_SITE_URL = "https://www.buddieai.com";
+/** Canonical site URL for OAuth, redirects, and absolute links. */
+export const PRODUCTION_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.buddieai.com";
 
 const LOCALHOST_URL_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/i;
 
@@ -28,9 +25,8 @@ export function isLocalDevelopment(): boolean {
 }
 
 /**
- * Canonical origin for the app. In production (including Vercel preview builds),
- * always https://www.buddieai.com unless NEXTAUTH_URL explicitly points at localhost
- * (for `next start` / OAuth testing on a machine).
+ * Canonical origin for the app. In production, use the configured canonical URL,
+ * unless NEXTAUTH_URL explicitly points at localhost (for local OAuth testing).
  */
 export function getCanonicalSiteUrl(): string {
   if (process.env.NODE_ENV === "production") {
@@ -84,7 +80,7 @@ export function resolvePostAuthCallbackUrl(relativeOrAbsolute: string | null | u
 
 /**
  * Client-side sign-in callbackUrl (used in login-card).
- * Production builds always return an absolute https://www.buddieai.com URL.
+ * Production builds return an absolute canonical URL.
  */
 export function getClientSignInCallbackUrl(relativeFromQuery: string | null): string {
   const path =

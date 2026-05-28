@@ -19,9 +19,10 @@ type DashboardLiveOrbProps = {
   licenseKey: string | null;
   scriptUrl: string;
   apiBase: string;
+  audioPulse?: number;
 };
 
-export function DashboardLiveOrb({ mood, licenseKey, scriptUrl, apiBase }: DashboardLiveOrbProps) {
+export function DashboardLiveOrb({ mood, licenseKey, scriptUrl, apiBase, audioPulse = 0 }: DashboardLiveOrbProps) {
   const mouseRef = useRef({ x: 0, y: 0 });
   const [breathing, setBreathing] = useState(true);
   const themeKey = MOOD_THEMES[mood as keyof typeof MOOD_THEMES] ?? getTimeTheme();
@@ -43,7 +44,10 @@ export function DashboardLiveOrb({ mood, licenseKey, scriptUrl, apiBase }: Dashb
   }, []);
 
   return (
-    <div className="relative mx-auto h-[200px] w-[200px]">
+    <div
+      className="relative mx-auto h-[200px] w-[200px]"
+      style={{ transform: `scale(${(1 + Math.min(0.08, audioPulse * 0.12)).toFixed(4)})` }}
+    >
       {licenseKey ? (
         <Script
           src={scriptUrl}

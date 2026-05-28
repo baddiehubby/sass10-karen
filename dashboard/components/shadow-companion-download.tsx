@@ -7,12 +7,14 @@ import {
   DESKTOP_COMPANION_MAC_URL,
   DESKTOP_COMPANION_WIN_URL,
 } from "@/lib/marketing-links";
+import { brandingFromHostname } from "@/lib/tenant-brand";
 
 type ShadowCompanionDownloadProps = {
   isAdmin?: boolean;
 };
 
 export function ShadowCompanionDownload({ isAdmin = false }: ShadowCompanionDownloadProps) {
+  const brand = brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : "");
   const platform = useMemo(() => {
     if (typeof navigator === "undefined") return "unknown";
     const ua = navigator.userAgent.toLowerCase();
@@ -27,7 +29,7 @@ export function ShadowCompanionDownload({ isAdmin = false }: ShadowCompanionDown
   return (
     <section className="mt-8 w-full rounded-2xl border border-violet-500/20 bg-violet-950/20 p-5 text-left">
       <p className="text-xs uppercase tracking-[0.22em] text-violet-300/70">Shadow Companion</p>
-      <h2 className="mt-1 text-base font-medium text-white/90">Follow Buddy everywhere</h2>
+      <h2 className="mt-1 text-base font-medium text-white/90">Follow {brand.shortName} everywhere</h2>
       <p className="mt-2 text-xs font-light leading-relaxed text-white/50">
         Desktop overlay above every app, PWA background check-ins, mobile home screen, and the Chrome extension —
         mood stays on-device; only labels sync when you consent.

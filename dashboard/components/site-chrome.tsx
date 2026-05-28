@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Script from "next/script";
 import { SiteHeader } from "@/components/site-header";
 import { CookieBanner } from "@/components/CookieBanner";
+import { brandingFromHostname } from "@/lib/tenant-brand";
 
 const IMMERSIVE_PREFIXES = ["/dashboard"];
 const IMMERSIVE_EXACT = new Set(["/", "/login", "/pwa"]);
@@ -22,6 +23,7 @@ type SiteChromeProps = {
 
 export function SiteChrome({ children, widgetScriptUrl, apiBase }: SiteChromeProps) {
   const pathname = usePathname() ?? "/";
+  const branding = brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : "");
   const immersive = isImmersiveRoute(pathname);
   const showWidget = pathname !== "/" && !pathname.startsWith("/dashboard");
 
@@ -41,7 +43,9 @@ export function SiteChrome({ children, widgetScriptUrl, apiBase }: SiteChromePro
       {!immersive ? (
         <footer className="mt-16 border-t border-white/10 py-6">
           <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 text-sm text-slate-400">
-            <p>© {new Date().getFullYear()} Buddie AI</p>
+            <p>
+              © {new Date().getFullYear()} {branding.name}
+            </p>
             <div className="flex items-center gap-4">
               <Link href="/trust-center" className="hover:text-white">
                 Trust Center

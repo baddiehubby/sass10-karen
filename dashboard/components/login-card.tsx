@@ -6,12 +6,11 @@ import { useSearchParams } from "next/navigation";
 import { CinematicOrb, getTimeTheme, TIME_THEME_COLORS } from "@/components/cinematic-orb";
 import { PrivacyBadge } from "@/components/privacy-badge";
 import { getClientSignInCallbackUrl } from "@/lib/site-url";
+import { brandingFromHostname } from "@/lib/tenant-brand";
 
 type LoginCardProps = {
   nextAuthUrl: string;
 };
-
-const OAUTH_REDIRECT_URI = "https://www.buddieai.com/api/auth/callback/google";
 
 export function LoginCard({ nextAuthUrl }: LoginCardProps) {
   const searchParams = useSearchParams();
@@ -19,6 +18,11 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
   const authError = searchParams.get("error");
   const theme = getTimeTheme();
   const colors = TIME_THEME_COLORS[theme];
+  const branding = brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : "");
+  const oauthRedirectUri =
+    branding.tenant === "sachapandit"
+      ? "https://www.sachapandit.com/api/auth/callback/google"
+      : "https://www.buddieai.com/api/auth/callback/google";
   const nextAuthConfigured = Boolean(nextAuthUrl);
   const showOAuthSetupHint =
     authError === "google" ||
@@ -35,7 +39,9 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
     >
       <CinematicOrb theme={theme} height="min(42vh, 280px)" breathing />
       <p className="mt-8 max-w-sm text-center text-sm font-light tracking-wide text-white/60">
-        Continue with Google to keep your orb alive.
+        {branding.tenant === "sachapandit"
+          ? "Continue with Google to meet your Pandit."
+          : "Continue with Google to keep your orb alive."}
       </p>
 
       {!nextAuthConfigured ? (
@@ -48,7 +54,7 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
         <p className="mt-4 max-w-sm rounded-lg border border-rose-300/25 bg-rose-500/10 px-3 py-2 text-center text-xs leading-relaxed text-rose-100/90">
           Google sign-in failed. In Google Cloud Console → Credentials → your{" "}
           <strong>Web client</strong>, add this exact Authorized redirect URI:{" "}
-          <code className="break-all text-rose-50">{OAUTH_REDIRECT_URI}</code>
+          <code className="break-all text-rose-50">{oauthRedirectUri}</code>
         </p>
       ) : null}
 
@@ -57,7 +63,7 @@ export function LoginCard({ nextAuthUrl }: LoginCardProps) {
         onClick={() => signIn("google", { callbackUrl })}
         className="premium-btn-glow mt-8 w-full max-w-xs rounded-full border border-white/15 bg-white/8 px-6 py-3.5 text-sm font-medium text-white/90 backdrop-blur-sm transition hover:border-white/30 hover:bg-white/12"
       >
-        Continue with Google
+        {branding.tenant === "sachapandit" ? "Continue with Google to meet your Pandit" : "Continue with Google"}
       </button>
 
       <PrivacyBadge variant="login" className="mt-4" />

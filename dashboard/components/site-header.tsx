@@ -2,18 +2,24 @@
 
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { brandingFromHostname } from "@/lib/tenant-brand";
 
 export function SiteHeader() {
   const { status, data: session } = useSession();
+  const [brandName, setBrandName] = useState("Buddy AI");
   const isAuthed = status === "authenticated";
   const isAdmin = Boolean((session?.user as { isAdmin?: boolean } | undefined)?.isAdmin);
+  useEffect(() => {
+    setBrandName(brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : "").name);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/40 backdrop-blur-xl">
       <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="text-sm font-semibold tracking-[0.2em] text-indigo-200">
-          Buddy AI
+          {brandName}
         </Link>
 
         <div className="flex flex-wrap items-center justify-end gap-3 text-sm text-slate-300 sm:gap-4">

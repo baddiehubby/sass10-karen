@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseQuery } from "@/lib/api-json";
 import { prisma } from "@/lib/prisma";
+import { normalizeCompanionType, resolveTenantPersona } from "@/lib/tenant";
 import { licenseVerifyQuerySchema } from "@/lib/validation";
 
 function corsHeaders() {
@@ -12,7 +13,7 @@ function corsHeaders() {
   };
 }
 
-const ALLOWED_MOODS = new Set(["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "angry"]);
+const ALLOWED_MOODS = new Set(["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "angry", "zen", "lit", "divine"]);
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders() });
@@ -51,6 +52,8 @@ export async function GET(req: Request) {
   } catch {
     parsedFeatures = {};
   }
+  const companionType = normalizeCompanionType(parsedFeatures.companionType);
+  const tenantPersona = resolveTenantPersona(companionType);
 
   return NextResponse.json(
     {
@@ -58,6 +61,8 @@ export async function GET(req: Request) {
       licenseId: license.id,
       plan: license.plan,
       features: parsedFeatures,
+      companionType,
+      tenantPersona,
       expiresAt: license.expiresAt,
       whiteLabel: Boolean(parsedFeatures.whiteLabel),
       widgetConfig: {

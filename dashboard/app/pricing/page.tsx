@@ -80,7 +80,7 @@ function PricingContent() {
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-14">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }} />
-      <p className="text-xs uppercase tracking-[0.28em] text-indigo-300">Buddy AI · emotional intelligence</p>
+      <p className="text-xs uppercase tracking-[0.28em] text-indigo-300">Sacha Pandit · spiritual companion</p>
       <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-5xl">Free forever. Upgrade when ready.</h1>
       <p className="mt-4 max-w-2xl text-slate-300">
         {free.name} is included with every account — no Lemon Squeezy checkout, no card required.{" "}
@@ -91,12 +91,12 @@ function PricingContent() {
         <article className="glass-panel p-6 ring-1 ring-slate-500/20">
           <h2 className="text-xl font-semibold text-white">{free.name}</h2>
           <p className="mt-2 text-sm text-slate-300">
-            Your emotional companion forever. Basic moods, basic memory, watermark on the orb. Not a Lemon Squeezy
-            product — activated automatically when you sign in.
+            Basic orb, 5 predictions/day, 3-day memory, standard halo, watermark. Not a Lemon Squeezy product -
+            activated automatically when you sign in.
           </p>
           <ul className="mt-4 list-inside list-disc space-y-1.5 text-sm text-slate-400">
-            <li>Basic mood detection</li>
-            <li>Basic memory</li>
+            <li>Basic orb + 5 prediction whispers/day</li>
+            <li>3-day emotional memory</li>
             <li>Watermark on embed</li>
             <li>Free forever — not a trial</li>
           </ul>
@@ -113,13 +113,14 @@ function PricingContent() {
         <article className="glass-panel p-6 ring-1 ring-indigo-500/30">
           <h2 className="text-xl font-semibold text-white">{pro.name}</h2>
           <p className="mt-2 text-sm text-slate-300">
-            Advanced analytics, custom themes, no watermark, and priority support. Billed via Lemon Squeezy.
+            Unlimited predictions, 30-day memory, enhanced halo, daily blessings, sacred geometry customization. Billed
+            via Lemon Squeezy.
           </p>
           <ul className="mt-4 list-inside list-disc space-y-1.5 text-sm text-slate-400">
             <li>Everything in Free</li>
-            <li>Advanced analytics & mood timeline</li>
-            <li>Custom themes — no watermark</li>
-            <li>Priority support</li>
+            <li>Unlimited prediction whispers</li>
+            <li>30-day continuity memory</li>
+            <li>Sacred geometry + no watermark</li>
           </ul>
           <p className="mt-5 text-4xl font-bold text-white">{pro.priceLabel}</p>
           <p className="text-xs text-slate-400">{pro.subtitle}</p>
@@ -129,20 +130,21 @@ function PricingContent() {
             onClick={() => void startCheckout("pro")}
             className="mt-6 w-full rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 hover:bg-indigo-500 disabled:opacity-50"
           >
-            {loadingKey === "pro" ? "Redirecting…" : "Upgrade to Pro"}
+            {loadingKey === "pro" ? "Redirecting…" : "Upgrade to Disciple"}
           </button>
         </article>
 
         <article className="glass-panel p-6 ring-1 ring-violet-500/30">
           <h2 className="text-xl font-semibold text-white">{agency.name}</h2>
           <p className="mt-2 text-sm text-slate-300">
-            White-label, compliance reports, family mode, and team seats. Billed via Lemon Squeezy.
+            White-label for spiritual teachers, group meditation mode, API access, mantra integrations, priority support.
+            Billed via Lemon Squeezy.
           </p>
           <ul className="mt-4 list-inside list-disc space-y-1.5 text-sm text-slate-400">
             <li>Everything in Pro</li>
-            <li>White-label widget</li>
-            <li>Compliance reports</li>
-            <li>Family mode & team seats</li>
+            <li>White-label for teachers/ashrams</li>
+            <li>Group meditation mode</li>
+            <li>API + custom mantra integration</li>
           </ul>
           <p className="mt-5 text-4xl font-bold text-white">{agency.priceLabel}</p>
           <p className="text-xs text-slate-400">{agency.subtitle}</p>
@@ -152,7 +154,7 @@ function PricingContent() {
             onClick={() => void startCheckout("agency")}
             className="mt-6 w-full rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-900/30 hover:bg-violet-500 disabled:opacity-50"
           >
-            {loadingKey === "agency" ? "Redirecting…" : "Upgrade to Agency"}
+            {loadingKey === "agency" ? "Redirecting…" : "Upgrade to Guru"}
           </button>
         </article>
       </div>

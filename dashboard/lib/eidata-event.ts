@@ -4,7 +4,7 @@ import type { BroadRegion } from "@/lib/anonymized-mood-ingest";
 export type AnonymizedMoodEventPayload = {
   /** Pseudonymous session id from the widget (`bdy_…`) or pre-hashed token from the client. */
   sessionToken: string;
-  mood: "neutral" | "happy" | "thinking" | "concerned" | "excited" | "sleepy";
+  mood: "neutral" | "happy" | "thinking" | "concerned" | "excited" | "sleepy" | "zen" | "lit" | "divine";
   /** ISO-8601 UTC timestamp */
   timestamp?: string;
   /** Broad geographic bucket only — never country/city precision from the client. */

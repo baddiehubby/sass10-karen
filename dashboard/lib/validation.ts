@@ -39,7 +39,7 @@ export const loginBodySchema = z.object({
   password: z.string().min(1).max(128),
 });
 
-const moodEnum = z.enum(["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "angry"]);
+const moodEnum = z.enum(["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "angry", "zen", "lit", "divine"]);
 
 const moodFromString = z
   .string()

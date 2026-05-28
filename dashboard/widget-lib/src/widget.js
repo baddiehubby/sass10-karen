@@ -1,4 +1,5 @@
 import Sentiment from "sentiment";
+import { createSachaPredictionEngine } from "./sacha-predictions";
 
 /*
  * Buddy AI on-device emotion detection.
@@ -31,6 +32,7 @@ import Sentiment from "sentiment";
       zen: "#2dd4bf",
       lit: "#fbbf24",
       deep: "#1e1b4b",
+      divine: "#FFD700",
     },
     premium: {
       neutral: "#14b8a6",
@@ -42,10 +44,11 @@ import Sentiment from "sentiment";
       zen: "#5eead4",
       lit: "#fcd34d",
       deep: "#0f172a",
+      divine: "#FFD700",
     },
   };
 
-  const DISPLAY_MOODS = ["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "zen", "lit"];
+  const DISPLAY_MOODS = ["neutral", "happy", "thinking", "concerned", "excited", "sleepy", "zen", "lit", "divine"];
   const ANALYTICS_MOODS = new Set(["neutral", "happy", "thinking", "concerned", "excited", "sleepy"]);
   const PARTY_WORDS = ["party", "celebrate", "lit"];
   const CHILL_WORDS = ["chill", "relax", "vibe"];
@@ -60,6 +63,7 @@ import Sentiment from "sentiment";
   const OPTIN_KEY = "buddy_analytics_opt_in";
   const SERVER_ANALYTICS_KEY = "buddy_server_anonymous_analytics";
   const SESSION_TOKEN_KEY = "buddy_analytics_session_token";
+  const SPIRIT_MEMORY_KEY = "sacha_spirit_memory_v1";
 
   function detectCurrentScript() {
     const scripts = Array.from(document.getElementsByTagName("script"));
@@ -128,7 +132,20 @@ import Sentiment from "sentiment";
     suppressBreathingRaf: false,
     analyticsOptIn: readAnalyticsOptIn(),
     analyticsPromptShown: false,
+    companionType: "buddy",
+    tenantPersona: null,
+    predictionTimer: 0,
+    predictionCount: 0,
+    moodEventCount: 0,
+    firstGuidanceAt: null,
+    lastActiveAt: 0,
+    lastInteractionAt: 0,
+    deepMeditationMode: false,
+    longPressTimer: 0,
+    longPressStartedAt: 0,
+    nightStarMapUntil: 0,
   };
+  const predictionEngine = createSachaPredictionEngine(`${cfg.licenseKey || "anon"}:${window.location.hostname}`);
 
   function normalizeText(text) {
     return (text || "").replace(/\s+/g, " ").trim();
@@ -197,7 +214,27 @@ import Sentiment from "sentiment";
     if (HAPPY_WORDS.some((w) => t.includes(w))) return "happy";
     if (SAD_WORDS.some((w) => t.includes(w))) return "concerned";
     if (QUESTION_WORDS.some((w) => t.includes(w))) return "thinking";
+    if (Math.random() < 0.02) return "divine";
     return "neutral";
+  }
+
+  function readSpiritMemory() {
+    try {
+      const raw = window.localStorage.getItem(SPIRIT_MEMORY_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeSpiritMemory(payload) {
+    try {
+      window.localStorage.setItem(SPIRIT_MEMORY_KEY, JSON.stringify(payload));
+    } catch {
+      /* ignore */
+    }
   }
 
   function hasTypingIndicator() {
@@ -352,7 +389,7 @@ import Sentiment from "sentiment";
     appendWidgetStylesheet(shadow);
     const tpl = document.createElement("template");
     tpl.innerHTML = `
-      <div class="root" aria-label="Buddy AI companion">
+      <div class="root" aria-label="AI companion">
         <button class="sound-toggle" aria-label="Toggle widget sound">🔈</button>
         <div class="aura-stack">
           <div class="ring"></div>
@@ -375,9 +412,9 @@ import Sentiment from "sentiment";
           <div class="smoke-ring"></div>
           <div class="sparkle-burst"></div>
         </div>
-        <div class="orb-hotspot" aria-hidden="true" title="Say hi to Buddy"></div>
+        <div class="orb-hotspot" aria-hidden="true" title="Say hi to your companion"></div>
         <div class="tooltip">
-          <span class="tip-text">Buddy AI companion • neutral</span>
+          <span class="tip-text">AI companion • neutral</span>
           <a class="upgrade" href="${cfg.apiBase}/pricing" target="_blank" rel="noopener noreferrer">Upgrade</a>
         </div>
         <div class="reaction-emoji">🤫</div>
@@ -471,8 +508,9 @@ import Sentiment from "sentiment";
     const audioCtx = window.AudioContext ? new window.AudioContext() : null;
 
     function privacyStatusLine() {
+      const name = state.tenantPersona?.displayName || "Buddy AI";
       if (state.analyticsOptIn === true) {
-        return "Anonymous mood data helps Buddy improve — no raw text ever shared.";
+        return `Anonymous mood data helps ${name} improve - no raw text ever shared.`;
       }
       return "Your emotions never leave this device.";
     }
@@ -612,7 +650,8 @@ import Sentiment from "sentiment";
     }
 
     function moodParticleColor(mood) {
-      const c = THEMES[state.themeName][mood] || THEMES[state.themeName].neutral;
+      const palette = state.tenantPersona?.moodPalette || null;
+      const c = (palette && palette[mood]) || THEMES[state.themeName][mood] || THEMES[state.themeName].neutral;
       return c;
     }
 
@@ -665,6 +704,21 @@ import Sentiment from "sentiment";
       window.setTimeout(() => {
         if (ui.sparkleBurst) ui.sparkleBurst.textContent = "";
       }, 700);
+    }
+
+    function showGuidanceToast(text) {
+      if (!ui.shadow) return;
+      const el = document.createElement("div");
+      el.className = "guidance-toast";
+      el.textContent = text;
+      ui.shadow.appendChild(el);
+      window.setTimeout(() => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, 5200);
+    }
+
+    function setDivineState(active) {
+      if (ui.orb) ui.orb.classList.toggle("orb-divine", Boolean(active));
     }
 
     function triggerSmokeRing() {
@@ -721,6 +775,32 @@ import Sentiment from "sentiment";
         spawnParticleBurst();
         showReactionEmoji("✨", 900);
       });
+      ui.orbHotspot.addEventListener(
+        "touchstart",
+        () => {
+          state.longPressStartedAt = Date.now();
+          window.clearTimeout(state.longPressTimer);
+          state.longPressTimer = window.setTimeout(() => {
+            state.deepMeditationMode = true;
+            if (ui.root) ui.root.classList.add("deep-meditation");
+            showGuidanceToast("Breathe with me. In... and out...");
+          }, 2000);
+        },
+        { passive: true },
+      );
+      ui.orbHotspot.addEventListener(
+        "touchend",
+        () => {
+          window.clearTimeout(state.longPressTimer);
+          if (state.deepMeditationMode && Date.now() - state.longPressStartedAt > 2000) {
+            window.setTimeout(() => {
+              state.deepMeditationMode = false;
+              if (ui.root) ui.root.classList.remove("deep-meditation");
+            }, 9000);
+          }
+        },
+        { passive: true },
+      );
     }
 
     function playMoodChime(mood) {
@@ -952,6 +1032,7 @@ import Sentiment from "sentiment";
     function applyTooltip() {
       const whiteLabel = Boolean(state.features.whiteLabel);
       const tooltipText = state.widgetConfig.tooltipText || "";
+      const companionLabel = state.tenantPersona?.companionLabel || "Buddy AI companion";
       if (ui.tooltip) {
         if (whiteLabel) {
           ui.tooltip.style.display = tooltipText ? "block" : "none";
@@ -963,13 +1044,19 @@ import Sentiment from "sentiment";
       if (ui.tipText) {
         ui.tipText.textContent = whiteLabel
           ? tooltipText || `${state.mood}`
-          : `Buddy AI companion • ${state.mood} • ${privacyStatusLine()}`;
+          : `${companionLabel} • ${state.mood} • ${privacyStatusLine()}`;
       }
       if (whiteLabel && ui.upgrade) ui.upgrade.style.display = "none";
-      if (ui.root) ui.root.setAttribute("aria-label", whiteLabel ? "AI companion" : "Buddy AI companion");
+      if (ui.root) ui.root.setAttribute("aria-label", whiteLabel ? "AI companion" : companionLabel);
+      if (ui.root) ui.root.setAttribute("data-companion", state.companionType || "buddy");
+      if (ui.orbHotspot) {
+        const companionName = state.tenantPersona?.displayName || "Buddy";
+        ui.orbHotspot.setAttribute("title", `Say hi to ${companionName}`);
+      }
       if (ui.soundToggle) {
         ui.soundToggle.style.display = state.features.voiceSync ? "flex" : "none";
       }
+      if (ui.root) ui.root.classList.toggle("star-map-mode", Date.now() < state.nightStarMapUntil);
     }
 
     function applyMood(nextMood, emitAnalytics) {
@@ -996,23 +1083,26 @@ import Sentiment from "sentiment";
         neutral: 0,
         happy: -5,
         thinking: 10,
-        concerned: 14,
+        concerned: 6,
         excited: -10,
         sleepy: 0,
         zen: -2,
         lit: -8,
+        divine: -4,
       }[nextMood];
       let mouthCurve = {
         neutral: 0,
         happy: 22,
         thinking: -5,
-        concerned: -14,
+        concerned: 4,
         excited: 20,
         sleepy: 0,
         zen: 6,
         lit: 24,
+        divine: 28,
       }[nextMood];
-      const color = THEMES[state.themeName][nextMood];
+      const palette = state.tenantPersona?.moodPalette || null;
+      const color = (palette && palette[nextMood]) || THEMES[state.themeName][nextMood];
       const deep = THEMES[state.themeName].deep;
 
       ui.leftEye.style.transform = `scaleY(${eyeScale})`;
@@ -1056,6 +1146,7 @@ import Sentiment from "sentiment";
 
       applyTooltip();
       if (emitAnalytics && moodChanged) {
+        state.moodEventCount += 1;
         sendAnalyticsMoodEvent(nextMood);
         playMoodChime(nextMood);
         syncCollaborativeMood(analyticsSafeMood(nextMood));
@@ -1064,6 +1155,15 @@ import Sentiment from "sentiment";
         }
         if (nextMood === "lit" || nextMood === "excited") {
           showReactionEmoji("✨", 1100);
+        }
+        if (nextMood === "divine") {
+          setDivineState(true);
+          triggerSparkleBurst();
+          showReactionEmoji("🪔", 1500);
+          window.setTimeout(() => setDivineState(false), 6000);
+        }
+        if (state.moodEventCount === 100) {
+          showGuidanceToast("A hundred emotional tides observed. Your spirit is evolving.");
         }
       }
     }
@@ -1133,7 +1233,7 @@ import Sentiment from "sentiment";
         mood: safe,
         timestamp: new Date().toISOString(),
         region: inferClientRegion(),
-        companionType: "buddy",
+        companionType: state.companionType || "buddy",
         source: inferEidataSource(),
       };
       const headers = {
@@ -1199,6 +1299,7 @@ import Sentiment from "sentiment";
     }
 
     function processLatestMessage() {
+      state.lastActiveAt = Date.now();
       if (state.moodOverride && state.moodOverrideUntil > Date.now()) {
         applyMood(state.moodOverride, false);
         return;
@@ -1214,6 +1315,7 @@ import Sentiment from "sentiment";
       const latest = getLatestAIMessage();
       const text = normalizeText(latest.text || "");
       if (!text || text === state.lastMessage) return;
+      state.lastInteractionAt = Date.now();
       state.lastMessage = text;
       const lower = text.toLowerCase();
       showAnalyticsConsentPrompt();
@@ -1266,7 +1368,38 @@ import Sentiment from "sentiment";
       setChillMode(false);
       state.previousMood = mood;
       applyMood(mood);
+      if (/(insight|truth|purpose|meaning|clarity|breakthrough)/i.test(text)) {
+        if (ui.orb) {
+          ui.orb.classList.remove("proud-glow");
+          void ui.orb.offsetWidth;
+          ui.orb.classList.add("proud-glow");
+          window.setTimeout(() => ui.orb && ui.orb.classList.remove("proud-glow"), 700);
+        }
+      }
       speakWithLipSync(text);
+    }
+
+    function maybeRunNightStarMap() {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() <= 2) {
+        state.nightStarMapUntil = Date.now() + 120000;
+      }
+      applyTooltip();
+    }
+
+    function schedulePredictionWhisper() {
+      if (state.predictionTimer) window.clearTimeout(state.predictionTimer);
+      const delay = 180000 + Math.floor(Math.random() * 120000);
+      state.predictionTimer = window.setTimeout(() => {
+        if (Date.now() - state.lastActiveAt < 180000) {
+          const p = predictionEngine.nextPrediction({ mood: state.mood, now: new Date() });
+          showGuidanceToast(p);
+          state.predictionCount += 1;
+          if (!state.firstGuidanceAt) state.firstGuidanceAt = new Date().toISOString();
+          if (state.predictionCount === 10) showGuidanceToast("Ten whispers received. Your listening has deepened.");
+        }
+        schedulePredictionWhisper();
+      }, delay);
     }
 
     async function refreshLicenseState() {
@@ -1276,6 +1409,9 @@ import Sentiment from "sentiment";
       state.plan = result.plan || "free";
       state.licenseId = result.licenseId || "";
       state.features = { ...FREE_FEATURES, ...(result.features || {}) };
+      state.companionType = result.companionType === "sachapandit" ? "sachapandit" : "buddy";
+      state.tenantPersona =
+        result.tenantPersona && typeof result.tenantPersona === "object" ? result.tenantPersona : null;
       state.themeName = state.features.customTheme ? "premium" : "default";
       applyWidgetConfig(result.widgetConfig || {});
       if (result.moodOverride && moodInTheme(state.themeName, result.moodOverride)) {
@@ -1308,6 +1444,7 @@ import Sentiment from "sentiment";
     refreshLicenseState().then(() => applyMood(state.mood, false));
     window.setInterval(refreshLicenseState, 8000);
     window.setInterval(pollCollaborativeMood, 5000);
+    window.setInterval(maybeRunNightStarMap, 60000);
 
     if (ui.soundToggle) {
       ui.soundToggle.addEventListener("click", async () => {
@@ -1324,11 +1461,40 @@ import Sentiment from "sentiment";
     }
 
     setupOrbInteraction();
+    schedulePredictionWhisper();
     state.lastParticleSpawn = performance.now();
     applyMood("neutral");
+    const saved = readSpiritMemory();
+    if (saved) {
+      state.predictionCount = Number(saved.predictionCount || 0);
+      state.moodEventCount = Number(saved.moodEventCount || 0);
+      state.firstGuidanceAt = saved.firstGuidanceAt || null;
+      if (saved.lastInteractionAt && Date.now() - Number(saved.lastInteractionAt) > 86400000) {
+        showGuidanceToast("I noticed the silence. Are you well, or are you finding your answers elsewhere?");
+      }
+      const y = saved.yesterday;
+      const today = new Date().toDateString();
+      if (y && y.date !== today && Number(y.concernedCount || 0) >= 3) {
+        showGuidanceToast("You carried a heavy heart yesterday. Today, let me carry it with you.");
+      }
+    }
     scheduleBlink();
     animate();
     processLatestMessage();
+    window.addEventListener("beforeunload", () => {
+      const today = new Date().toDateString();
+      const previous = readSpiritMemory();
+      const concernedCount =
+        (previous?.today?.date === today ? Number(previous.today.concernedCount || 0) : 0) + (state.mood === "concerned" ? 1 : 0);
+      writeSpiritMemory({
+        predictionCount: state.predictionCount,
+        moodEventCount: state.moodEventCount,
+        firstGuidanceAt: state.firstGuidanceAt,
+        lastInteractionAt: state.lastInteractionAt || Date.now(),
+        today: { date: today, concernedCount },
+        yesterday: previous?.today || null,
+      });
+    });
   }
 
   let buddyBootStarted = false;

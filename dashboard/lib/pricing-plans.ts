@@ -12,7 +12,7 @@ export function isPaidCheckoutTier(tier: string): tier is PaidCheckoutTier {
 export const PRICING_TIERS = {
   free: {
     id: "free" as const,
-    name: "Buddy Free",
+    name: "Seeker",
     priceLabel: "$0",
     priceUsd: 0,
     subtitle: "forever",
@@ -20,17 +20,17 @@ export const PRICING_TIERS = {
   },
   pro: {
     id: "pro" as const,
-    name: "Buddy Pro",
-    priceLabel: "$29.99",
-    priceUsd: 29.99,
+    name: "Disciple",
+    priceLabel: "$19",
+    priceUsd: 19,
     subtitle: "per month",
     usesLemonSqueezy: true,
   },
   agency: {
     id: "agency" as const,
-    name: "Buddy Agency",
-    priceLabel: "$199.99",
-    priceUsd: 199.99,
+    name: "Guru",
+    priceLabel: "$99",
+    priceUsd: 99,
     subtitle: "per month",
     usesLemonSqueezy: true,
   },

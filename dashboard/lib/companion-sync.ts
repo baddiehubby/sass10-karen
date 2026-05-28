@@ -2,12 +2,14 @@ import { ensureFreeLicenseForUser, isLicenseActive, isPaidPlan } from "@/lib/fre
 import { prisma } from "@/lib/prisma";
 import { getAppBaseUrl } from "@/lib/site-url";
 import { getWidgetScriptUrl } from "@/lib/widget-cdn";
+import { normalizeCompanionType } from "@/lib/tenant";
 
 export type CompanionSyncPayload = {
   licenseKey: string;
   plan: string;
   companionName: string;
   personality: string;
+  companionType: "buddy" | "sachapandit";
   apiBase: string;
   widgetScriptUrl: string;
   widget: {
@@ -39,11 +41,20 @@ export async function buildCompanionSyncPayload(userId: string): Promise<Compani
   const license = activePaid ?? freeLicense ?? licenses[0];
   if (!license) return null;
 
+  let parsedFeatures: Record<string, unknown> = {};
+  try {
+    parsedFeatures = JSON.parse(license.features || "{}") as Record<string, unknown>;
+  } catch {
+    parsedFeatures = {};
+  }
+  const companionType = normalizeCompanionType(parsedFeatures.companionType);
+
   return {
     licenseKey: license.key,
     plan: license.plan,
     companionName: user?.companionName?.trim() || "Buddy",
     personality: user?.personality?.trim() || "calm",
+    companionType,
     apiBase: getAppBaseUrl(),
     widgetScriptUrl: getWidgetScriptUrl(),
     widget: {

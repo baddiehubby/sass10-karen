@@ -188,14 +188,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/",
-    "/login",
-    "/sachapandit",
-    "/sachapandit/:path*",
-    "/api/:path*",
-    "/dashboard",
-    "/dashboard/:path*",
-    "/consent",
-    "/debiopwr",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|css|js|map)$).*)",
   ],
 };

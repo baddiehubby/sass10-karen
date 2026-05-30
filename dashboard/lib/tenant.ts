@@ -131,10 +131,11 @@ export function resolveTenantPersona(input: unknown): TenantPersona {
   return TENANT_PERSONAS[normalizeCompanionType(input)];
 }
 
+/** Resolve tenant slug from hostname (buddieai.com → buddie, sachapandit.com → sachapandit). */
 export function getTenant(hostname: string | null | undefined): TenantSlug {
   const host = String(hostname || "").toLowerCase();
-  if (host.includes("sachapandit.com")) return "sachapandit";
   if (host.includes("buddieai.com")) return "buddie";
+  if (host.includes("sachapandit.com")) return "sachapandit";
   return "buddie";
 }
 

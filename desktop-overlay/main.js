@@ -26,16 +26,31 @@ const CHECKOUT_URLS = {
 const rawStore = new Store({ name: "buddy-offline-companion" });
 const data = createDataStore(rawStore);
 
+let activeWinModule = null;
+try {
+  activeWinModule = require("active-win");
+} catch {
+  activeWinModule = null;
+}
+
 let orbWindow = null;
 let dashboardWindow = null;
 let settingsWindow = null;
 let tray = null;
 let moodTimer = null;
 let dailyTimer = null;
+let absenceTimer = null;
+let ipcRegistered = false;
 let presenceCache = null;
 let lastMood = "neutral";
 let negativeStreak = 0;
 let interactionCount = 0;
+let lastAbsenceNotifiedAt = 0;
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+}
 
 const buddyAutoLaunch = new AutoLaunch({
   name: "Buddy Shadow Companion",
@@ -52,9 +67,9 @@ function brandName() {
 }
 
 async function getActiveWindowTitle() {
+  if (!activeWinModule) return "";
   try {
-    const activeWin = require("active-win");
-    const info = await activeWin();
+    const info = await activeWinModule();
     return info?.title || "";
   } catch {
     return "";
@@ -79,40 +94,44 @@ function broadcastPresence() {
 }
 
 async function runMoodScan() {
-  const settings = data.getSettings();
-  const title = await getActiveWindowTitle();
-  let mood;
-  let source;
-  let note = "";
+  try {
+    const settings = data.getSettings();
+    const title = await getActiveWindowTitle();
+    let mood;
+    let source;
+    let note = "";
 
-  if (title && title.length > 2) {
-    interactionCount += 1;
-    mood = detectMoodFromText(title, lastMood, interactionCount);
-    source = "window-title";
-    note = title.slice(0, 120);
-  } else {
-    mood = detectMoodIdle(Date.now(), settings.tenant);
-    source = "idle";
-  }
+    if (title && title.length > 2) {
+      interactionCount += 1;
+      mood = detectMoodFromText(title, lastMood, interactionCount);
+      source = "window-title";
+      note = title.slice(0, 120);
+    } else {
+      mood = detectMoodIdle(Date.now(), settings.tenant);
+      source = "idle";
+    }
 
-  lastMood = mood;
-  data.addMoodEvent({ mood, source, note });
-  broadcastPresence();
+    lastMood = mood;
+    data.addMoodEvent({ mood, source, note });
+    broadcastPresence();
 
-  const negativeMoods = new Set(["concerned", "sleepy"]);
-  if (negativeMoods.has(mood)) {
-    negativeStreak += 1;
-  } else {
-    negativeStreak = 0;
-  }
+    const negativeMoods = new Set(["concerned", "sleepy"]);
+    if (negativeMoods.has(mood)) {
+      negativeStreak += 1;
+    } else {
+      negativeStreak = 0;
+    }
 
-  if (negativeStreak >= 3) {
-    const msg =
-      settings.tenant === "sachapandit"
-        ? "Your pandit notices you seem heavy. Would you like a moment of calm?"
-        : "Your companion notices you seem heavy. Would you like a moment of calm?";
-    showNotification(brandName(), msg);
-    negativeStreak = 0;
+    if (negativeStreak >= 3) {
+      const msg =
+        settings.tenant === "sachapandit"
+          ? "Your pandit notices you seem heavy. Would you like a moment of calm?"
+          : "Your companion notices you seem heavy. Would you like a moment of calm?";
+      showNotification(brandName(), msg);
+      negativeStreak = 0;
+    }
+  } catch {
+    /* keep overlay alive if mood scan fails */
   }
 }
 
@@ -120,13 +139,14 @@ function checkAbsenceReminder() {
   const last = data.getLastInteractionAt();
   if (!last) return;
   const hours = (Date.now() - last) / 3600000;
-  if (hours >= 24) {
-    showNotification(
-      brandName(),
-      "I have not felt your presence. Even the sun rests, but it always returns.",
-    );
-    data.recordInteraction();
-  }
+  if (hours < 24) return;
+  const now = Date.now();
+  if (now - lastAbsenceNotifiedAt < 24 * 3600000) return;
+  lastAbsenceNotifiedAt = now;
+  showNotification(
+    brandName(),
+    "I have not felt your presence. Even the sun rests, but it always returns.",
+  );
 }
 
 function scheduleDailyReminder() {
@@ -186,6 +206,11 @@ function preloadPath(name) {
   return path.join(__dirname, name);
 }
 
+function loadLocalPage(win, fileName) {
+  if (!win || win.isDestroyed()) return;
+  win.loadFile(path.join(__dirname, fileName));
+}
+
 function createOrbWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   const winW = 120;
@@ -227,7 +252,7 @@ function createOrbWindow() {
     }
   });
 
-  orbWindow.loadFile("orb.html");
+  loadLocalPage(orbWindow, "orb.html");
 
   orbWindow.webContents.on("context-menu", (_e, params) => {
     showOrbContextMenu(params.x, params.y);
@@ -256,7 +281,7 @@ function createDashboardWindow() {
       sandbox: true,
     },
   });
-  dashboardWindow.loadFile("dashboard.html");
+  loadLocalPage(dashboardWindow, "dashboard.html");
   dashboardWindow.on("closed", () => {
     dashboardWindow = null;
   });
@@ -278,7 +303,7 @@ function createSettingsWindow() {
       sandbox: true,
     },
   });
-  settingsWindow.loadFile("settings.html");
+  loadLocalPage(settingsWindow, "settings.html");
   settingsWindow.on("closed", () => {
     settingsWindow = null;
   });
@@ -301,6 +326,7 @@ function showOrbContextMenu(x, y) {
 }
 
 function createTray() {
+  if (tray) return;
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
   tray.setToolTip(brandName());
@@ -318,6 +344,9 @@ function createTray() {
 }
 
 function registerIpc() {
+  if (ipcRegistered) return;
+  ipcRegistered = true;
+
   ipcMain.handle("buddy:get-presence", () => presenceCache || data.getPresenceSnapshot());
 
   ipcMain.handle("buddy:get-offline-data", () => ({
@@ -327,8 +356,10 @@ function registerIpc() {
   }));
 
   ipcMain.handle("buddy:save-settings", (_e, patch) => {
-    const settings = data.setSettings(patch || {});
-    if (patch?.companionName) data.setUserProfile({ companionName: patch.companionName });
+    const raw = patch && typeof patch === "object" ? patch : {};
+    const { companionName, ...settingsPatch } = raw;
+    const settings = data.setSettings(settingsPatch);
+    if (companionName) data.setUserProfile({ companionName: String(companionName).trim() });
     broadcastPresence();
     return settings;
   });
@@ -356,8 +387,15 @@ function registerIpc() {
   });
 
   ipcMain.handle("buddy:open-external", (_e, url) => {
-    if (url) shell.openExternal(String(url));
-    else shell.openExternal(checkoutUrl());
+    const target = url ? String(url).trim() : checkoutUrl();
+    try {
+      const parsed = new URL(target);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        shell.openExternal(parsed.toString());
+      }
+    } catch {
+      /* ignore invalid external URLs */
+    }
     return true;
   });
 
@@ -426,7 +464,26 @@ function registerIpc() {
   });
 }
 
+function clearTimers() {
+  if (moodTimer) clearInterval(moodTimer);
+  if (dailyTimer) clearInterval(dailyTimer);
+  if (absenceTimer) clearInterval(absenceTimer);
+  moodTimer = null;
+  dailyTimer = null;
+  absenceTimer = null;
+}
+
+app.on("second-instance", () => {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.focus();
+    return;
+  }
+  createDashboardWindow();
+});
+
 app.whenReady().then(async () => {
+  if (!gotSingleInstanceLock) return;
+
   if (process.platform === "win32") {
     app.setAppUserModelId("com.buddieai.shadow-companion");
   }
@@ -439,13 +496,12 @@ app.whenReady().then(async () => {
   createOrbWindow();
   broadcastPresence();
 
-  await verifyLicenseOnline();
-  broadcastPresence();
+  void verifyLicenseOnline().then(() => broadcastPresence());
 
   await runMoodScan();
   moodTimer = setInterval(() => void runMoodScan(), 30_000);
   checkAbsenceReminder();
-  setInterval(checkAbsenceReminder, 60 * 60 * 1000);
+  absenceTimer = setInterval(checkAbsenceReminder, 60 * 60 * 1000);
   scheduleDailyReminder();
 
   try {
@@ -459,9 +515,12 @@ app.whenReady().then(async () => {
   }
 });
 
+app.on("before-quit", () => {
+  clearTimers();
+});
+
 app.on("window-all-closed", () => {
-  if (moodTimer) clearInterval(moodTimer);
-  if (dailyTimer) clearInterval(dailyTimer);
+  clearTimers();
   if (process.platform !== "darwin") app.quit();
 });
 

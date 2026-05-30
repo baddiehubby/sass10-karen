@@ -25,4 +25,14 @@ contextBridge.exposeInMainWorld("buddyOverlay", {
     ipcRenderer.on("buddy:data-updated", handler);
     return () => ipcRenderer.removeListener("buddy:data-updated", handler);
   },
+  onGuidanceMessage: (callback) => {
+    const handler = (_event, text) => callback(text);
+    ipcRenderer.on("buddy:guidance-message", handler);
+    return () => ipcRenderer.removeListener("buddy:guidance-message", handler);
+  },
+  onMilestoneCelebration: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("buddy:milestone-celebration", handler);
+    return () => ipcRenderer.removeListener("buddy:milestone-celebration", handler);
+  },
 });

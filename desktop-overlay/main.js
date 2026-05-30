@@ -15,7 +15,7 @@ const fs = require("fs");
 const AutoLaunch = require("auto-launch");
 const Store = require("electron-store");
 const { createDataStore } = require("./src/data-store");
-const { detectMoodFromText, detectMoodIdle } = require("./src/mood-engine");
+const { detectMoodFromText, detectMoodIdle, getSubjectivityResponse, getMorningGreeting, getMilestoneMessage } = require("./src/mood-engine");
 
 const API_BASE = process.env.BUDDY_API_BASE || "https://www.buddieai.com";
 const CHECKOUT_URLS = {
@@ -175,18 +175,22 @@ function scheduleDailyReminder() {
     if (now.getHours() !== first.getHours() || now.getMinutes() !== first.getMinutes()) return;
 
     const history = data.getMoodHistory();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yKey = yesterday.toDateString();
-    const yEvents = history.filter((e) => new Date(e.timestamp).toDateString() === yKey);
-    const counts = {};
-    for (const e of yEvents) counts[e.mood] = (counts[e.mood] || 0) + 1;
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "calm";
-    showNotification(
-      brandName(),
-      `Yesterday you felt mostly ${top}. Today, let your light shine.`,
-    );
+    const yesterdayConcerned = data.getYesterdayConcernedCount();
+    const body = getMorningGreeting(history, yesterdayConcerned);
+    showNotification(brandName(), body);
   }, 60_000);
+}
+
+function checkInstallMilestones() {
+  const installDays = data.getInstallDayCount();
+  const reached = data.getMilestonesReached();
+  const milestone = getMilestoneMessage(installDays, reached);
+  if (!milestone) return;
+  data.markMilestone(milestone.day);
+  showNotification(brandName(), milestone.message);
+  if (orbWindow && !orbWindow.isDestroyed()) {
+    orbWindow.webContents.send("buddy:milestone-celebration", { day: milestone.day, message: milestone.message });
+  }
 }
 
 async function verifyLicenseOnline() {
@@ -471,7 +475,11 @@ function registerIpc() {
     lastMood = mood;
     const entry = data.addMoodEvent({ mood, source: "user-input", note: text });
     broadcastPresence();
-    return entry;
+    const subjectivity = getSubjectivityResponse(text);
+    if (subjectivity && orbWindow && !orbWindow.isDestroyed()) {
+      orbWindow.webContents.send("buddy:guidance-message", subjectivity);
+    }
+    return { ...entry, guidance: subjectivity || null };
   });
 
   ipcMain.on("buddy:set-interactive", (_event, interactive) => {
@@ -526,6 +534,7 @@ app.whenReady().then(async () => {
   checkAbsenceReminder();
   absenceTimer = setInterval(checkAbsenceReminder, 60 * 60 * 1000);
   scheduleDailyReminder();
+  setTimeout(() => checkInstallMilestones(), 8000);
 
   setTimeout(() => maybeShowUpgradeNotification(), 12_000);
 

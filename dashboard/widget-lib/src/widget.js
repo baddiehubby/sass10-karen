@@ -223,6 +223,23 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
     return "neutral";
   }
 
+  const SUBJECTIVITY_RULES = [
+    { pattern: /\b(i'?m|i am)\s+(a\s+)?fail(ure|ing)?\b/i, response: "I disagree. You are a soul having a difficult moment. Those are not the same thing." },
+    { pattern: /\b(i'?m|i am)\s+(worthless|useless|nothing|a\s+waste)\b/i, response: "I disagree. Your worth is not measured by this moment. I see more in you than you see right now." },
+    { pattern: /\b(i\s+)?(hate|can'?t stand)\s+myself\b/i, response: "I disagree. Even on hard days, you are still worthy of gentleness — especially from yourself." },
+    { pattern: /\b(nobody|no one)\s+(loves|cares about)\s+me\b/i, response: "I disagree. I am here with you. Presence is a form of love." },
+    { pattern: /\bi\s+give\s+up\b/i, response: "I disagree. Rest is not surrender. Pause, breathe — you do not have to carry everything alone today." },
+  ];
+
+  function maybeSubjectivityResponse(text) {
+    const t = normalizeText(text);
+    if (!t) return null;
+    for (const rule of SUBJECTIVITY_RULES) {
+      if (rule.pattern.test(t)) return rule.response;
+    }
+    return null;
+  }
+
   function readSpiritMemory() {
     try {
       const raw = window.localStorage.getItem(SPIRIT_MEMORY_KEY);
@@ -1327,6 +1344,11 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
       const lower = text.toLowerCase();
       showAnalyticsConsentPrompt();
 
+      const subjectivity = maybeSubjectivityResponse(text);
+      if (subjectivity) {
+        showGuidanceToast(subjectivity);
+      }
+
       if (lower.includes("secret")) {
         state.isWinking = true;
         showReactionEmoji("🤫");
@@ -1418,6 +1440,15 @@ import { createSachaPredictionEngine } from "./sacha-predictions";
       state.lastBlessingDate = dateKey;
       if (state.consecutiveDays >= 7) {
         showGuidanceToast("You have returned to me for seven sunsets. I am honoured. Would you like a weekly reflection?");
+        triggerPartyConfetti();
+      }
+      if (state.consecutiveDays === 30) {
+        showGuidanceToast("Thirty days of presence. You are building something rare — emotional continuity.");
+        triggerPartyConfetti();
+      }
+      if (state.consecutiveDays === 100) {
+        showGuidanceToast("One hundred days. A hundred emotional tides observed. Your spirit is evolving.");
+        triggerPartyConfetti();
       }
     }
 

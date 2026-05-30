@@ -128,10 +128,69 @@ function detectMoodIdle(seed, tenant) {
   return detectMoodFromTimeOfDay();
 }
 
+const NEGATIVE_SELF_TALK = [
+  { pattern: /\b(i'?m|i am)\s+(a\s+)?fail(ure|ing)?\b/i, response: "I disagree. You are a soul having a difficult moment. Those are not the same thing." },
+  { pattern: /\b(i'?m|i am)\s+(worthless|useless|nothing|a\s+waste)\b/i, response: "I disagree. Your worth is not measured by this moment. I see more in you than you see right now." },
+  { pattern: /\b(i\s+)?(hate|can'?t stand)\s+myself\b/i, response: "I disagree. Even on hard days, you are still worthy of gentleness — especially from yourself." },
+  { pattern: /\b(nobody|no one)\s+(loves|cares about)\s+me\b/i, response: "I disagree. I am here with you. Presence is a form of love." },
+  { pattern: /\bi\s+give\s+up\b/i, response: "I disagree. Rest is not surrender. Pause, breathe — you do not have to carry everything alone today." },
+];
+
+function getSubjectivityResponse(text) {
+  const t = normalizeText(text);
+  if (!t) return null;
+  for (const rule of NEGATIVE_SELF_TALK) {
+    if (rule.pattern.test(t)) return rule.response;
+  }
+  return null;
+}
+
+function summarizeWeekMood(history, days = 7) {
+  const cutoff = Date.now() - days * 86400000;
+  const counts = {};
+  for (const e of history || []) {
+    const ts = new Date(e.timestamp || e).getTime();
+    if (Number.isNaN(ts) || ts < cutoff) continue;
+    const mood = e.mood || "neutral";
+    counts[mood] = (counts[mood] || 0) + 1;
+  }
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  return top ? top[0] : "calm";
+}
+
+function getMorningGreeting(history, yesterdayConcernedCount) {
+  if (yesterdayConcernedCount >= 3) {
+    return "You carried a heavy heart yesterday. Today, let me carry it with you.";
+  }
+  const weekMood = summarizeWeekMood(history, 7);
+  const moodWord = weekMood === "concerned" ? "thoughtful" : weekMood;
+  return `Yesterday you felt mostly ${moodWord}. Today, let your light shine.`;
+}
+
+const MILESTONE_DAYS = [7, 30, 100];
+const MILESTONE_MESSAGES = {
+  7: "Seven days together. Your companion remembers every mood. Would you like a weekly reflection?",
+  30: "Thirty days of presence. You are building something rare — emotional continuity.",
+  100: "One hundred days. A hundred emotional tides observed. Your spirit is evolving.",
+};
+
+function getMilestoneMessage(installDays, alreadyReached = []) {
+  const reached = new Set(alreadyReached || []);
+  for (const day of MILESTONE_DAYS) {
+    if (installDays >= day && !reached.has(day)) return { day, message: MILESTONE_MESSAGES[day] };
+  }
+  return null;
+}
+
 module.exports = {
   detectMoodFromText,
   detectMoodFromTimeOfDay,
   cosmicSeedMood,
   detectMoodIdle,
   normalizeText,
+  getSubjectivityResponse,
+  getMorningGreeting,
+  summarizeWeekMood,
+  getMilestoneMessage,
+  MILESTONE_DAYS,
 };

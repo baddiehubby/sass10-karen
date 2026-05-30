@@ -438,6 +438,22 @@
           });
         }
 
+        if (window.buddyOverlay?.onGuidanceMessage) {
+          window.buddyOverlay.onGuidanceMessage(function (text) {
+            showGuidance(text);
+          });
+        }
+
+        if (window.buddyOverlay?.onMilestoneCelebration) {
+          window.buddyOverlay.onMilestoneCelebration(function (payload) {
+            if (payload && payload.message) showGuidance(payload.message);
+            triggerBlessingRipple();
+            burstSparkles();
+            orb.classList.add("pulse-once");
+            setTimeout(function () { orb.classList.remove("pulse-once"); }, 800);
+          });
+        }
+
         loadPresence();
         setInterval(function () {
           if (!window.buddyOverlay) {

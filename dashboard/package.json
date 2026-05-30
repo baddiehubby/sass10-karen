@@ -6,6 +6,7 @@
     "build:widget": "node widget-lib/build.js",
     "build:extension": "npm run build:widget && node scripts/copy-extension-widget.mjs",
     "pack:extension": "npm run build:extension && node scripts/pack-extension-crx.mjs",
+    "pack:extension:zip": "npm run build:extension && node scripts/pack-extension-zip.mjs",
     "prebuild": "npm run build:widget && node scripts/copy-widget.mjs",
     "dev": "next dev",
     "build": "next build",

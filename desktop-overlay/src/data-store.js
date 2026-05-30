@@ -32,6 +32,8 @@ function createDataStore(electronStore) {
     if (!store.get("firstLaunchAt")) store.set("firstLaunchAt", new Date().toISOString());
     if (store.get("premiumUnlocked") === undefined) store.set("premiumUnlocked", false);
     if (store.get("lastInteractionAt") === undefined) store.set("lastInteractionAt", Date.now());
+    if (!store.get("milestonesReached")) store.set("milestonesReached", []);
+    if (!store.get("retention")) store.set("retention", { todayDate: "", todayConcernedCount: 0, yesterday: null });
   }
 
   function getUserProfile() {
@@ -75,7 +77,64 @@ function createDataStore(electronStore) {
     store.set("moodHistory", history);
     store.set("currentMood", entry.mood);
     store.set("lastMoodAt", entry.timestamp);
+    updateRetentionForMood(entry.mood);
     return entry;
+  }
+
+  function getRetention() {
+    ensureDefaults();
+    return store.get("retention") || { todayDate: "", todayConcernedCount: 0, yesterday: null };
+  }
+
+  function updateRetentionForMood(mood) {
+    const today = new Date().toDateString();
+    const retention = getRetention();
+    if (retention.todayDate !== today) {
+      store.set("retention", {
+        todayDate: today,
+        todayConcernedCount: mood === "concerned" ? 1 : 0,
+        yesterday: retention.todayDate
+          ? { date: retention.todayDate, concernedCount: retention.todayConcernedCount || 0 }
+          : retention.yesterday || null,
+      });
+      return;
+    }
+    if (mood === "concerned") {
+      store.set("retention", {
+        ...retention,
+        todayConcernedCount: (retention.todayConcernedCount || 0) + 1,
+      });
+    }
+  }
+
+  function getInstallDayCount() {
+    const first = store.get("firstLaunchAt");
+    if (!first) return 0;
+    const ms = Date.now() - new Date(first).getTime();
+    return Math.max(0, Math.floor(ms / 86400000));
+  }
+
+  function getMilestonesReached() {
+    ensureDefaults();
+    return store.get("milestonesReached") || [];
+  }
+
+  function markMilestone(day) {
+    const reached = getMilestonesReached();
+    if (reached.includes(day)) return reached;
+    const next = [...reached, day].sort((a, b) => a - b);
+    store.set("milestonesReached", next);
+    return next;
+  }
+
+  function getYesterdayConcernedCount() {
+    const retention = getRetention();
+    const y = retention.yesterday;
+    if (!y || !y.date) return 0;
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (y.date === yesterday.toDateString()) return Number(y.concernedCount || 0);
+    return 0;
   }
 
   function getCurrentMood() {
@@ -115,6 +174,8 @@ function createDataStore(electronStore) {
       upgradeDismissedAt: getUpgradeDismissedAt(),
       firstLaunchAt: store.get("firstLaunchAt"),
       premiumUnlocked: isPremium(),
+      milestonesReached: getMilestonesReached(),
+      installDayCount: getInstallDayCount(),
       exportedAt: new Date().toISOString(),
     };
   }
@@ -159,6 +220,11 @@ function createDataStore(electronStore) {
     exportAll,
     clearAll,
     getPresenceSnapshot,
+    getRetention,
+    getInstallDayCount,
+    getMilestonesReached,
+    markMilestone,
+    getYesterdayConcernedCount,
     raw: store,
   };
 }

@@ -62,6 +62,11 @@
       </header>
 
       <div class="grid">
+        <section class="card">
+          <h2 style="font-size:14px;margin:0 0 8px;color:var(--muted)">Today's mood</h2>
+          <p id="todaySummary" style="margin:0;font-size:15px;line-height:1.45">Loading…</p>
+        </section>
+
         <section class="card chart">
           <h2 style="font-size:14px;margin:0 0 12px;color:var(--muted)">Last 7 days</h2>
           <div id="sparkline"></div>
@@ -71,6 +76,7 @@
           <h2 style="margin:0 0 8px;font-size:16px" id="upgradeTitle">Upgrade</h2>
           <p style="margin:0 0 12px;font-size:13px;line-height:1.45;color:var(--muted)" id="upgradeBody"></p>
           <button type="button" class="btn btn-primary" id="upgradeBtn">Upgrade to Pro — $19/mo</button>
+          <button type="button" class="btn" id="dismissUpgrade" style="margin-left:8px">Not now</button>
         </section>
 
         <section class="card">
@@ -191,6 +197,23 @@
         });
       }
 
+      function summarizeToday(history) {
+        const today = new Date().toDateString();
+        const events = history.filter((e) => dayKey(e.timestamp) === today);
+        if (!events.length) return "No moods recorded yet today. Your orb is listening locally.";
+        const counts = {};
+        for (const e of events) counts[e.mood] = (counts[e.mood] || 0) + 1;
+        const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+        const mood = top ? top[0] : "neutral";
+        return `Mostly ${mood} today (${events.length} check-in${events.length === 1 ? "" : "s"}). Your companion stays with you offline.`;
+      }
+
+      function upgradeDismissedRecently(dismissedAt) {
+        if (!dismissedAt) return false;
+        const days = (Date.now() - new Date(dismissedAt).getTime()) / 86400000;
+        return days < 7;
+      }
+
       function render(data) {
         state = data;
         const tenant = data.settings?.tenant || "buddie";
@@ -199,6 +222,7 @@
         const name = data.userProfile?.companionName || (tenant === "sachapandit" ? "Sacha Pandit" : "Buddy");
         document.getElementById("companionLine").textContent = `${name} · mood: ${data.currentMood || "neutral"}${premium ? " · Pro" : " · Free"}`;
         document.getElementById("orbMini").style.boxShadow = `0 0 24px ${MOOD_COLORS[data.currentMood] || "#818cf8"}88`;
+        document.getElementById("todaySummary").textContent = summarizeToday(data.moodHistory || []);
         document.getElementById("sparkline").innerHTML = buildSparkline(data.moodHistory || []);
         renderTimeline(data.moodHistory || []);
         renderLocked(tenant, premium);
@@ -214,7 +238,8 @@
           body.textContent =
             "Get real-time hallucination alerts, advanced mood reports, and priority support.";
         }
-        document.getElementById("upgradeBanner").style.display = premium ? "none" : "block";
+        const hideUpgrade = premium || upgradeDismissedRecently(data.upgradeDismissedAt);
+        document.getElementById("upgradeBanner").style.display = hideUpgrade ? "none" : "block";
       }
 
       async function load() {
@@ -223,6 +248,10 @@
       }
 
       document.getElementById("upgradeBtn").addEventListener("click", () => window.buddyOverlay.openExternal());
+      document.getElementById("dismissUpgrade").addEventListener("click", async () => {
+        await window.buddyOverlay.dismissUpgrade();
+        document.getElementById("upgradeBanner").style.display = "none";
+      });
       window.buddyOverlay.onDataUpdated(() => load());
       load();
     </script>

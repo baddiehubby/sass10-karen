@@ -57,6 +57,24 @@ const buddyAutoLaunch = new AutoLaunch({
   path: process.execPath,
 });
 
+function shouldShowUpgradePrompt() {
+  if (data.isPremium()) return false;
+  const dismissed = data.getUpgradeDismissedAt();
+  if (!dismissed) return true;
+  const days = (Date.now() - new Date(dismissed).getTime()) / 86400000;
+  return days >= 7;
+}
+
+function maybeShowUpgradeNotification() {
+  if (!shouldShowUpgradePrompt()) return;
+  const tenant = data.getSettings().tenant;
+  const body =
+    tenant === "sachapandit"
+      ? "Unlock unlimited predictions, sacred geometry themes, and personalized daily blessings."
+      : "Unlock advanced mood reports, hallucination alerts, and priority support.";
+  showNotification(`${brandName()} Pro`, body);
+}
+
 function checkoutUrl() {
   const tenant = data.getSettings().tenant;
   return tenant === "sachapandit" ? CHECKOUT_URLS.sachapandit : CHECKOUT_URLS.buddie;
@@ -325,10 +343,15 @@ function showOrbContextMenu(x, y) {
   }
 }
 
+function createTrayIcon() {
+  // 16×16 violet orb for system tray (Buddy default; tooltip updates with brand)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="7" fill="#7c3aed"/><circle cx="6" cy="6" r="2" fill="#fff" opacity="0.45"/></svg>`;
+  return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`);
+}
+
 function createTray() {
   if (tray) return;
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
+  tray = new Tray(createTrayIcon());
   tray.setToolTip(brandName());
   const menu = Menu.buildFromTemplate([
     { label: "Show Orb", click: () => orbWindow?.show() },
@@ -503,6 +526,8 @@ app.whenReady().then(async () => {
   checkAbsenceReminder();
   absenceTimer = setInterval(checkAbsenceReminder, 60 * 60 * 1000);
   scheduleDailyReminder();
+
+  setTimeout(() => maybeShowUpgradeNotification(), 12_000);
 
   try {
     const enabled = rawStore.get("autoLaunch", true);

@@ -5,6 +5,19 @@
 
 const PRODUCTION_SITE_URL = "https://www.buddieai.com";
 const LOCALHOST_URL_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/i;
+const VERCEL_PREVIEW_HOST_RE = /\.vercel\.app$/i;
+const BUDDIE_HOST_RE = /^(www\.)?buddieai\.com$/i;
+
+function normalizeProductionOrigin(url) {
+  try {
+    const parsed = new URL(url.trim());
+    if (VERCEL_PREVIEW_HOST_RE.test(parsed.hostname)) return PRODUCTION_SITE_URL;
+    if (BUDDIE_HOST_RE.test(parsed.hostname)) return PRODUCTION_SITE_URL;
+  } catch {
+    /* ignore */
+  }
+  return PRODUCTION_SITE_URL;
+}
 
 function getCanonicalSiteUrl(env) {
   if (env.NODE_ENV === "production") {
@@ -12,6 +25,7 @@ function getCanonicalSiteUrl(env) {
     if (explicit && LOCALHOST_URL_RE.test(explicit)) {
       return explicit.replace(/\/$/, "");
     }
+    if (explicit) return normalizeProductionOrigin(explicit);
     return PRODUCTION_SITE_URL;
   }
   return (env.NEXTAUTH_URL?.trim() || "http://localhost:3000").replace(/\/$/, "");
@@ -42,6 +56,16 @@ const cases = [
     name: "Local next start with localhost NEXTAUTH_URL",
     env: { NODE_ENV: "production", NEXTAUTH_URL: "http://localhost:3000" },
     expect: "http://localhost:3000",
+  },
+  {
+    name: "Production NEXTAUTH_URL without www (must normalize to www)",
+    env: { NODE_ENV: "production", NEXTAUTH_URL: "https://buddieai.com" },
+    expect: PRODUCTION_SITE_URL,
+  },
+  {
+    name: "Production NEXTAUTH_URL vercel.app preview host (must normalize)",
+    env: { NODE_ENV: "production", NEXTAUTH_URL: "https://baddiehubby-final786.vercel.app" },
+    expect: PRODUCTION_SITE_URL,
   },
 ];
 

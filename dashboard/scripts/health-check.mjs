@@ -6,7 +6,7 @@
 
 const BASE = process.env.HEALTH_CHECK_BASE_URL || "https://www.buddieai.com";
 const LICENSE_KEY = "HQ-C7FBD6ABA5114A278AED629B";
-const MIN_WIDGET_BYTES = 20 * 1024;
+const MIN_WIDGET_BYTES = 50 * 1024;
 
 const results = [];
 

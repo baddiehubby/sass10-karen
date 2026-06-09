@@ -1,5 +1,8 @@
-/** Canonical site URL for OAuth, redirects, and absolute links. */
-export const PRODUCTION_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.buddieai.com";
+/** Canonical production origin — always www (Google OAuth redirect must match exactly). */
+export const PRODUCTION_SITE_URL = "https://www.buddieai.com";
+
+const VERCEL_PREVIEW_HOST_RE = /\.vercel\.app$/i;
+const BUDDIE_HOST_RE = /^(www\.)?buddieai\.com$/i;
 
 const LOCALHOST_URL_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/i;
 
@@ -24,15 +27,36 @@ export function isLocalDevelopment(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
+function normalizeProductionOrigin(url: string): string {
+  try {
+    const parsed = new URL(url.trim());
+    if (VERCEL_PREVIEW_HOST_RE.test(parsed.hostname)) {
+      return PRODUCTION_SITE_URL;
+    }
+    if (BUDDIE_HOST_RE.test(parsed.hostname)) {
+      return PRODUCTION_SITE_URL;
+    }
+    if (parsed.hostname === "www.sachapandit.com" || parsed.hostname === "sachapandit.com") {
+      return "https://www.sachapandit.com";
+    }
+  } catch {
+    /* ignore */
+  }
+  return PRODUCTION_SITE_URL;
+}
+
 /**
- * Canonical origin for the app. In production, use the configured canonical URL,
- * unless NEXTAUTH_URL explicitly points at localhost (for local OAuth testing).
+ * Canonical origin for OAuth and redirects.
+ * Production always resolves to https://www.buddieai.com unless NEXTAUTH_URL is localhost.
  */
 export function getCanonicalSiteUrl(): string {
   if (process.env.NODE_ENV === "production") {
     const explicit = process.env.NEXTAUTH_URL?.trim();
     if (explicit && LOCALHOST_URL_RE.test(explicit)) {
       return explicit.replace(/\/$/, "");
+    }
+    if (explicit) {
+      return normalizeProductionOrigin(explicit);
     }
     return PRODUCTION_SITE_URL;
   }

@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { CinematicOrb, getTimeTheme, TIME_THEME_COLORS } from "@/components/cinematic-orb";
 import { PrivacyBadge } from "@/components/privacy-badge";
-import { getClientSignInCallbackUrl } from "@/lib/site-url";
+import { getClientSignInCallbackUrl, PRODUCTION_SITE_URL } from "@/lib/site-url";
 import { brandingFromHostname, brandingFromTenantSlug } from "@/lib/tenant-brand";
 import type { TenantSlug } from "@/lib/tenant";
 
@@ -27,7 +27,7 @@ export function LoginCard({ nextAuthUrl, tenant }: LoginCardProps) {
   const oauthRedirectUri =
     branding.tenant === "sachapandit"
       ? "https://www.sachapandit.com/api/auth/callback/google"
-      : "https://www.buddieai.com/api/auth/callback/google";
+      : `${PRODUCTION_SITE_URL}/api/auth/callback/google`;
   const nextAuthConfigured = Boolean(nextAuthUrl);
   const showOAuthSetupHint =
     authError === "google" ||

@@ -19,6 +19,23 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const authSecret = process.env.NEXTAUTH_SECRET;
 
+/** Create a local user row for a Google-authenticated email (idempotent). */
+async function ensureGoogleUser(email: string, displayName?: string | null) {
+  const normalized = email.toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email: normalized } });
+  if (existing) return existing;
+
+  const created = await prisma.user.create({
+    data: {
+      email: normalized,
+      password: await bcrypt.hash(Math.random().toString(36), 10),
+      name: displayName || normalized,
+    },
+  });
+  await ensureFreeLicenseForUser(created.id);
+  return created;
+}
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   providers: [
@@ -57,23 +74,13 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account }) {
+      // Never deny Google sign-in here — returning false maps to error=AccessDenied.
+      // Provisioning failures are retried in the jwt callback.
       if (account?.provider === "google" && user.email) {
         try {
-          const email = user.email.toLowerCase();
-          const existing = await prisma.user.findUnique({ where: { email } });
-          if (!existing) {
-            const created = await prisma.user.create({
-              data: {
-                email,
-                password: await bcrypt.hash(Math.random().toString(36), 10),
-                name: user.name || user.email,
-              },
-            });
-            await ensureFreeLicenseForUser(created.id);
-          }
+          await ensureGoogleUser(user.email, user.name);
         } catch (err) {
-          console.error("[auth] google signIn", err);
-          return false;
+          console.error("[auth] google signIn provisioning failed (login still allowed)", err);
         }
       }
       return true;
@@ -97,7 +104,7 @@ export const authOptions: NextAuthOptions = {
       const needsDbLookup = Boolean(user) || !token.id;
       if (!needsDbLookup || !email) return token;
 
-      const dbUser = await prisma.user.findUnique({
+      let dbUser = await prisma.user.findUnique({
         where: { email },
         select: {
           id: true,
@@ -108,6 +115,26 @@ export const authOptions: NextAuthOptions = {
           _count: { select: { licenses: true } },
         },
       });
+
+      if (!dbUser && account?.provider === "google") {
+        try {
+          const created = await ensureGoogleUser(email, user?.name);
+          dbUser = await prisma.user.findUnique({
+            where: { id: created.id },
+            select: {
+              id: true,
+              onboardingCompleted: true,
+              eidataConsentCompleted: true,
+              companionName: true,
+              personality: true,
+              _count: { select: { licenses: true } },
+            },
+          });
+        } catch (err) {
+          console.error("[auth] jwt google provisioning", err);
+        }
+      }
+
       if (dbUser) {
         if (!dbUser.onboardingCompleted && dbUser._count.licenses > 0) {
           await prisma.user.update({

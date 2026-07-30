@@ -19,6 +19,89 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const authSecret = process.env.NEXTAUTH_SECRET;
 
+type AuthUserSnapshot = {
+  id: string;
+  onboardingCompleted: boolean;
+  eidataConsentCompleted?: boolean;
+  companionName: string | null;
+  personality: string | null;
+  _count: { licenses: number };
+};
+
+function isMissingEidataConsentColumn(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const maybe = err as {
+    code?: string;
+    meta?: { column?: string };
+    message?: string;
+  };
+  return (
+    maybe.code === "P2022" &&
+    (maybe.meta?.column === "User.eidataConsentCompleted" ||
+      String(maybe.message || "").includes("User.eidataConsentCompleted"))
+  );
+}
+
+async function findUserForAuthByEmail(email: string): Promise<AuthUserSnapshot | null> {
+  try {
+    return await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        onboardingCompleted: true,
+        eidataConsentCompleted: true,
+        companionName: true,
+        personality: true,
+        _count: { select: { licenses: true } },
+      },
+    });
+  } catch (err) {
+    if (!isMissingEidataConsentColumn(err)) throw err;
+    console.warn("[auth] missing User.eidataConsentCompleted column; using compatibility fallback by email");
+    const fallback = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        onboardingCompleted: true,
+        companionName: true,
+        personality: true,
+        _count: { select: { licenses: true } },
+      },
+    });
+    return fallback ? { ...fallback, eidataConsentCompleted: true } : null;
+  }
+}
+
+async function findUserForAuthById(id: string): Promise<AuthUserSnapshot | null> {
+  try {
+    return await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        onboardingCompleted: true,
+        eidataConsentCompleted: true,
+        companionName: true,
+        personality: true,
+        _count: { select: { licenses: true } },
+      },
+    });
+  } catch (err) {
+    if (!isMissingEidataConsentColumn(err)) throw err;
+    console.warn("[auth] missing User.eidataConsentCompleted column; using compatibility fallback by id");
+    const fallback = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        onboardingCompleted: true,
+        companionName: true,
+        personality: true,
+        _count: { select: { licenses: true } },
+      },
+    });
+    return fallback ? { ...fallback, eidataConsentCompleted: true } : null;
+  }
+}
+
 /** Create a local user row for a Google-authenticated email (idempotent). */
 async function ensureGoogleUser(email: string, displayName?: string | null) {
   const normalized = email.toLowerCase();
@@ -104,32 +187,12 @@ export const authOptions: NextAuthOptions = {
       const needsDbLookup = Boolean(user) || !token.id;
       if (!needsDbLookup || !email) return token;
 
-      let dbUser = await prisma.user.findUnique({
-        where: { email },
-        select: {
-          id: true,
-          onboardingCompleted: true,
-          eidataConsentCompleted: true,
-          companionName: true,
-          personality: true,
-          _count: { select: { licenses: true } },
-        },
-      });
+      let dbUser = await findUserForAuthByEmail(email);
 
       if (!dbUser && account?.provider === "google") {
         try {
           const created = await ensureGoogleUser(email, user?.name);
-          dbUser = await prisma.user.findUnique({
-            where: { id: created.id },
-            select: {
-              id: true,
-              onboardingCompleted: true,
-              eidataConsentCompleted: true,
-              companionName: true,
-              personality: true,
-              _count: { select: { licenses: true } },
-            },
-          });
+          dbUser = await findUserForAuthById(created.id);
         } catch (err) {
           console.error("[auth] jwt google provisioning", err);
         }
@@ -149,7 +212,7 @@ export const authOptions: NextAuthOptions = {
         await ensureDefaultConsents(dbUser.id);
         token.id = dbUser.id;
         token.onboardingCompleted = dbUser.onboardingCompleted;
-        token.eidataConsentCompleted = dbUser.eidataConsentCompleted;
+        token.eidataConsentCompleted = Boolean(dbUser.eidataConsentCompleted ?? true);
         token.companionName = dbUser.companionName || "";
         token.personality = dbUser.personality || "";
       }

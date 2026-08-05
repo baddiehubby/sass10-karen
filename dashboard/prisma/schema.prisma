@@ -1,245 +1,266 @@
-generator client {
-  provider = "prisma-client-js"
+// dashboard/lib/auth.ts
+import bcrypt from "bcryptjs";
+import type { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import { ensureDefaultConsents } from "@/lib/consent-service";
+import { ensureFreeLicenseForUser } from "@/lib/free-license";
+import { prisma } from "@/lib/prisma";
+import {
+  getCanonicalSiteUrl,
+  logAuthUrlDebug,
+  pinNextAuthUrl,
+  resolvePostAuthCallbackUrl,
+} from "@/lib/site-url";
+
+pinNextAuthUrl();
+logAuthUrlDebug("authOptions");
+
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const authSecret = process.env.NEXTAUTH_SECRET;
+
+type AuthUserSnapshot = {
+  id: string;
+  onboardingCompleted: boolean;
+  eidataConsentCompleted?: boolean;
+  companionName: string | null;
+  personality: string | null;
+  _count: { licenses: number };
+};
+
+function isMissingEidataConsentColumn(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const maybe = err as {
+    code?: string;
+    meta?: { column?: string };
+    message?: string;
+  };
+  return (
+    maybe.code === "P2022" &&
+    (maybe.meta?.column === "User.eidataConsentCompleted" ||
+      String(maybe.message || "").includes("User.eidataConsentCompleted"))
+  );
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+async function findUserForAuthByEmail(email: string): Promise<AuthUserSnapshot | null> {
+  try {
+    return await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        onboardingCompleted: true,
+        eidataConsentCompleted: true,
+        companionName: true,
+        personality: true,
+        _count: { select: { licenses: true } },
+      },
+    });
+  } catch (err) {
+    if (!isMissingEidataConsentColumn(err)) throw err;
+    console.warn("[auth] missing User.eidataConsentCompleted column; using compatibility fallback by email");
+    const fallback = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        onboardingCompleted: true,
+        companionName: true,
+        personality: true,
+        _count: { select: { licenses: true } },
+      },
+    });
+    return fallback ? { ...fallback, eidataConsentCompleted: true } : null;
+  }
 }
 
-model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  password  String
-  name      String?
-  companyName String?
-  companionName String?
-  personality   String?
-  onboardingCompleted Boolean @default(false)
-  /// User completed the EIData consent modal (Accept or Decline).
-  eidataConsentCompleted Boolean @default(false)
-  /// Optional external customer identifier for migration compatibility.
-  stripeCustomerId String? @unique
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  licenses  License[]
-  payments  PendingPayment[]
-  badges    UserBadge[]
-  emails    WelcomeEmail[]
-  sentEmails SentEmail[]
-  consents  UserConsent[]
+async function findUserForAuthById(id: string): Promise<AuthUserSnapshot | null> {
+  try {
+    return await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        onboardingCompleted: true,
+        eidataConsentCompleted: true,
+        companionName: true,
+        personality: true,
+        _count: { select: { licenses: true } },
+      },
+    });
+  } catch (err) {
+    if (!isMissingEidataConsentColumn(err)) throw err;
+    console.warn("[auth] missing User.eidataConsentCompleted column; using compatibility fallback by id");
+    const fallback = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        onboardingCompleted: true,
+        companionName: true,
+        personality: true,
+        _count: { select: { licenses: true } },
+      },
+    });
+    return fallback ? { ...fallback, eidataConsentCompleted: true } : null;
+  }
 }
 
-model License {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  userId      String
-  features    String
-  domain      String?
-  plan        String   @default("free")
-  expiresAt   DateTime
-  activatedAt DateTime?
-  widgetTooltipText String?
-  widgetPosition    String   @default("bottom-right")
-  widgetSize        String   @default("medium")
-  widgetZIndex      Int?
-  widgetCustomCss   String?
-  widgetThemeMode   String   @default("auto")
-  forcedMood        String?
-  forcedMoodUntil   DateTime?
-  /// Optional payment order identifier kept for backward compatibility.
-  paidOrderId       String?  @unique
-  /// Optional checkout session identifier kept for backward compatibility.
-  stripeCheckoutSessionId String? @unique
-  lemonSqueezyId String? @unique
-  lemonSqueezySubscriptionId String? @unique
-  lemonSqueezyVariantId String?
-  lemonSqueezySubscriptionStatus String?
-  lemonSqueezyCustomerPortalUrl String?
-  /// Optional hex overrides for preset orb gradient (#RRGGBB).
-  themeAccentHex    String?
-  themeDeepHex      String?
-  /// Public URL path or absolute URL for custom orb background (PNG/SVG)
-  themeImageUrl String?
-  /// Preset id: default | ocean | sunset | neon | forest
-  themePreset   String   @default("default")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+async function ensureGoogleUser(email: string, displayName?: string | null) {
+  const normalized = email.toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email: normalized } });
+  if (existing) return existing;
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  moodEvents  MoodEvent[]
-  complianceReports ComplianceReport[]
-  lemonWebhookEvents LemonSqueezyWebhookEvent[]
-  collaborativeRoom CollaborativeRoom?
-  presence      CompanionPresence?
-  pushSubscriptions PushSubscription[]
+  const created = await prisma.user.create({
+    data: {
+      email: normalized,
+      password: await bcrypt.hash(Math.random().toString(36), 10),
+      name: displayName || normalized,
+    },
+  });
+  await ensureFreeLicenseForUser(created.id);
+  return created;
 }
 
-/// Cross-device Shadow Companion mood state (license-key anchor).
-model CompanionPresence {
-  id            String   @id @default(cuid())
-  licenseId     String   @unique
-  currentMood   String   @default("neutral")
-  moodHistory   String   @default("[]")
-  lastCheckIn   DateTime @default(now())
-  guidanceQueue String   @default("[]")
-  companionName String   @default("Buddy")
-  updatedAt     DateTime @updatedAt
+export const authOptions: NextAuthOptions = {
+  session: { strategy: "jwt" },
+  providers: [
+    ...(googleClientId && googleClientSecret
+      ? [
+          GoogleProvider({
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+          }),
+        ]
+      : []),
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email?.trim().toLowerCase();
+        const password = credentials?.password;
+        if (!email || !password) return null;
 
-  license License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
-}
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) return null;
 
-/// Web Push subscription for ambient check-ins (VAPID).
-model PushSubscription {
-  id           String   @id @default(cuid())
-  licenseId    String
-  endpoint     String   @unique
-  p256dh       String
-  auth         String
-  createdAt    DateTime @default(now())
+        const ok = await bcrypt.compare(password, user.password);
+        if (!ok) return null;
 
-  license License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name ?? user.email,
+        };
+      },
+    }),
+  ],
+  callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google" && user.email) {
+        try {
+          await ensureGoogleUser(user.email, user.name);
+        } catch (err) {
+          console.error("[auth] google signIn provisioning failed (login still allowed)", err);
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
+      if (user?.id && account?.provider === "credentials") {
+        token.id = user.id;
+      }
 
-  @@index([licenseId])
-}
+      const email = (user?.email || token.email || "").toString().toLowerCase();
 
-model LemonSqueezyWebhookEvent {
-  id          String   @id @default(cuid())
-  eventName   String
-  lemonEventId String?
-  licenseId   String?
-  payload     String
-  receivedAt  DateTime @default(now())
+      const adminList = (process.env.BUDDY_ADMIN_EMAILS || "")
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      token.isAdmin = Boolean(email && adminList.length > 0 && adminList.includes(email));
 
-  license License? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+      const needsDbLookup = Boolean(user) || !token.id;
+      if (!needsDbLookup || !email) return token;
 
-  @@index([licenseId, receivedAt])
-  @@index([eventName, receivedAt])
-  @@unique([lemonEventId])
-}
+      let dbUser = await findUserForAuthByEmail(email);
 
-model PendingPayment {
-  id        String   @id @default(cuid())
-  orderId   String   @unique
-  userId    String
-  plan      String
-  amountUsd Int
-  createdAt DateTime @default(now())
+      if (!dbUser && account?.provider === "google") {
+        try {
+          const created = await ensureGoogleUser(email, user?.name);
+          dbUser = await findUserForAuthById(created.id);
+        } catch (err) {
+          console.error("[auth] jwt google provisioning", err);
+        }
+      }
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-/// Granular GDPR / EU AI Act / SB 243 consent records per user and purpose.
-model UserConsent {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  purpose     String   // companion_mood_detection | anonymous_analytics | model_training | data_selling
-  status      String   // granted | denied | withdrawn
-  consentedAt DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([userId, purpose])
-  @@index([userId, status])
-}
-
-/// Product-improvement layer — mood labels only, irreversible session hash, no raw text.
-model AnonymizedMoodEvent {
-  id            String   @id @default(cuid())
-  sessionToken  String   // SHA-256(salt + pseudonymous session id), not reversible to user
-  mood          String
-  timestamp     DateTime @default(now())
-  region        String?  // broad bucket: EU | US | Asia | Other
-  companionType String?  // buddy | sachapandit
-  source        String?  // chatgpt | claude | gemini | website | extension | unknown
-
-  @@index([timestamp])
-  @@index([mood, timestamp])
-  @@index([sessionToken, timestamp])
-}
-
-/// Anonymous widget mood telemetry (license-holder dashboard — requires companion_mood_detection consent).
-model MoodEvent {
-  id         String   @id @default(cuid())
-  licenseId  String
-  mood       String
-  domain     String?
-  /// Deprecated — never populated (raw conversation text prohibited).
-  messageSnippet String?
-  timestamp  DateTime
-  acknowledgedBy String?
-  acknowledgedAt DateTime?
-  license    License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
-
-  @@index([licenseId, timestamp])
-  @@index([licenseId, mood, acknowledgedAt, timestamp])
-}
-
-model ComplianceReport {
-  id          String   @id @default(cuid())
-  licenseId   String
-  generatedAt DateTime @default(now())
-  data        String
-
-  license License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
-
-  @@index([licenseId, generatedAt])
-}
-
-model CollaborativeRoom {
-  id        String   @id @default(cuid())
-  licenseId String   @unique
-  mood      String   @default("neutral")
-  updatedAt DateTime @updatedAt
-
-  license   License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
-}
-
-model Badge {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String
-  icon        String
-  condition   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  users       UserBadge[]
-}
-
-model UserBadge {
-  id        String   @id @default(cuid())
-  userId    String
-  badgeId   String
-  awardedAt DateTime @default(now())
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, badgeId])
-}
-
-model WelcomeEmail {
-  id        String   @id @default(cuid())
-  userId    String
-  subject   String
-  body      String
-  sentAt    DateTime @default(now())
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-/// Demo outreach emails queued from the dashboard (swap provider in lib/outreach-send.ts).
-model SentEmail {
-  id              String   @id @default(cuid())
-  userId          String
-  recipientEmail  String
-  subject         String
-  body            String
-  sentAt          DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, sentAt])
-}
+      if (dbUser) {
+        if (!dbUser.onboardingCompleted && dbUser._count.licenses > 0) {
+          await prisma.user.update({
+            where: { id: dbUser.id },
+            data: { onboardingCompleted: true },
+            select: { id: true },
+          });
+          dbUser.onboardingCompleted = true;
+        }
+        if (dbUser._count.licenses === 0) {
+          await ensureFreeLicenseForUser(dbUser.id);
+        }
+        await ensureDefaultConsents(dbUser.id);
+        token.id = dbUser.id;
+        token.onboardingCompleted = dbUser.onboardingCompleted;
+        token.eidataConsentCompleted = Boolean(dbUser.eidataConsentCompleted ?? true);
+        token.companionName = dbUser.companionName || "";
+        token.personality = dbUser.personality || "";
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        const email = (session.user.email || token.email || "").toString().toLowerCase();
+        let userId = typeof token.id === "string" ? token.id : "";
+        if (!userId && email) {
+          try {
+            const dbUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+            if (dbUser) userId = dbUser.id;
+          } catch (err) {
+            console.error("[auth] session resolve user id", err);
+          }
+        }
+        session.user.id = userId;
+        (session.user as { onboardingCompleted?: boolean }).onboardingCompleted = Boolean(token.onboardingCompleted);
+        (session.user as { companionName?: string }).companionName = String(token.companionName || "");
+        (session.user as { personality?: string }).personality = String(token.personality || "");
+        (session.user as { isAdmin?: boolean }).isAdmin = Boolean(token.isAdmin);
+        (session.user as { eidataConsentCompleted?: boolean }).eidataConsentCompleted = Boolean(
+          token.eidataConsentCompleted,
+        );
+      }
+      return session;
+    },
+    async redirect({ url }) {
+      const siteUrl = getCanonicalSiteUrl();
+      if (url.startsWith("/")) return `${siteUrl}${url}`;
+      try {
+        const target = new URL(url);
+        const allowed = new URL(siteUrl);
+        if (target.origin === allowed.origin) return url;
+      } catch {
+        /* ignore malformed url */
+      }
+      return resolvePostAuthCallbackUrl("/dashboard");
+    },
+  },
+  pages: {
+    signIn: "/login",
+  },
+  secret: authSecret,
+  debug: process.env.NODE_ENV === "development",
+};
+-- dashboard/prisma/migrations/20260805194315_add_eidata_consent_completed/migration.sql
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "eidataConsentCompleted" BOOLEAN NOT NULL DEFAULT false;
+cd dashboard
+git add lib/auth.ts prisma/migrations/20260805194315_add_eidata_consent_completed/
+git commit -m "fix(auth): resolve Google OAuth failure caused by missing production schema drift"
+git push origin main
+npx prisma migrate deploy

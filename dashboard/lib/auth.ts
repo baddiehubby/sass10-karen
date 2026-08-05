@@ -203,6 +203,7 @@ export const authOptions: NextAuthOptions = {
           await prisma.user.update({
             where: { id: dbUser.id },
             data: { onboardingCompleted: true },
+            select: { id: true },
           });
           dbUser.onboardingCompleted = true;
         }

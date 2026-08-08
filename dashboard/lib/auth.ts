@@ -244,11 +244,14 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url }) {
       const siteUrl = getCanonicalSiteUrl();
-      if (url.startsWith("/")) return `${siteUrl}${url}`;
+      // Allow explicit dashboard callbacks; force everything else to /dashboard
+      if (url.startsWith("/dashboard")) return `${siteUrl}${url}`;
       try {
         const target = new URL(url);
         const allowed = new URL(siteUrl);
-        if (target.origin === allowed.origin) return url;
+        if (target.origin === allowed.origin && target.pathname.startsWith("/dashboard")) {
+          return url;
+        }
       } catch {
         /* ignore malformed url */
       }

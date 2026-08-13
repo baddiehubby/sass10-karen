@@ -157,8 +157,6 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account }) {
-      // Never deny Google sign-in here — returning false maps to error=AccessDenied.
-      // Provisioning failures are retried in the jwt callback.
       if (account?.provider === "google" && user.email) {
         try {
           await ensureGoogleUser(user.email, user.name);
@@ -169,7 +167,6 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user, account }) {
-      // OAuth providers supply their own subject id — always resolve our DB user id by email.
       if (user?.id && account?.provider === "credentials") {
         token.id = user.id;
       }
@@ -182,8 +179,6 @@ export const authOptions: NextAuthOptions = {
         .filter(Boolean);
       token.isAdmin = Boolean(email && adminList.length > 0 && adminList.includes(email));
 
-      // Only hit the DB on new sign-ins (user object present) or when we don't yet have an id.
-      // Refreshes of an existing valid token skip the DB call entirely.
       const needsDbLookup = Boolean(user) || !token.id;
       if (!needsDbLookup || !email) return token;
 

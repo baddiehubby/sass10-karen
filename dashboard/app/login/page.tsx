@@ -1,28 +1,15 @@
-import { Suspense } from "react";
-import type { Metadata } from "next";
-import { LoginCard } from "@/components/login-card";
-import { getCanonicalSiteUrl } from "@/lib/site-url";
-import { getTenantFromRequest } from "@/lib/tenant-request";
-
-export const metadata: Metadata = {
-  title: "Login",
-  description: "Sign in to continue with your companion dashboard.",
-  alternates: { canonical: "/login" },
-};
-
-export default function LoginPage() {
-  const nextAuthUrl = getCanonicalSiteUrl();
-  const tenant = getTenantFromRequest();
-  const loginHint =
-    tenant === "sachapandit"
-      ? "Continue with Google to meet your Pandit."
-      : "Continue with Google to keep your orb alive.";
-  return (
-    <>
-      <p className="sr-only">{loginHint}</p>
-      <Suspense fallback={<main className="mx-auto max-w-md px-6 py-12 text-slate-400">Loading…</main>}>
-        <LoginCard nextAuthUrl={nextAuthUrl} tenant={tenant} />
-      </Suspense>
-    </>
-  );
+async redirect({ url }) {
+  const siteUrl = getCanonicalSiteUrl();
+  // Allow explicit dashboard callbacks; force everything else to /dashboard
+  if (url.startsWith("/dashboard")) return `${siteUrl}${url}`;
+  try {
+    const target = new URL(url);
+    const allowed = new URL(siteUrl);
+    if (target.origin === allowed.origin && target.pathname.startsWith("/dashboard")) {
+      return url;
+    }
+  } catch {
+    /* ignore malformed url */
+  }
+  return resolvePostAuthCallbackUrl("/dashboard");
 }

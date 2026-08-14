@@ -29,6 +29,7 @@ model User {
   emails    WelcomeEmail[]
   sentEmails SentEmail[]
   consents  UserConsent[]
+  buddyBond BuddyBond?
 }
 
 model License {
@@ -242,4 +243,72 @@ model SentEmail {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, sentAt])
+}
+
+/// Buddy Soul Engine — persistent companion identity. Internal bondDepth is never shown as a score.
+model BuddyBond {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Internal only. Never displayed as a number.
+  bondDepth      Int      @default(0)
+  buddyMood      String   @default("curious")
+  buddyEnergy    Float    @default(0.5)
+  evolutionStage String   @default("awakening")
+  humorTone      Float    @default(0.0)
+  mysticismTone  Float    @default(0.0)
+  warmthTone     Float    @default(0.5)
+  lastPresence   DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  memories      MemoryFragment[]
+  unlockedAuras UnlockedAura[]
+  rituals       DailyRitual[]
+}
+
+/// Poetic moment between user and Buddy. Not a clinical log.
+model MemoryFragment {
+  id           String    @id @default(cuid())
+  userId       String
+  bond         BuddyBond @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  bornFromMood String
+  verse        String
+  orbEcho      String    @default("held a quiet light")
+  hidden       Boolean   @default(true)
+  discoveredAt DateTime?
+  weight       Float     @default(0.5)
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, hidden])
+}
+
+/// Visual manifestations of the Bond.
+model UnlockedAura {
+  id          String   @id @default(cuid())
+  userId      String
+  bond        BuddyBond @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  auraId      String
+  displayName String
+  rarity      String   @default("common")
+  origin      String
+  active      Boolean  @default(false)
+  unlockedAt  DateTime @default(now())
+
+  @@unique([userId, auraId])
+}
+
+/// Daily rituals. ritualDate is a calendar date so uniqueness is per day, not per timestamp.
+model DailyRitual {
+  id           String    @id @default(cuid())
+  userId       String
+  bond         BuddyBond @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  ritualDate   DateTime  @db.Date
+  ritualType   String
+  completed    Boolean   @default(false)
+  completedAt  DateTime?
+  buddyWhisper String?
+
+  @@unique([userId, ritualDate, ritualType])
+  @@index([userId, ritualDate])
 }

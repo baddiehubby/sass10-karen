@@ -20,7 +20,7 @@ export function DashboardCelebration() {
 
     if (payment === "cancelled") {
       handled.current = true;
-      toast("Checkout was not completed. Your free Buddy is still here.", { icon: "ℹ️" });
+      toast("Checkout was not completed. Your account is still here.", { icon: "ℹ️" });
       router.replace("/dashboard", { scroll: false });
       return;
     }
@@ -32,13 +32,19 @@ export function DashboardCelebration() {
     confetti({ particleCount: 180, spread: 95, origin: { y: 0.7 } });
 
     const tierLabel =
-      tier === "agency" ? "Agency" : tier === "pro" ? "Pro" : null;
+      tier === "starter"
+        ? "Starter"
+        : tier === "pro"
+          ? "Pro"
+          : tier === "premium" || tier === "agency"
+            ? "Premium"
+            : null;
     toast.success(
       paymentSuccess
         ? tierLabel
           ? `Payment successful — Buddy ${tierLabel} is active.`
-          : "Your Buddy is alive! Payment successful."
-        : "Welcome to your luxury companion cockpit",
+          : "Payment successful. Your Buddy is ready."
+        : "Welcome back to Buddy.",
     );
 
     router.replace("/dashboard", { scroll: false });

@@ -3,11 +3,19 @@ import { getCanonicalSiteUrl, getGoogleOAuthRedirectUri, PRODUCTION_SITE_URL } f
 
 export const dynamic = "force-dynamic";
 
-const DEBUG_SECRET = "debug2026";
-
+/**
+ * Auth config probe for operators only.
+ * Requires DEBUG_AUTH_SECRET from environment — never a hardcoded value.
+ * Disabled entirely when the env secret is unset (production default).
+ */
 export async function GET(req: NextRequest) {
+  const expected = process.env.DEBUG_AUTH_SECRET?.trim();
+  if (!expected || process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== DEBUG_SECRET) {
+  if (!secret || secret !== expected) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

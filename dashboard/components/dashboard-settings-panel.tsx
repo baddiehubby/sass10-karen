@@ -7,6 +7,7 @@ import { CHROME_EXTENSION_DOWNLOAD_URL } from "@/lib/marketing-links";
 import { CopyEmbedCodeButton } from "@/components/copy-embed-code-button";
 import { DashboardEmbedActions } from "@/components/dashboard-embed-actions";
 import { ComplianceActions } from "@/components/compliance-actions";
+import { CompanionVibeSettings } from "@/components/companion-vibe-settings";
 import { ConsentManagementPanel } from "@/components/consent-management-panel";
 import { displayPlanName } from "@/lib/free-license";
 
@@ -165,6 +166,8 @@ export function DashboardSettingsPanel({
           </button>
         </form>
       </section>
+
+      <CompanionVibeSettings />
 
       <ConsentManagementPanel />
 

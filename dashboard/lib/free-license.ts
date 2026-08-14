@@ -43,9 +43,10 @@ export async function ensureFreeLicenseForUser(userId: string): Promise<void> {
 
 export function displayPlanName(plan: string): string {
   const p = plan.trim().toLowerCase();
-  if (p === "free") return "Free";
-  if (p === "starter" || p === "pro") return "Pro";
-  if (p === "agency") return "Agency";
+  if (p === "free") return "Buddy account";
+  if (p === "starter") return "Starter";
+  if (p === "pro" || p === "growth") return "Pro";
+  if (p === "premium" || p === "agency") return "Premium";
   if (p === "enterprise") return "Enterprise";
   return plan.charAt(0).toUpperCase() + plan.slice(1);
 }

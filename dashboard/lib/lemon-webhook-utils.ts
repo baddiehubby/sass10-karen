@@ -27,7 +27,9 @@ export function tierFromMetadata(
 ): LemonWebhookPlan | "free" {
   const tier = asString(custom?.tier).toLowerCase();
   if (tier === "free") return "free";
-  if (tier === "starter" || tier === "pro") return "pro";
+  if (tier === "starter") return "starter";
+  if (tier === "pro") return "pro";
+  if (tier === "premium") return "premium";
   if (tier === "agency") return "agency";
   if (tier === "enterprise") return "enterprise";
   return variantPlan === "free" ? "free" : variantPlan;

@@ -38,7 +38,7 @@ export async function GET(req: Request) {
   const paidLicense = await prisma.license.findFirst({
     where: {
       userId: session.user.id,
-      plan: { in: ["starter", "pro", "agency", "enterprise"] },
+      plan: { in: ["starter", "pro", "premium", "agency", "enterprise"] },
       expiresAt: { gt: new Date() },
     },
     select: { id: true },

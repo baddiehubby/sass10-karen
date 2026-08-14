@@ -127,7 +127,7 @@ export default function EuAiActPage() {
             href="/register"
             className="inline-flex rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500"
           >
-            Make your AI compliant – Get Buddy Free
+            Make your AI compliant – Get Buddy AI
           </Link>
         </div>
       </article>

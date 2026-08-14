@@ -6,7 +6,7 @@ import { isActiveLemonSubscriptionStatus } from "@/lib/lemonsqueezy";
 import { prisma } from "@/lib/prisma";
 import { licenseManageBodySchema } from "@/lib/validation";
 
-const PAID_PLANS = new Set(["starter", "pro", "agency", "enterprise"]);
+const PAID_PLANS = new Set(["starter", "pro", "premium", "agency", "enterprise"]);
 
 /** Plan upgrades are only applied via Lemon Squeezy webhooks — not manual API calls. */
 export async function POST(req: Request) {

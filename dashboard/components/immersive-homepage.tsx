@@ -187,12 +187,12 @@ export function ImmersiveHomepage() {
                 onClick={() => router.push("/login")}
                 className="text-sm tracking-wide text-white/45 transition-colors hover:text-white/75"
               >
-                {brand.tenant === "sachapandit" ? "Meet your Pandit →" : "Keep your orb alive →"}
+                {brand.tenant === "sachapandit" ? "Meet your Pandit →" : "Meet your Buddy →"}
               </button>
               <p className="mt-3 max-w-xs text-center text-xs text-slate-500">
                 {brand.tenant === "sachapandit"
                   ? "Free forever. Wisdom from every culture. No credit card needed. Your soul is safe here."
-                  : "No credit card needed. Your Buddy stays free forever. Upgrade when you're ready."}
+                  : "A premium living companion. Sign in, then choose Starter from $20/month."}
               </p>
               <motion.div
                 initial={{ opacity: 0 }}

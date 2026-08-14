@@ -1,0 +1,41 @@
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { MoodExperience } from "@/components/mood-experience";
+import { authOptions } from "@/lib/auth";
+import { entitlementsFromLicenses } from "@/lib/buddy-entitlements";
+import { ensureFreeLicenseForUser, isLicenseActive } from "@/lib/free-license";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "Mood Universe",
+  description: "One-tap mood check-in and emotional constellation with Buddy.",
+};
+
+export default async function MoodPage() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) redirect("/login");
+
+  let userId = session.user.id;
+  if (!userId && session.user.email) {
+    const byEmail = await prisma.user.findUnique({
+      where: { email: session.user.email.toLowerCase() },
+      select: { id: true },
+    });
+    userId = byEmail?.id ?? "";
+  }
+  if (!userId) redirect("/login");
+
+  await ensureFreeLicenseForUser(userId);
+  const licenses = await prisma.license.findMany({ where: { userId } });
+  const entitlements = entitlementsFromLicenses(licenses, isLicenseActive);
+
+  return (
+    <MoodExperience
+      historyDays={entitlements.moodHistoryDays}
+      tierLabel={entitlements.label}
+      sharePremium={entitlements.sharePremium}
+    />
+  );
+}

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { UniverseShell } from "@/components/universe-shell";
 import { DashboardMinimalNav } from "@/components/dashboard-minimal-nav";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       style={{ background: "#0a0a1a" }}
     >
       <DashboardMinimalNav />
-      {children}
+      <UniverseShell>{children}</UniverseShell>
     </div>
   );
 }

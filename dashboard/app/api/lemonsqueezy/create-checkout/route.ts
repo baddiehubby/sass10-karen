@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { getLemonCheckoutRedirectUrls } from "@/lib/lemon-checkout-urls";
-import { lemonRequest, getLemonVariantIdByTier, resolveLemonStoreId } from "@/lib/lemonsqueezy";
+import {
+  getLemonVariantIdByTier,
+  lemonRequest,
+  missingVariantEnvForTier,
+  resolveLemonStoreId,
+} from "@/lib/lemonsqueezy";
 import { isPaidCheckoutTier } from "@/lib/pricing-plans";
 import { prisma } from "@/lib/prisma";
 import { lemonCheckoutBodySchema } from "@/lib/validation";
@@ -18,10 +23,7 @@ export async function POST(req: Request) {
   const { tier, trial } = parsed.data;
   if (!isPaidCheckoutTier(tier)) {
     return NextResponse.json(
-      {
-        error:
-          "Buddy Free does not use checkout. Sign in with Google — your free license is created automatically.",
-      },
+      { error: "Choose Starter, Pro, or Premium to continue checkout." },
       { status: 400 },
     );
   }
@@ -29,11 +31,10 @@ export async function POST(req: Request) {
   const variantId = getLemonVariantIdByTier(tier, { trial });
   const storeId = await resolveLemonStoreId();
   if (!variantId || !storeId) {
-    const missing =
-      tier === "pro" ? "LEMONSQUEEZY_PRO_VARIANT_ID" : "LEMONSQUEEZY_AGENCY_VARIANT_ID";
+    const missing = !variantId ? missingVariantEnvForTier(tier) : "LEMONSQUEEZY_STORE_ID / API key";
     return NextResponse.json(
       {
-        error: `Lemon Squeezy is not configured (${missing}, LEMONSQUEEZY_API_KEY).`,
+        error: `Checkout is not connected yet (${missing}). Create the Lemon Squeezy product for this tier and set the variant ID in Vercel.`,
       },
       { status: 501 },
     );

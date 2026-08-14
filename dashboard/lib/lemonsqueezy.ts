@@ -6,8 +6,11 @@ const API_BASE = "https://api.lemonsqueezy.com/v1";
 /** Tiers that open Lemon Squeezy checkout (paid products only). */
 export type LemonCheckoutTier = PaidCheckoutTier;
 
-/** Plans resolved from Lemon webhooks (includes legacy variant IDs). */
-export type LemonWebhookPlan = LemonCheckoutTier | "starter" | "enterprise";
+/**
+ * Plans resolved from Lemon webhooks.
+ * `agency` / `enterprise` kept for legacy License.plan rows.
+ */
+export type LemonWebhookPlan = PaidCheckoutTier | "agency" | "enterprise";
 
 export function getLemonApiKey(): string {
   return process.env.LEMONSQUEEZY_API_KEY?.trim() || "";
@@ -53,10 +56,17 @@ export async function resolveLemonStoreId(): Promise<string> {
 }
 
 function variantIdForCheckoutTier(tier: LemonCheckoutTier): string {
+  if (tier === "starter") {
+    return process.env.LEMONSQUEEZY_STARTER_VARIANT_ID?.trim() || "";
+  }
   if (tier === "pro") {
     return process.env.LEMONSQUEEZY_PRO_VARIANT_ID?.trim() || "";
   }
-  return process.env.LEMONSQUEEZY_AGENCY_VARIANT_ID?.trim() || "";
+  return (
+    process.env.LEMONSQUEEZY_PREMIUM_VARIANT_ID?.trim() ||
+    process.env.LEMONSQUEEZY_AGENCY_VARIANT_ID?.trim() ||
+    ""
+  );
 }
 
 export function getLemonVariantIdByTier(tier: LemonCheckoutTier, opts?: { trial?: boolean }): string {
@@ -67,20 +77,27 @@ export function getLemonVariantIdByTier(tier: LemonCheckoutTier, opts?: { trial?
   return variantIdForCheckoutTier(tier);
 }
 
+export function missingVariantEnvForTier(tier: LemonCheckoutTier): string {
+  if (tier === "starter") return "LEMONSQUEEZY_STARTER_VARIANT_ID";
+  if (tier === "pro") return "LEMONSQUEEZY_PRO_VARIANT_ID";
+  return "LEMONSQUEEZY_PREMIUM_VARIANT_ID (or LEMONSQUEEZY_AGENCY_VARIANT_ID)";
+}
+
 /** Map Lemon variant IDs to app license plans (webhooks / legacy products). */
 export function planByVariantId(variantId: string): LemonWebhookPlan | "free" {
   const id = variantId.trim();
   if (!id) return "free";
 
-  const pro = process.env.LEMONSQUEEZY_PRO_VARIANT_ID?.trim();
-  const agency = process.env.LEMONSQUEEZY_AGENCY_VARIANT_ID?.trim();
-  /** Legacy Lemon "Starter" product — treated as Pro in the app. */
   const starter = process.env.LEMONSQUEEZY_STARTER_VARIANT_ID?.trim();
+  const pro = process.env.LEMONSQUEEZY_PRO_VARIANT_ID?.trim();
+  const premium = process.env.LEMONSQUEEZY_PREMIUM_VARIANT_ID?.trim();
+  const agency = process.env.LEMONSQUEEZY_AGENCY_VARIANT_ID?.trim();
   const enterprise = process.env.LEMONSQUEEZY_ENTERPRISE_VARIANT_ID?.trim();
 
+  if (starter && id === starter) return "starter";
   if (pro && id === pro) return "pro";
+  if (premium && id === premium) return "premium";
   if (agency && id === agency) return "agency";
-  if (starter && id === starter) return "pro";
   if (enterprise && id === enterprise) return "enterprise";
   return "free";
 }

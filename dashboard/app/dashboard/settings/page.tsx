@@ -9,7 +9,7 @@ import { getWidgetScriptUrl } from "@/lib/widget-cdn";
 function subscriptionStatusLabel(status: string | null, expiresAt: Date, plan: string) {
   const s = (status || "").trim().toLowerCase();
   if (plan === "free") {
-    return { label: "Free forever", tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
+    return { label: "Account · subscribe to unlock", tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
   }
   if (expiresAt.getTime() < Date.now()) {
     return { label: "Expired", tone: "text-rose-300 border-rose-500/40 bg-rose-500/10" };
@@ -21,7 +21,7 @@ function subscriptionStatusLabel(status: string | null, expiresAt: Date, plan: s
   if (s === "cancelled" || s === "expired") {
     return { label: "Cancelled", tone: "text-rose-300 border-rose-500/40 bg-rose-500/10" };
   }
-  if (!s || s === "free") return { label: "Trial", tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
+  if (!s || s === "free") return { label: "Unsubscribed", tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
   return { label: s.replace(/_/g, " "), tone: "text-indigo-300 border-indigo-500/40 bg-indigo-500/10" };
 }
 

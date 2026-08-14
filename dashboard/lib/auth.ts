@@ -1,261 +1,194 @@
-import bcrypt from "bcryptjs";
-import type { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
-import { ensureDefaultConsents } from "@/lib/consent-service";
-import { ensureFreeLicenseForUser } from "@/lib/free-license";
-import { prisma } from "@/lib/prisma";
-import {
-  getCanonicalSiteUrl,
-  logAuthUrlDebug,
-  pinNextAuthUrl,
-  resolvePostAuthCallbackUrl,
-} from "@/lib/site-url";
+import { getToken } from "next-auth/jwt";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { getTenant, TENANT_COOKIE, TENANT_HEADER } from "@/lib/tenant";
 
-pinNextAuthUrl();
-logAuthUrlDebug("authOptions");
+const middlewareSecret = process.env.NEXTAUTH_SECRET;
 
-const googleClientId = process.env.GOOGLE_CLIENT_ID;
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-const authSecret = process.env.NEXTAUTH_SECRET;
+/** In-memory fixed-window rate limits (per Edge instance). */
+const rateBucket = new Map<string, { count: number; resetAt: number }>();
 
-type AuthUserSnapshot = {
-  id: string;
-  onboardingCompleted: boolean;
-  eidataConsentCompleted?: boolean;
-  companionName: string | null;
-  personality: string | null;
-  _count: { licenses: number };
-};
+const WINDOW_MS = 60_000;
 
-function isMissingEidataConsentColumn(err: unknown): boolean {
-  if (!err || typeof err !== "object") return false;
-  const maybe = err as {
-    code?: string;
-    meta?: { column?: string };
-    message?: string;
-  };
-  return (
-    maybe.code === "P2022" &&
-    (maybe.meta?.column === "User.eidataConsentCompleted" ||
-      String(maybe.message || "").includes("User.eidataConsentCompleted"))
-  );
-}
-
-async function findUserForAuthByEmail(email: string): Promise<AuthUserSnapshot | null> {
-  try {
-    return await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        onboardingCompleted: true,
-        eidataConsentCompleted: true,
-        companionName: true,
-        personality: true,
-        _count: { select: { licenses: true } },
-      },
-    });
-  } catch (err) {
-    if (!isMissingEidataConsentColumn(err)) throw err;
-    console.warn("[auth] missing User.eidataConsentCompleted column; using compatibility fallback by email");
-    const fallback = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        onboardingCompleted: true,
-        companionName: true,
-        personality: true,
-        _count: { select: { licenses: true } },
-      },
-    });
-    return fallback ? { ...fallback, eidataConsentCompleted: true } : null;
+function pruneBuckets(now: number) {
+  if (rateBucket.size < 5000) return;
+  for (const [k, v] of rateBucket.entries()) {
+    if (now > v.resetAt) rateBucket.delete(k);
   }
 }
 
-async function findUserForAuthById(id: string): Promise<AuthUserSnapshot | null> {
-  try {
-    return await prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        onboardingCompleted: true,
-        eidataConsentCompleted: true,
-        companionName: true,
-        personality: true,
-        _count: { select: { licenses: true } },
-      },
-    });
-  } catch (err) {
-    if (!isMissingEidataConsentColumn(err)) throw err;
-    console.warn("[auth] missing User.eidataConsentCompleted column; using compatibility fallback by id");
-    const fallback = await prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        onboardingCompleted: true,
-        companionName: true,
-        personality: true,
-        _count: { select: { licenses: true } },
-      },
-    });
-    return fallback ? { ...fallback, eidataConsentCompleted: true } : null;
+function allowRate(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  pruneBuckets(now);
+  const cur = rateBucket.get(key);
+  if (!cur || now > cur.resetAt) {
+    rateBucket.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (cur.count >= max) return false;
+  cur.count += 1;
+  return true;
+}
+
+function clientIp(req: NextRequest): string {
+  const xf = req.headers.get("x-forwarded-for");
+  if (xf) return xf.split(",")[0]?.trim() || "unknown";
+  return req.headers.get("x-real-ip")?.trim() || req.ip || "unknown";
+}
+
+function applySecurityHeaders(res: NextResponse, opts?: { document?: boolean }) {
+  const h = res.headers;
+  h.set("X-Content-Type-Options", "nosniff");
+  h.set("X-Frame-Options", "DENY");
+  h.set("X-XSS-Protection", "1; mode=block");
+  h.set("Strict-Transport-Security", "max-age=31536000");
+  h.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // Strict default-src breaks Next.js pages; API routes get a minimal CSP. App pages rely on globals.css font stack.
+  if (!opts?.document) {
+    h.set(
+      "Content-Security-Policy",
+      "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:;",
+    );
   }
 }
 
-/** Create a local user row for a Google-authenticated email (idempotent). */
-async function ensureGoogleUser(email: string, displayName?: string | null) {
-  const normalized = email.toLowerCase();
-  const existing = await prisma.user.findUnique({ where: { email: normalized } });
-  if (existing) return existing;
+/** Public widget / auth endpoints (no session JWT). */
+const PUBLIC_API_PREFIXES = [
+  "/api/auth",
+  "/api/licenses/verify",
+  "/api/licenses/theme",
+  "/api/widget/mood",
+  "/api/analytics/event",
+  "/api/analytics/anonymized-event",
+  "/api/eidata/anonymized-event",
+  "/api/consent/status",
+  "/api/security/tamper-attempt",
+  "/api/lemonsqueezy/webhook",
+  "/api/challenge/report",
+  "/api/dev/widget",
+  "/api/extensions/stats",
+  "/api/download/desktop-companion",
+  "/api/download/buddy-extension",
+  "/api/debug-auth",
+];
 
-  const created = await prisma.user.create({
-    data: {
-      email: normalized,
-      password: await bcrypt.hash(Math.random().toString(36), 10),
-      name: displayName || normalized,
-    },
+function isPublicApi(pathname: string) {
+  return PUBLIC_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function applyTenantContext(req: NextRequest, res: NextResponse) {
+  const host = req.headers.get("host") || req.nextUrl.hostname;
+  const tenant = getTenant(host);
+  res.cookies.set(TENANT_COOKIE, tenant, {
+    path: "/",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365,
   });
-  await ensureFreeLicenseForUser(created.id);
-  return created;
+  res.headers.set(TENANT_HEADER, tenant);
+  return res;
 }
 
-export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
-  providers: [
-    ...(googleClientId && googleClientSecret
-      ? [
-          GoogleProvider({
-            clientId: googleClientId,
-            clientSecret: googleClientSecret,
-          }),
-        ]
-      : []),
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        const email = credentials?.email?.trim().toLowerCase();
-        const password = credentials?.password;
-        if (!email || !password) return null;
+function nextWithTenant(req: NextRequest) {
+  const host = req.headers.get("host") || req.nextUrl.hostname;
+  const tenant = getTenant(host);
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set(TENANT_HEADER, tenant);
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  return applyTenantContext(req, res);
+}
 
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) return null;
+function withCorsForWidgetApis(req: NextRequest, res: NextResponse) {
+  const p = req.nextUrl.pathname;
+  if (
+    p.startsWith("/api/analytics/event") ||
+    p.startsWith("/api/analytics/anonymized-event") ||
+    p.startsWith("/api/eidata/anonymized-event") ||
+    p.startsWith("/api/consent/status") ||
+    p.startsWith("/api/licenses/verify") ||
+    p.startsWith("/api/security/tamper-attempt") ||
+    p.startsWith("/api/extensions/stats")
+  ) {
+    res.headers.set("Access-Control-Allow-Origin", "*");
+    res.headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.headers.set("Access-Control-Allow-Headers", "Content-Type, X-Buddy-Widget-Opt-In");
+  }
+  return res;
+}
 
-        const ok = await bcrypt.compare(password, user.password);
-        if (!ok) return null;
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const ip = clientIp(req);
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name ?? user.email,
-        };
-      },
-    }),
+  if (pathname.startsWith("/api/")) {
+    const rateKey = pathname.startsWith("/api/auth/")
+      ? `auth:${ip}:${pathname}`
+      : `api:${ip}:${pathname}`;
+
+    const max = pathname.startsWith("/api/auth/") ? 5 : 60;
+    if (!allowRate(rateKey, max, WINDOW_MS)) {
+      const res = NextResponse.json({ error: "Too many requests" }, { status: 429 });
+      applySecurityHeaders(res);
+      return withCorsForWidgetApis(req, applyTenantContext(req, res));
+    }
+
+    if (!isPublicApi(pathname)) {
+      const token = await getToken({ req, secret: middlewareSecret });
+      if (!token) {
+        const res = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        applySecurityHeaders(res);
+        return withCorsForWidgetApis(req, applyTenantContext(req, res));
+      }
+    }
+  }
+
+  if (
+    pathname === "/dashboard" ||
+    (pathname.startsWith("/dashboard/") && !pathname.startsWith("/dashboard/debiopwr"))
+  ) {
+    const token = await getToken({ req, secret: middlewareSecret });
+    if (!token) {
+      const login = new URL("/login", req.url);
+      login.searchParams.set("callbackUrl", pathname);
+      const res = applyTenantContext(req, NextResponse.redirect(login));
+      applySecurityHeaders(res, { document: true });
+      return res;
+    }
+    if (!token.eidataConsentCompleted) {
+      const consent = new URL("/consent", req.url);
+      const res = applyTenantContext(req, NextResponse.redirect(consent));
+      applySecurityHeaders(res, { document: true });
+      return res;
+    }
+  }
+
+  if (pathname === "/consent") {
+    const token = await getToken({ req, secret: middlewareSecret });
+    if (!token) {
+      const login = new URL("/login", req.url);
+      const res = applyTenantContext(req, NextResponse.redirect(login));
+      applySecurityHeaders(res, { document: true });
+      return res;
+    }
+  }
+
+  if (pathname === "/debiopwr" || pathname.startsWith("/debiopwr/")) {
+    const token = await getToken({ req, secret: middlewareSecret });
+    if (!token) {
+      const login = new URL("/login", req.url);
+      const res = applyTenantContext(req, NextResponse.redirect(login));
+      applySecurityHeaders(res, { document: true });
+      return res;
+    }
+  }
+
+  const res = nextWithTenant(req);
+  applySecurityHeaders(res, { document: true });
+  return withCorsForWidgetApis(req, res);
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|css|js|map)$).*)",
   ],
-  callbacks: {
-    async signIn({ user, account }) {
-      if (account?.provider === "google" && user.email) {
-        try {
-          await ensureGoogleUser(user.email, user.name);
-        } catch (err) {
-          console.error("[auth] google signIn provisioning failed (login still allowed)", err);
-        }
-      }
-      return true;
-    },
-    async jwt({ token, user, account }) {
-      if (user?.id && account?.provider === "credentials") {
-        token.id = user.id;
-      }
-
-      const email = (user?.email || token.email || "").toString().toLowerCase();
-
-      const adminList = (process.env.BUDDY_ADMIN_EMAILS || "")
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean);
-      token.isAdmin = Boolean(email && adminList.length > 0 && adminList.includes(email));
-
-      const needsDbLookup = Boolean(user) || !token.id;
-      if (!needsDbLookup || !email) return token;
-
-      let dbUser = await findUserForAuthByEmail(email);
-
-      if (!dbUser && account?.provider === "google") {
-        try {
-          const created = await ensureGoogleUser(email, user?.name);
-          dbUser = await findUserForAuthById(created.id);
-        } catch (err) {
-          console.error("[auth] jwt google provisioning", err);
-        }
-      }
-
-      if (dbUser) {
-        if (!dbUser.onboardingCompleted && dbUser._count.licenses > 0) {
-          await prisma.user.update({
-            where: { id: dbUser.id },
-            data: { onboardingCompleted: true },
-            select: { id: true },
-          });
-          dbUser.onboardingCompleted = true;
-        }
-        if (dbUser._count.licenses === 0) {
-          await ensureFreeLicenseForUser(dbUser.id);
-        }
-        await ensureDefaultConsents(dbUser.id);
-        token.id = dbUser.id;
-        token.onboardingCompleted = dbUser.onboardingCompleted;
-        token.eidataConsentCompleted = Boolean(dbUser.eidataConsentCompleted ?? true);
-        token.companionName = dbUser.companionName || "";
-        token.personality = dbUser.personality || "";
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        const email = (session.user.email || token.email || "").toString().toLowerCase();
-        let userId = typeof token.id === "string" ? token.id : "";
-        if (!userId && email) {
-          try {
-            const dbUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-            if (dbUser) userId = dbUser.id;
-          } catch (err) {
-            console.error("[auth] session resolve user id", err);
-          }
-        }
-        session.user.id = userId;
-        (session.user as { onboardingCompleted?: boolean }).onboardingCompleted = Boolean(token.onboardingCompleted);
-        (session.user as { companionName?: string }).companionName = String(token.companionName || "");
-        (session.user as { personality?: string }).personality = String(token.personality || "");
-        (session.user as { isAdmin?: boolean }).isAdmin = Boolean(token.isAdmin);
-        (session.user as { eidataConsentCompleted?: boolean }).eidataConsentCompleted = Boolean(
-          token.eidataConsentCompleted,
-        );
-      }
-      return session;
-    },
-    async redirect({ url }) {
-      const siteUrl = getCanonicalSiteUrl();
-      // Allow explicit dashboard callbacks; force everything else to /dashboard
-      if (url.startsWith("/dashboard")) return `${siteUrl}${url}`;
-      try {
-        const target = new URL(url);
-        const allowed = new URL(siteUrl);
-        if (target.origin === allowed.origin && target.pathname.startsWith("/dashboard")) {
-          return url;
-        }
-      } catch {
-        /* ignore malformed url */
-      }
-      return resolvePostAuthCallbackUrl("/dashboard");
-    },
-  },
-  pages: {
-    signIn: "/login",
-  },
-  secret: authSecret,
-  debug: process.env.NODE_ENV === "development",
 };

@@ -54,6 +54,8 @@ function PricingContent() {
           return;
         }
         window.location.href = data.url;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Network error. Please try again.");
       } finally {
         setLoadingKey(null);
       }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { assertLicenseDomain } from "@/lib/license-domain";
+import { assertLicenseDomain, isBindableHostname } from "@/lib/license-domain";
 import { tierFromMetadata } from "@/lib/lemon-webhook-utils";
 import { widgetMoodPostSchema } from "@/lib/validation";
 import { looksLikePromptInjection, scrubPromptInjection } from "@/src/intelligence/safety/prompt-injection";
@@ -22,6 +22,15 @@ describe("security: license domain binding", () => {
     const r = assertLicenseDomain("app.example.com", "evil.com");
     assert.equal(r.ok, false);
     if (!r.ok) assert.equal(r.reason, "domain_mismatch");
+  });
+
+  it("accepts only bindable hostnames for first-use domain bind", () => {
+    assert.equal(isBindableHostname("app.example.com"), true);
+    assert.equal(isBindableHostname("localhost"), true);
+    assert.equal(isBindableHostname("null"), false);
+    assert.equal(isBindableHostname("about:blank"), false);
+    assert.equal(isBindableHostname(""), false);
+    assert.equal(isBindableHostname("not a host"), false);
   });
 });
 

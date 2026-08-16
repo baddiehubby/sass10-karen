@@ -1,6 +1,9 @@
 /**
  * Exchange a license key (or session ownership) for a short-lived scoped widget credential.
  * Never returns the raw license key. Tokens expire; rotating the license key invalidates kfp.
+ *
+ * Unbound keys: first successful key exchange with a bindable Origin/Referer host persists
+ * `license.domain` (bind-on-first-use). Subsequent key exchanges require that domain.
  */
 
 import { getServerSession } from "next-auth";
@@ -10,7 +13,11 @@ import { z } from "zod";
 import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
 import { isLicenseActive } from "@/lib/free-license";
-import { assertLicenseDomainFromRequest } from "@/lib/license-domain";
+import {
+  assertLicenseDomain,
+  assertLicenseDomainFromRequest,
+  isBindableHostname,
+} from "@/lib/license-domain";
 import { prisma } from "@/lib/prisma";
 import {
   WIDGET_CREDENTIAL_TTL_SEC,
@@ -99,9 +106,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: corsHeaders() });
     }
     const domainCheck = assertLicenseDomainFromRequest(license.domain, req);
-    // Unbound keys may still exchange (bootstrap), but resulting token is short-lived.
-    if (license.domain && !domainCheck.ok) {
-      return NextResponse.json({ error: "Domain not allowed" }, { status: 403, headers: corsHeaders() });
+    if (license.domain) {
+      if (!domainCheck.ok) {
+        return NextResponse.json({ error: "Domain not allowed" }, { status: 403, headers: corsHeaders() });
+      }
+    } else {
+      // Bind-on-first-use: require a real browser Origin/Referer host before minting.
+      if (!domainCheck.ok || !isBindableHostname(domainCheck.presented)) {
+        return NextResponse.json(
+          { error: "Domain required", reason: "bind_origin_required" },
+          { status: 403, headers: corsHeaders() },
+        );
+      }
+      const boundHost = domainCheck.presented.trim().toLowerCase();
+      const bound = await prisma.license.updateMany({
+        where: { id: license.id, domain: null },
+        data: { domain: boundHost },
+      });
+      if (bound.count === 0) {
+        // Race: another request bound first — re-check.
+        const refreshed = await prisma.license.findUnique({
+          where: { id: license.id },
+          select: { domain: true },
+        });
+        const recheck = assertLicenseDomain(refreshed?.domain, boundHost);
+        if (!recheck.ok) {
+          return NextResponse.json({ error: "Domain not allowed" }, { status: 403, headers: corsHeaders() });
+        }
+      }
     }
   }
 

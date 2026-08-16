@@ -86,6 +86,8 @@ const PUBLIC_API_PREFIXES = [
   "/api/auth",
   "/api/licenses/verify",
   "/api/licenses/theme",
+  // Short-lived widget JWT exchange (license key or owner session enforced in-route).
+  "/api/licenses/widget-credential",
   "/api/widget/mood",
   "/api/analytics/event",
   "/api/analytics/anonymized-event",
@@ -138,6 +140,7 @@ function withCorsForWidgetApis(req: NextRequest, res: NextResponse) {
     p.startsWith("/api/eidata/anonymized-event") ||
     p.startsWith("/api/consent/status") ||
     p.startsWith("/api/licenses/verify") ||
+    p.startsWith("/api/licenses/widget-credential") ||
     p.startsWith("/api/security/tamper-attempt") ||
     p.startsWith("/api/extensions/stats")
   ) {
@@ -171,6 +174,7 @@ export async function middleware(req: NextRequest) {
       if (pathname.startsWith("/api/auth/")) max = 8;
       if (pathname.includes("/register") || pathname.includes("/callback/credentials")) max = 5;
       if (pathname.startsWith("/api/widget/mood")) max = 30;
+      if (pathname.startsWith("/api/licenses/widget-credential")) max = 20;
       if (pathname.startsWith("/api/auth/register") || pathname.startsWith("/api/auth/login")) max = 5;
 
       if (!allowRate(rateKey, max, WINDOW_MS)) {

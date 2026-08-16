@@ -4,8 +4,10 @@ import {
   anonymizedSessionTokenFromLicense,
   broadRegionFromRequest,
   ingestAnonymizedMoodEvent,
+  resolveLicenseForWidgetAuth,
   sourceFromDomain,
 } from "@/lib/anonymized-mood-ingest";
+import { isLicenseActive } from "@/lib/free-license";
 import { awardBadgeByName } from "@/lib/badges";
 import { canIngestAnonymizedEvent, widgetOptInFromRequest } from "@/lib/eidata-ingest-policy";
 import { hasConsent } from "@/lib/consent-service";
@@ -51,25 +53,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Rate limited" }, { status: 429, headers: corsHeaders() });
   }
 
-  const directLicense =
-    licenseKey && licenseKey.trim()
-      ? await prisma.license.findUnique({ where: { key: licenseKey } })
-      : null;
+  const resolvedLicense = await resolveLicenseForWidgetAuth({ licenseKey, sessionToken });
 
-  let resolvedLicense = directLicense;
-  if (!resolvedLicense && sessionToken) {
-    const activeLicenses = await prisma.license.findMany({
-      where: { expiresAt: { gt: new Date() } },
-      select: { id: true, key: true, userId: true, expiresAt: true },
-    });
-    const match =
-      activeLicenses.find((l) => anonymizedSessionTokenFromLicense(l.key) === sessionToken) || null;
-    if (match) {
-      resolvedLicense = await prisma.license.findUnique({ where: { id: match.id } });
-    }
-  }
-
-  if (!resolvedLicense || resolvedLicense.expiresAt.getTime() < Date.now()) {
+  if (
+    !resolvedLicense ||
+    resolvedLicense.expiresAt.getTime() < Date.now() ||
+    !isLicenseActive(resolvedLicense)
+  ) {
     return NextResponse.json({ error: "Invalid license" }, { status: 403, headers: corsHeaders() });
   }
 

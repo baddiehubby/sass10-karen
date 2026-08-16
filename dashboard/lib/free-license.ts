@@ -47,15 +47,25 @@ export async function ensureSacredDayLicenseForUser(userId: string): Promise<voi
   });
   if (existing) return;
 
+  const key = generateLicenseKey();
+  let widgetSessionToken: string | undefined;
+  try {
+    const { anonymizedSessionTokenFromLicense } = await import("@/lib/anonymized-mood-ingest");
+    widgetSessionToken = anonymizedSessionTokenFromLicense(key);
+  } catch {
+    widgetSessionToken = undefined;
+  }
+
   await prisma.license.create({
     data: {
-      key: generateLicenseKey(),
+      key,
       userId,
       plan: "free",
       features: JSON.stringify(FREE_LICENSE_FEATURES),
       expiresAt: FREE_PERPETUAL_EXPIRY,
       activatedAt: new Date(),
       lemonSqueezySubscriptionStatus: "free",
+      ...(widgetSessionToken ? { widgetSessionToken } : {}),
     },
   });
 }

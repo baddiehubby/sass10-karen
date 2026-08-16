@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { parseJsonBody, parseQuery } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
-import { assertLicenseDomain } from "@/lib/license-domain";
+import { assertLicenseDomainFromRequest } from "@/lib/license-domain";
 import { prisma } from "@/lib/prisma";
 import { getPresetCss, mergePresetWithHex } from "@/lib/theme-presets";
 import { getAppBaseUrl } from "@/lib/site-url";
@@ -40,11 +40,15 @@ type LoadLicenseResult =
   | { ok: true; license: License }
   | { ok: false; reason: "not_found" | "expired" | "domain" };
 
-async function loadLicense(key: string, domain: string): Promise<LoadLicenseResult> {
+async function loadLicense(
+  key: string,
+  domain: string,
+  req: Request,
+): Promise<LoadLicenseResult> {
   const license = await prisma.license.findUnique({ where: { key } });
   if (!license) return { ok: false, reason: "not_found" };
   if (license.expiresAt.getTime() < Date.now()) return { ok: false, reason: "expired" };
-  const domainCheck = assertLicenseDomain(license.domain, domain);
+  const domainCheck = assertLicenseDomainFromRequest(license.domain, req, domain);
   if (!domainCheck.ok) return { ok: false, reason: "domain" };
   return { ok: true, license };
 }
@@ -55,7 +59,7 @@ export async function GET(req: Request) {
   if (!parsed.ok) return parsed.response;
   const { key, domain } = parsed.data;
 
-  const result = await loadLicense(key, domain);
+  const result = await loadLicense(key, domain, req);
   if (!result.ok) {
     const status = result.reason === "not_found" ? 404 : 403;
     return NextResponse.json({ ok: false, reason: result.reason }, { status, headers: corsHeaders() });

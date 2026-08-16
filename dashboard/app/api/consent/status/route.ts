@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { anonymizedSessionTokenFromLicense } from "@/lib/anonymized-mood-ingest";
+import { resolveLicenseForWidgetAuth } from "@/lib/anonymized-mood-ingest";
 import { hasConsent } from "@/lib/consent-service";
-import { prisma } from "@/lib/prisma";
+import { isLicenseActive } from "@/lib/free-license";
 
 export const dynamic = "force-dynamic";
 
@@ -10,22 +10,9 @@ export async function GET(req: NextRequest) {
   const sessionToken = req.nextUrl.searchParams.get("sessionToken")?.trim() || "";
   const licenseKey = req.nextUrl.searchParams.get("licenseKey")?.trim() || "";
 
-  let userId: string | null = null;
-
-  if (licenseKey) {
-    const license = await prisma.license.findUnique({
-      where: { key: licenseKey },
-      select: { userId: true, expiresAt: true },
-    });
-    if (license && license.expiresAt.getTime() > Date.now()) userId = license.userId;
-  } else if (sessionToken) {
-    const licenses = await prisma.license.findMany({
-      where: { expiresAt: { gt: new Date() } },
-      select: { key: true, userId: true },
-    });
-    const match = licenses.find((l) => anonymizedSessionTokenFromLicense(l.key) === sessionToken);
-    if (match) userId = match.userId;
-  }
+  const license = await resolveLicenseForWidgetAuth({ licenseKey, sessionToken });
+  const userId =
+    license && isLicenseActive(license) ? license.userId : null;
 
   if (!userId) {
     return NextResponse.json({

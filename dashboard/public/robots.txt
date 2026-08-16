@@ -1,9 +1,16 @@
 # *
 User-agent: *
 Allow: /
+Disallow: /dashboard
+Disallow: /consent
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+Disallow: /api
+Disallow: /debiopwr
 
 # Host
-Host: https://buddieai.com
+Host: https://www.buddieai.com
 
 # Sitemaps
-Sitemap: https://buddieai.com/sitemap.xml
+Sitemap: https://www.buddieai.com/sitemap.xml

@@ -90,12 +90,14 @@ export function planByVariantId(variantId: string): LemonWebhookPlan | "free" {
 
   const starter = process.env.LEMONSQUEEZY_STARTER_VARIANT_ID?.trim();
   const pro = process.env.LEMONSQUEEZY_PRO_VARIANT_ID?.trim();
+  const proTrial = process.env.LEMONSQUEEZY_PRO_TRIAL_VARIANT_ID?.trim();
   const premium = process.env.LEMONSQUEEZY_PREMIUM_VARIANT_ID?.trim();
   const agency = process.env.LEMONSQUEEZY_AGENCY_VARIANT_ID?.trim();
   const enterprise = process.env.LEMONSQUEEZY_ENTERPRISE_VARIANT_ID?.trim();
 
   if (starter && id === starter) return "starter";
   if (pro && id === pro) return "pro";
+  if (proTrial && id === proTrial) return "pro";
   if (premium && id === premium) return "premium";
   if (agency && id === agency) return "agency";
   if (enterprise && id === enterprise) return "enterprise";

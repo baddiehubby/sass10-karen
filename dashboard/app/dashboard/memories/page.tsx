@@ -2,8 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { BuddieRoom } from "@/components/buddie-room";
 import { authOptions } from "@/lib/auth";
-import { entitlementsFromLicenses } from "@/lib/buddy-entitlements";
-import { ensureFreeLicenseForUser, isLicenseActive } from "@/lib/free-license";
+import { getUserEntitlement } from "@/lib/billing/entitlement";
+import { ensureFreeLicenseForUser } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +13,8 @@ export default async function MemoriesPage() {
   if (!session?.user?.id) redirect("/login");
   await ensureFreeLicenseForUser(session.user.id);
 
-  const licenses = await prisma.license.findMany({ where: { userId: session.user.id } });
-  const ents = entitlementsFromLicenses(licenses, isLicenseActive);
+  const entitlement = await getUserEntitlement(session.user.id);
+  const ents = entitlement.entitlements;
 
   const fragments = await prisma.memoryFragment.findMany({
     where: { userId: session.user.id, hidden: false },

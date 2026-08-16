@@ -5,6 +5,9 @@ import { ensureFreeLicenseForUser } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
 import { registerBodySchema } from "@/lib/validation";
 
+/** Constant-time-ish dummy hash so missing users still burn bcrypt work. */
+const DUMMY_HASH = bcrypt.hashSync("buddie-register-timing-pad", 10);
+
 export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, registerBodySchema);
   if (!parsed.ok) return parsed.response;
@@ -14,9 +17,11 @@ export async function POST(req: Request) {
   try {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
+      await bcrypt.compare(password, DUMMY_HASH);
+      // Do not reveal whether the email is registered
       return NextResponse.json(
-        { error: "An account with this email already exists. Try signing in instead." },
-        { status: 409 },
+        { error: "Unable to create account with that email. Try signing in, or use a different email." },
+        { status: 400 },
       );
     }
 
@@ -36,11 +41,12 @@ export async function POST(req: Request) {
 
     await ensureFreeLicenseForUser(user.id);
 
-    return NextResponse.json({ userId: user.id, user });
+    // Do not return internal userId to anonymous clients more than needed
+    return NextResponse.json({ ok: true, email: user.email });
   } catch (err) {
-    console.error("[register]", err);
+    console.error("[register] failed");
     return NextResponse.json(
-      { error: "Could not create your account. Check your database connection and try again." },
+      { error: "Could not create your account. Please try again." },
       { status: 500 },
     );
   }

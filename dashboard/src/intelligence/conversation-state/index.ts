@@ -49,7 +49,20 @@ export function isConversationalRepair(userText: string, lastBuddy: string): boo
   const t = userText.toLowerCase();
   if (/^(no|nope|not what i meant|i meant|actually|wait)/i.test(t)) return true;
   if (lastBuddy && /that'?s not|wrong|misunderstood/i.test(t)) return true;
+  if (isMemoryForgetRequest(t)) return true;
   return false;
+}
+
+/** User asks to drop or correct a stored memory — never invent replacements. */
+export function isMemoryForgetRequest(userText: string): boolean {
+  const t = userText.toLowerCase();
+  return (
+    /forget (that|what i said|about that|it)/i.test(t) ||
+    /delete (that )?memor/i.test(t) ||
+    /i never said/i.test(t) ||
+    /that'?s not true/i.test(t) ||
+    /don'?t remember that/i.test(t)
+  );
 }
 
 export function isRepeatQuestion(userText: string, turns: ConversationTurn[]): boolean {

@@ -20,10 +20,11 @@ async function softUnlockAfterCheckout(tier: string | null): Promise<"unlocked" 
         continue;
       }
       const data = (await res.json()) as {
+        hasPaidAccess?: boolean;
         entitlements?: { requiresSubscription?: boolean };
         subscriptionLabel?: string;
       };
-      if (data.entitlements && data.entitlements.requiresSubscription === false) {
+      if (data.hasPaidAccess === true || data.entitlements?.requiresSubscription === false) {
         return "unlocked";
       }
     } catch {

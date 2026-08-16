@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { BuddieHome } from "@/components/buddie-home";
-import { getServerBillingSnapshot } from "@/lib/billing/entitlement";
+import { getUserEntitlement } from "@/lib/billing/entitlement";
 import { daysSince } from "@/lib/dashboard-format";
 import { ensureFreeLicenseForUser, isLicenseActive, isPaidPlan } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
@@ -49,13 +49,13 @@ export default async function DashboardPage() {
   });
   const licenseIds = licenses.map((l) => l.id);
 
-  const billing = await getServerBillingSnapshot(userId);
+  const entitlement = await getUserEntitlement(userId);
   const activePaidLicense = licenses.find((l) => isPaidPlan(l.plan) && isLicenseActive(l)) || null;
   const freeLicense = licenses.find((l) => l.plan === "free" && isLicenseActive(l)) || null;
   const orbLicense = activePaidLicense ?? freeLicense;
-  const isSacredDay = billing.entitlements.requiresSubscription;
-  const subscriptionLabel = billing.subscriptionLabel;
-  const portalUrl = billing.portalUrl ?? activePaidLicense?.lemonSqueezyCustomerPortalUrl ?? null;
+  const isSacredDay = !entitlement.hasPaidAccess;
+  const subscriptionLabel = entitlement.subscriptionLabel;
+  const portalUrl = entitlement.portalUrl ?? activePaidLicense?.lemonSqueezyCustomerPortalUrl ?? null;
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);

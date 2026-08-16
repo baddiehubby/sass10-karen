@@ -2,14 +2,13 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
+import { sanitizeWidgetCss } from "@/lib/license-domain";
 import { prisma } from "@/lib/prisma";
 import { widgetConfigPostSchema } from "@/lib/validation";
 
 function normalizeCss(input: string | undefined) {
-  if (!input) return null;
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  return trimmed.slice(0, 4000);
+  const cleaned = sanitizeWidgetCss(input);
+  return cleaned || null;
 }
 
 export async function POST(req: Request) {

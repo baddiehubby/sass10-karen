@@ -1,11 +1,21 @@
 /**
  * Procedural variation — strong anti-repetition across families and wording.
+ * Tracks response fingerprints so openings, questions, emotional phrases, and emoji patterns do not loop.
  */
+
+export type ResponseFingerprint = {
+  sentence: string;
+  opening: string;
+  emotionalPhrase: string;
+  emojiPattern: string;
+  question: string;
+};
 
 export type VariationState = {
   recentFamilies: string[];
   recentWording: string[];
   recentOpenings: string[];
+  recentFingerprints: ResponseFingerprint[];
   lastLength: number;
   lastTone: string;
 };
@@ -15,9 +25,51 @@ export function createVariationState(partial?: Partial<VariationState>): Variati
     recentFamilies: partial?.recentFamilies ?? [],
     recentWording: (partial?.recentWording ?? []).map(normalizeWording),
     recentOpenings: partial?.recentOpenings ?? [],
+    recentFingerprints: partial?.recentFingerprints ?? [],
     lastLength: partial?.lastLength ?? 0,
     lastTone: partial?.lastTone ?? "warm",
   };
+}
+
+/** Stable fingerprints for anti-repetition checks. */
+export function responseFingerprint(text: string): ResponseFingerprint {
+  const norm = normalizeWording(text);
+  const opening = norm.split(" ").slice(0, 4).join(" ");
+  const questionMatch = text.match(/[^.!?]*\?/g);
+  const question = questionMatch
+    ? normalizeWording(questionMatch[questionMatch.length - 1] ?? "")
+    : "";
+  const emo =
+    norm.match(
+      /\b(lonely|sad|heavy|soft|gentle|spark|glow|quiet|warm|brave|hurt|calm|curious|playful)\b/,
+    )?.[1] ?? "";
+  const emojiPattern = (text.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []).join("") || "none";
+  return {
+    sentence: norm.slice(0, 80),
+    opening,
+    emotionalPhrase: emo,
+    emojiPattern,
+    question,
+  };
+}
+
+export function fingerprintCollision(candidate: string, recent: string[]): boolean {
+  const fp = responseFingerprint(candidate);
+  const recentFps = recent.slice(-8).map(responseFingerprint);
+  for (const r of recentFps) {
+    if (fp.sentence && fp.sentence === r.sentence) return true;
+    if (fp.opening && fp.opening === r.opening && fp.opening.split(" ").length >= 3) return true;
+    if (fp.question && fp.question === r.question && fp.question.length > 8) return true;
+    if (
+      fp.emojiPattern !== "none" &&
+      fp.emojiPattern === r.emojiPattern &&
+      fp.emotionalPhrase &&
+      fp.emotionalPhrase === r.emotionalPhrase
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function pickVariant<T>(
@@ -70,6 +122,7 @@ export function wordingSimilarity(a: string, b: string): number {
 }
 
 export function isTooSimilar(candidate: string, recent: string[], threshold = 0.52): boolean {
+  if (fingerprintCollision(candidate, recent)) return true;
   const norm = normalizeWording(candidate);
   for (const r of recent.slice(-10)) {
     if (normalizeWording(r) === norm) return true;
@@ -81,7 +134,7 @@ export function isTooSimilar(candidate: string, recent: string[], threshold = 0.
 export function avoidRepeatText(candidate: string, recent: string[], seed = "mut"): string {
   let text = candidate;
   let guard = 0;
-  while (isTooSimilar(text, recent) && guard < 6) {
+  while ((isTooSimilar(text, recent) || fingerprintCollision(text, recent)) && guard < 8) {
     text = mutateWording(text, `${seed}:${guard}`);
     guard += 1;
   }
@@ -115,6 +168,7 @@ export function recordVariation(
     recentFamilies: [...state.recentFamilies, familyId].slice(-12),
     recentWording: [...state.recentWording, normalizeWording(text)].slice(-12),
     recentOpenings: [...state.recentOpenings, opening].slice(-12),
+    recentFingerprints: [...state.recentFingerprints, responseFingerprint(text)].slice(-12),
     lastLength: text.length,
     lastTone: tone,
   };

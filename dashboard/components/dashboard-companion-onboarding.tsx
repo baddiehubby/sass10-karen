@@ -132,21 +132,27 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
             Your {brand.shortName} will appear on ChatGPT, Claude, Gemini, and any AI chat - automatically.
           </p>
           <p className="mt-3 text-center text-xs leading-relaxed text-white/45">
-            Chrome extension:{" "}
-            <a
-              href={BROWSER_EXTENSION_ZIP_URL}
-              className="text-violet-300/90 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
-              download
-            >
-              download the .zip
-            </a>
-            , unzip, then in{" "}
-            <code className="rounded bg-white/10 px-1 py-0.5 text-[10px]">chrome://extensions</code> enable
-            Developer mode → Load unpacked. Or use Download for Chrome below.
+            Prefer a browser companion? Use Download for Chrome above.
           </p>
+          <details className="mx-auto mt-2 max-w-md text-left text-xs text-white/40">
+            <summary className="cursor-pointer text-center text-white/50 hover:text-white/70">
+              Advanced install
+            </summary>
+            <p className="mt-2 leading-relaxed">
+              Or{" "}
+              <a
+                href={BROWSER_EXTENSION_ZIP_URL}
+                className="text-[#e8c4a0]/90 underline underline-offset-2"
+                download
+              >
+                download the package
+              </a>
+              , unzip, then load it as an unpacked extension in your browser&apos;s extension settings.
+            </p>
+          </details>
           {iosHelp ? (
-            <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-100/80">
-              <p className="font-medium text-emerald-100">iPhone / iPad</p>
+            <div className="mt-3 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-xs text-white/75">
+              <p className="font-medium text-white/90">Add to Home Screen</p>
               <p className="mt-1">Tap Share → Add to Home Screen.</p>
             </div>
           ) : null}

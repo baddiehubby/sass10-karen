@@ -2,7 +2,7 @@
 
 /**
  * Premium consumer onboarding — companion, not developer setup.
- * Orb → introduction → name/vibe → first interaction. No API keys / models.
+ * Orb first; intelligence warms in the background. Never show plumbing.
  */
 
 import { useRouter } from "next/navigation";
@@ -19,10 +19,12 @@ import { recordBuddyCheckIn } from "@/lib/buddy-universe";
 type Step = "orb" | "intro" | "prefs" | "touch";
 
 const INTRO_LINES = [
-  "I'm Buddie — a companion who stays with your mood, not a tool you configure.",
-  "No keys. No models. No setup maze.",
+  "I'm Buddie — a companion who stays with your mood.",
+  "I'm here for how you feel — nothing to set up.",
   "Just presence.",
 ];
+
+const SAVE_SOFT_ERROR = "Couldn't save that — try again in a moment.";
 
 export function BuddieOnboardingExperience({
   defaultName = "Buddie",
@@ -77,13 +79,14 @@ export function BuddieOnboardingExperience({
           body: JSON.stringify({ companionName, personality: vibe }),
         });
         if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error || "Could not save preferences");
+          // Never surface server/API wording to the user
+          setError(SAVE_SOFT_ERROR);
+          return;
         }
         router.replace("/dashboard");
         router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Something went wrong");
+      } catch {
+        setError(SAVE_SOFT_ERROR);
       }
     });
   }
@@ -186,7 +189,7 @@ export function BuddieOnboardingExperience({
           >
             {pending ? "Opening home…" : "Skip touch · enter home"}
           </button>
-          {error ? <p className="text-sm text-rose-300/90">{error}</p> : null}
+          {error ? <p className="text-sm text-[#e8c4a0]/90">{error}</p> : null}
         </div>
       ) : null}
     </div>

@@ -56,9 +56,27 @@ secrets/
 /public/widget/livingface-widget.js
 dashboard/public/widget/livingface-widget.js
 
-# prisma local database (never commit)
+# prisma local database (never commit — may contain user PII)
 /prisma/dev.db
 /prisma/dev.db-journal
+/prisma/**/*.db
+/prisma/**/*.db-journal
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# OS / IDE / temp
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*~
+tmp/
+temp/
+*.tmp
+*.log
+logs/
 
 # uploaded license orb assets (keep folder via .gitkeep)
 /public/license-themes/*

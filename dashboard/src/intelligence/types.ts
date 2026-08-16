@@ -16,7 +16,9 @@ export type BuddyEmotion =
   | "grateful"
   | "lonely"
   | "playful"
-  | "exhausted";
+  | "exhausted"
+  | "calm"
+  | "curious";
 
 export type BuddyIntent =
   | "greeting"
@@ -54,7 +56,13 @@ export type BuddyIntent =
   | "correction"
   | "smalltalk"
   | "orb_touch"
-  | "support_other";
+  | "support_other"
+  | "calm"
+  | "playfulness"
+  | "curiosity"
+  | "small_win"
+  | "setback"
+  | "returning";
 
 export type BuddyTopic =
   | "none"
@@ -89,11 +97,22 @@ export type MemorySnippet = {
 };
 
 /** Structured memory candidate — never persist ambiguous guesses. */
+export type MemoryCategory =
+  | "relationship"
+  | "work"
+  | "self"
+  | "goal"
+  | "place"
+  | "study"
+  | "other";
+
 export type MemoryCandidate = {
+  category: MemoryCategory;
   subject: string;
   relationship: string | null;
   topic: string;
   fact: string;
+  relevance: number;
   confidence: number;
   source: "user_statement";
   createdAt: string;
@@ -190,6 +209,8 @@ export type RoutedContext = {
   engagementState: EngagementState;
   /** Only true when citing a real persisted memory. */
   mayCiteMemory: boolean;
+  /** Fired router signal ids (debug / quality). */
+  signals: string[];
 };
 
 export type ComposedReply = {

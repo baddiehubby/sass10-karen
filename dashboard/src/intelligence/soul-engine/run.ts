@@ -112,6 +112,7 @@ export function runSoulEngine(input: IntelligenceInput): IntelligenceResult {
     entity: hit.entity,
     engagementState: input.previousMachine?.engagementState ?? "opening",
     mayCiteMemory,
+    signals: hit.signals,
   };
 
   // Derive engagement before compose for follow-up gating

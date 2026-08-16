@@ -2,6 +2,7 @@ import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getTenant, TENANT_COOKIE, TENANT_HEADER } from "@/lib/tenant";
+import { getTrustedClientIp } from "@/lib/client-ip";
 
 const middlewareSecret = process.env.NEXTAUTH_SECRET;
 
@@ -31,9 +32,7 @@ function allowRate(key: string, max: number, windowMs: number): boolean {
 }
 
 function clientIp(req: NextRequest): string {
-  const xf = req.headers.get("x-forwarded-for");
-  if (xf) return xf.split(",")[0]?.trim() || "unknown";
-  return req.headers.get("x-real-ip")?.trim() || req.ip || "unknown";
+  return getTrustedClientIp(req);
 }
 
 function applySecurityHeaders(res: NextResponse, opts?: { document?: boolean }) {
@@ -122,23 +121,25 @@ export async function middleware(req: NextRequest) {
   const ip = clientIp(req);
 
   if (pathname.startsWith("/api/")) {
-    const rateKey = pathname.startsWith("/api/auth/")
-      ? `auth:${ip}:${pathname}`
-      : pathname.startsWith("/api/lemonsqueezy/webhook")
-        ? `lemon-wh:${ip}`
+    // Lemon webhooks: do not IP-rate-limit before signature verify (retries must land).
+    const isLemonWebhook = pathname.startsWith("/api/lemonsqueezy/webhook");
+
+    if (!isLemonWebhook) {
+      const rateKey = pathname.startsWith("/api/auth/")
+        ? `auth:${ip}:${pathname}`
         : `api:${ip}:${pathname}`;
 
-    let max = 60;
-    if (pathname.startsWith("/api/auth/")) max = 8;
-    if (pathname.includes("/register") || pathname.includes("/callback/credentials")) max = 5;
-    if (pathname.startsWith("/api/lemonsqueezy/webhook")) max = 40;
-    if (pathname.startsWith("/api/widget/mood")) max = 30;
-    if (pathname.startsWith("/api/auth/register") || pathname.startsWith("/api/auth/login")) max = 5;
+      let max = 60;
+      if (pathname.startsWith("/api/auth/")) max = 8;
+      if (pathname.includes("/register") || pathname.includes("/callback/credentials")) max = 5;
+      if (pathname.startsWith("/api/widget/mood")) max = 30;
+      if (pathname.startsWith("/api/auth/register") || pathname.startsWith("/api/auth/login")) max = 5;
 
-    if (!allowRate(rateKey, max, WINDOW_MS)) {
-      const res = NextResponse.json({ error: "Too many requests" }, { status: 429 });
-      applySecurityHeaders(res);
-      return withCorsForWidgetApis(req, applyTenantContext(req, res));
+      if (!allowRate(rateKey, max, WINDOW_MS)) {
+        const res = NextResponse.json({ error: "Too many requests" }, { status: 429 });
+        applySecurityHeaders(res);
+        return withCorsForWidgetApis(req, applyTenantContext(req, res));
+      }
     }
 
     if (!isPublicApi(pathname)) {

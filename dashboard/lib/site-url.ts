@@ -1,3 +1,5 @@
+import { isSafeRelativePath, safeAppPath } from "@/lib/safe-redirect";
+
 /** Canonical production origin — always www (Google OAuth redirect must match exactly). */
 export const PRODUCTION_SITE_URL = "https://www.buddieai.com";
 
@@ -91,14 +93,16 @@ export function resolvePostAuthCallbackUrl(relativeOrAbsolute: string | null | u
     try {
       const target = new URL(raw);
       const allowed = new URL(base);
-      if (target.origin === allowed.origin) return raw;
+      if (target.origin === allowed.origin && isSafeRelativePath(target.pathname + target.search + target.hash)) {
+        return `${allowed.origin}${target.pathname}${target.search}${target.hash}`;
+      }
     } catch {
       /* invalid URL */
     }
     return fallback;
   }
 
-  const path = raw.startsWith("/") ? raw : `/${raw}`;
+  const path = safeAppPath(raw, "/dashboard");
   return `${base}${path}`;
 }
 
@@ -107,8 +111,7 @@ export function resolvePostAuthCallbackUrl(relativeOrAbsolute: string | null | u
  * Production builds return an absolute canonical URL.
  */
 export function getClientSignInCallbackUrl(relativeFromQuery: string | null): string {
-  const path =
-    relativeFromQuery && relativeFromQuery.startsWith("/") ? relativeFromQuery : "/dashboard";
+  const path = safeAppPath(relativeFromQuery, "/dashboard");
 
   if (process.env.NODE_ENV !== "production") {
     return path;

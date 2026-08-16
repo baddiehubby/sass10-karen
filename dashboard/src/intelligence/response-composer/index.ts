@@ -207,6 +207,30 @@ const FAMILIES: Partial<Record<BuddyIntent, Family[]>> = {
     { familyId: "supp.family", cores: ["watching family go through something asks a lot of you.", "you can care without carrying every stone.", "what's the hardest part of supporting them?"] },
     { familyId: "supp.soft", cores: ["their chapter, your compassion — both real.", "curious what support looks like from your side.", "you're allowed to feel the splash from their waves."] },
   ],
+  calm: [
+    { familyId: "calm.still", cores: ["calm looks good on this hour.", "peace can be quiet company.", "we'll keep the volume low."] },
+    { familyId: "calm.soft", cores: ["stillness noted — no need to fill it.", "a soft landing suits you.", "breathe that ease a little longer."] },
+  ],
+  playfulness: [
+    { familyId: "play.spark", cores: ["okay, mischief mode available.", "the orb does a tiny cartwheel.", "silly is a valid language here."] },
+    { familyId: "play.soft", cores: ["play accepted — no scoreboard.", "toss me a goofy thread.", "laughter optional, welcome either way."] },
+  ],
+  curiosity: [
+    { familyId: "cur.door", cores: ["curiosity opens doors — which one?", "wondering is already a kind of courage.", "ask it crooked; we'll straighten gently."] },
+    { familyId: "cur.soft", cores: ["good questions don't need perfect answers.", "I'm curious with you.", "what itch is the wonder scratching?"] },
+  ],
+  small_win: [
+    { familyId: "win.mark", cores: ["small win, real win — mark it.", "that inch matters more than it looks.", "don't shrink the progress."] },
+    { familyId: "win.glow", cores: ["quiet confetti for that.", "progress wearing slippers still moves.", "keep a souvenir of this feeling."] },
+  ],
+  setback: [
+    { familyId: "set.hold", cores: ["a setback isn't a verdict.", "falling short still means you showed up.", "we can sit with the sting without rewriting you."] },
+    { familyId: "set.soft", cores: ["failed tries teach ugly, useful lessons.", "rejection hurts — and you're still here.", "one chapter flopped; the book isn't over."] },
+  ],
+  returning: [
+    { familyId: "ret.warm", cores: ["welcome back to the quiet corner.", "missed the shape of your words.", "glad you found the door again."] },
+    { familyId: "ret.soft", cores: ["returning counts as courage too.", "no quiz on where you've been.", "hi again — same soft light."] },
+  ],
 };
 
 const BANNED_CLICHES = [
@@ -222,6 +246,12 @@ export function composeResponse(ctx: RoutedContext, device?: DeviceCapabilities)
   let preferred = familyIds;
   if (ctx.intent === "support_other" && ctx.entity.subject === "sister") {
     preferred = ["supp.sister", ...familyIds.filter((id) => id !== "supp.sister")];
+  }
+  if (ctx.intent === "returning") {
+    preferred = ["ret.warm", ...familyIds.filter((id) => id !== "ret.warm")];
+  }
+  if (ctx.intent === "greeting" && ctx.depth >= 2) {
+    preferred = ["greet.warm", ...familyIds.filter((id) => id !== "greet.warm")];
   }
 
   let familyId = chooseFamily(preferred, ctx.recentFamilies, `${ctx.seed}:fam:${ctx.depth}`, 5);
@@ -266,9 +296,31 @@ function assemble(ctx: RoutedContext, family: Family, short: boolean, salt = 0):
   const seed = `${ctx.seed}:${family.familyId}:${ctx.depth}:${salt}:${ctx.novelty.toFixed(2)}`;
   const parts: string[] = [];
 
+  // Low confidence: stay coherent without pretending certainty
+  if (ctx.confidence < 0.5 && !short) {
+    const hedges = [
+      "I might be reading that sideways —",
+      "Not fully sure I caught it,",
+      "If I'm off, nudge me —",
+    ];
+    parts.push(hedges[hash(seed + "hedge") % hedges.length]!);
+  }
+
+  if (ctx.subtopic === "mood_shift" && !short) {
+    parts.push("Sounds like the weather shifted.");
+  }
+
   const useOpener = ctx.novelty > 0.45 && ctx.depth % 3 !== 0 && hash(seed + "op") % 3 === 0;
   if (useOpener && !short) {
-    const { item: opener } = pickVariant(OPENERS, seed + "opener", []);
+    const recentOpenings = ctx.responseHistory.map(openingFingerprint);
+    const avoidOpen = OPENERS.map((o, i) => ({ o, i })).filter(({ o }) =>
+      recentOpenings.includes(openingFingerprint(o)),
+    );
+    const { item: opener } = pickVariant(
+      OPENERS,
+      seed + "opener",
+      avoidOpen.map(({ i }) => i),
+    );
     parts.push(opener);
   }
 
@@ -307,8 +359,15 @@ function assemble(ctx: RoutedContext, family: Family, short: boolean, salt = 0):
     shouldFollow(ctx) &&
     hash(seed + "fu") % (ctx.novelty > 0.6 ? 2 : 3) === 0;
   if (useFollow) {
-    const { item: f } = pickVariant(FOLLOWUPS, seed + "f");
-    // Vary question placement: sometimes lead was opener, follow at end (default)
+    const recentQs = ctx.responseHistory.filter((h) => h.includes("?")).map(openingFingerprint);
+    const avoidFu = FOLLOWUPS.map((f, i) => ({ f, i })).filter(({ f }) =>
+      recentQs.includes(openingFingerprint(f)),
+    );
+    const { item: f } = pickVariant(
+      FOLLOWUPS,
+      seed + "f",
+      avoidFu.map(({ i }) => i),
+    );
     if (hash(seed + "place") % 5 === 0 && parts.length) {
       parts.unshift(f);
     } else {
@@ -346,6 +405,15 @@ function capitalizeJoin(s: string): string {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
+function openingFingerprint(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .split(/\s+/)
+    .slice(0, 4)
+    .join(" ");
+}
+
 function stripClichés(text: string): string {
   let out = text;
   for (const re of BANNED_CLICHES) {
@@ -360,11 +428,12 @@ function stripClichés(text: string): string {
 
 function orbFrom(ctx: RoutedContext): ComposedReply["orbCue"] {
   if (ctx.intent === "orb_touch") return "playful";
-  if (ctx.intent === "celebration" || ctx.emotion === "excited") return "excited";
+  if (ctx.intent === "celebration" || ctx.intent === "small_win" || ctx.emotion === "excited") return "excited";
   if (["heavy", "lonely", "low", "exhausted", "tired", "anxious"].includes(ctx.emotion)) return "comforting";
-  if (ctx.emotion === "playful") return "playful";
-  if (ctx.intent === "follow_up" || ctx.intent === "ask_opinion") return "curious";
-  if (ctx.intent === "silence") return "listening";
+  if (ctx.emotion === "playful" || ctx.intent === "playfulness") return "playful";
+  if (ctx.intent === "follow_up" || ctx.intent === "ask_opinion" || ctx.intent === "curiosity") return "curious";
+  if (ctx.intent === "silence" || ctx.intent === "calm") return "listening";
+  if (ctx.intent === "returning") return "responding";
   return "responding";
 }
 

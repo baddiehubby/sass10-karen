@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BuddieRoom } from "@/components/buddie-room";
 import { authOptions } from "@/lib/auth";
-import { getServerBillingSnapshot } from "@/lib/billing/entitlement";
+import { getUserEntitlement } from "@/lib/billing/entitlement";
 import { displayPlanName, ensureFreeLicenseForUser } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
 
@@ -18,11 +18,10 @@ export default async function AccountPage() {
     where: { id: session.user.id },
     select: { email: true, companionName: true, personality: true },
   });
-  const billing = await getServerBillingSnapshot(session.user.id);
-  const ents = billing.entitlements;
-  const label = billing.subscriptionLabel;
-  const planName =
-    billing.source === "sacred_day" ? "free" : ents.tier === "provisional" ? "free" : ents.tier;
+  const entitlement = await getUserEntitlement(session.user.id);
+  const ents = entitlement.entitlements;
+  const label = entitlement.subscriptionLabel;
+  const planName = entitlement.hasPaidAccess ? entitlement.plan : "free";
 
   return (
     <BuddieRoom title="You" whisper="Account & subscription — server-verified, never guesswork.">
@@ -44,10 +43,10 @@ export default async function AccountPage() {
               ? "Sacred Day keeps the home open. Premium invitation waits when you are ready."
               : `${displayPlanName(planName)} · entitlements confirmed by Buddie’s servers.`}
           </p>
-          {billing.portalUrl ? (
+          {entitlement.portalUrl ? (
             <p className="mt-2">
               <a
-                href={billing.portalUrl}
+                href={entitlement.portalUrl}
                 className="text-sm text-[#e8c4a0]/underline"
                 target="_blank"
                 rel="noreferrer"

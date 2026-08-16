@@ -2,8 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { MoodExperience } from "@/components/mood-experience";
 import { authOptions } from "@/lib/auth";
-import { entitlementsFromLicenses } from "@/lib/buddy-entitlements";
-import { ensureFreeLicenseForUser, isLicenseActive } from "@/lib/free-license";
+import { getUserEntitlement } from "@/lib/billing/entitlement";
+import { ensureFreeLicenseForUser } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -28,14 +28,13 @@ export default async function MoodPage() {
   if (!userId) redirect("/login");
 
   await ensureFreeLicenseForUser(userId);
-  const licenses = await prisma.license.findMany({ where: { userId } });
-  const entitlements = entitlementsFromLicenses(licenses, isLicenseActive);
+  const entitlement = await getUserEntitlement(userId);
 
   return (
     <MoodExperience
-      historyDays={entitlements.moodHistoryDays}
-      tierLabel={entitlements.label}
-      sharePremium={entitlements.sharePremium}
+      historyDays={entitlement.entitlements.moodHistoryDays}
+      tierLabel={entitlement.entitlements.label}
+      sharePremium={entitlement.entitlements.sharePremium}
     />
   );
 }

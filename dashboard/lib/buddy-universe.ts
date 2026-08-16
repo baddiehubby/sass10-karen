@@ -129,7 +129,15 @@ export function setIntention(text: string): BuddyIdentity {
 }
 
 export function checkInReply(mood: BuddyMood): string {
-  return intelligentCheckInReply(mood);
+  try {
+    return intelligentCheckInReply(mood);
+  } catch {
+    try {
+      return intelligentCheckInReply("calm");
+    } catch {
+      return "I'm right here with you.";
+    }
+  }
 }
 
 export type ShareKind = "vibe" | "energy" | "oracle" | "constellation" | "week" | "milestone";

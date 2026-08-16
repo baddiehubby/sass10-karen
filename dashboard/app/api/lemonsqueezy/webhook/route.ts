@@ -44,7 +44,8 @@ export async function POST(req: Request) {
     const result = await processParsedWebhook(createPrismaBillingStore(), parsed);
     return NextResponse.json(result, { status: 200 });
   } catch (err) {
-    console.error("[lemonsqueezy/webhook]", err);
+    // Never log secrets, API keys, or payment payloads
+    console.error("[lemonsqueezy/webhook] handler failed");
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 }

@@ -53,11 +53,11 @@ describe("security: prompt injection scrub", () => {
   });
 });
 
-describe("security: webhook status revoke path", () => {
-  it("revokes on cancelled even if event is subscription_updated", () => {
+describe("security: webhook status cancel path", () => {
+  it("cancel-at-period-end on cancelled even if event is subscription_updated", () => {
     assert.equal(
       entitlementActionForLemon({ eventName: "subscription_updated", status: "cancelled" }),
-      "revoke",
+      "cancel_at_period_end",
     );
   });
 });

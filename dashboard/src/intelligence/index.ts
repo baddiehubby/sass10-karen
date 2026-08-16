@@ -17,6 +17,7 @@ export {
 export {
   buildConversationState,
   isConversationalRepair,
+  isMemoryForgetRequest,
   isRepeatQuestion,
   advanceMachine,
   computeContinuity,
@@ -30,7 +31,10 @@ export {
   avoidRepeatText,
   wordingSimilarity,
   isTooSimilar,
+  responseFingerprint,
+  fingerprintCollision,
 } from "@/src/intelligence/variation";
+export { contradictsPrevious } from "@/src/intelligence/semantic-router";
 export { detectsCrisisLanguage, sanitizeUserText } from "@/src/intelligence/safety";
 export {
   defaultDeviceCapabilities,
@@ -45,3 +49,21 @@ export {
   startAdaptiveIntelligenceWarmup,
   scheduleIdleWarmup,
 } from "@/src/intelligence/adaptive/runtime";
+export {
+  resolveIntelligence,
+  selectCostRoute,
+  isNeverExpensiveIntent,
+  NEVER_EXPENSIVE_INTENTS,
+  getIntelligenceCostSnapshot,
+  checkIntelligenceAbuse,
+  clearDeterministicCache,
+  resetAbuseState,
+  resetIntelligenceMetrics,
+  ABUSE_LIMITS,
+} from "@/src/intelligence/cost";
+export type {
+  CostRouteTier,
+  CostRouteDecision,
+  CostAwareResult,
+  IntelligenceCostSnapshot,
+} from "@/src/intelligence/cost";

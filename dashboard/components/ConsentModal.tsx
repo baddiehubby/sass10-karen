@@ -117,8 +117,8 @@ export function ConsentModal({ blocking = true }: ConsentModalProps) {
             id="model_training"
             checked={modelTraining}
             onChange={setModelTraining}
-            title="Model Training"
-            description="Use anonymized mood sequences to improve mood detection. Optional. Never includes chat text."
+            title="Improve mood detection"
+            description="Use anonymized mood sequences to gently improve how Buddie reads the room. Optional. Never includes chat text."
           />
         </ul>
 

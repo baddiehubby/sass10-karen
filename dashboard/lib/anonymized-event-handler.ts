@@ -4,12 +4,14 @@ import {
   anonymizedSessionTokenFromLicense,
   broadRegionFromRequest,
   ingestAnonymizedMoodEvent,
+  resolveLicenseForWidgetAuth,
   sourceFromDomain,
 } from "@/lib/anonymized-mood-ingest";
+import { getTrustedClientIp } from "@/lib/client-ip";
 import { canIngestAnonymizedEvent, widgetOptInFromRequest } from "@/lib/eidata-ingest-policy";
 import { hasConsent } from "@/lib/consent-service";
+import { isLicenseActive } from "@/lib/free-license";
 import type { anonymizedMoodEventBodySchema } from "@/lib/validation";
-import { prisma } from "@/lib/prisma";
 import type { z } from "zod";
 
 export function anonymizedEventCorsHeaders() {
@@ -21,12 +23,6 @@ export function anonymizedEventCorsHeaders() {
   };
 }
 
-function clientIp(req: Request): string {
-  const xf = req.headers.get("x-forwarded-for");
-  if (xf) return xf.split(",")[0]?.trim() || "unknown";
-  return req.headers.get("x-real-ip")?.trim() || "unknown";
-}
-
 export async function handleAnonymizedMoodEventPost(
   req: Request,
   data: z.infer<typeof anonymizedMoodEventBodySchema>,
@@ -35,7 +31,7 @@ export async function handleAnonymizedMoodEventPost(
   const { sessionToken, licenseKey, mood, timestamp: tsRaw, domain, region: clientRegion, companionType, source } =
     data;
 
-  const ip = clientIp(req);
+  const ip = getTrustedClientIp(req);
   if (!checkAnalyticsRateLimit(sessionToken || licenseKey || "anon", ip)) {
     return NextResponse.json({ error: "Rate limited" }, { status: 429, headers: cors });
   }
@@ -43,23 +39,31 @@ export async function handleAnonymizedMoodEventPost(
   let pseudonymousToken = sessionToken?.trim() || "";
   let userId: string | null = null;
 
+  const license = await resolveLicenseForWidgetAuth({
+    licenseKey,
+    sessionToken: pseudonymousToken || null,
+  });
+
   if (licenseKey?.trim()) {
-    const license = await prisma.license.findUnique({
-      where: { key: licenseKey.trim() },
-      select: { id: true, key: true, userId: true, expiresAt: true },
-    });
-    if (!license || license.expiresAt.getTime() < Date.now()) {
+    if (!license || !isLicenseActive(license)) {
       return NextResponse.json({ error: "Invalid license" }, { status: 403, headers: cors });
     }
     userId = license.userId;
-    pseudonymousToken = anonymizedSessionTokenFromLicense(license.key);
+    try {
+      pseudonymousToken = anonymizedSessionTokenFromLicense(license.key);
+    } catch {
+      return NextResponse.json({ error: "Invalid license" }, { status: 403, headers: cors });
+    }
   } else if (pseudonymousToken) {
-    const activeLicenses = await prisma.license.findMany({
-      where: { expiresAt: { gt: new Date() } },
-      select: { key: true, userId: true },
-    });
-    const match = activeLicenses.find((l) => anonymizedSessionTokenFromLicense(l.key) === pseudonymousToken);
-    if (match) userId = match.userId;
+    // Indexed lookup only — never scan all licenses
+    if (license && isLicenseActive(license)) {
+      userId = license.userId;
+    } else if (!license) {
+      // Unknown token: accept for anonymous ingest path without user consent binding
+      userId = null;
+    } else {
+      return NextResponse.json({ ok: true, skipped: true, reason: "inactive_license" }, { headers: cors });
+    }
   }
 
   if (!pseudonymousToken) {

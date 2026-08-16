@@ -1,5 +1,6 @@
+import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
-import type { NextAuthOptions } from "next-auth";
+import type { NextAuthOptions, Profile } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { ensureDefaultConsents } from "@/lib/consent-service";
@@ -18,6 +19,17 @@ logAuthUrlDebug("authOptions");
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const authSecret = process.env.NEXTAUTH_SECRET;
+
+// Fail closed at runtime in production — not during `next build` page-data collection
+// (NEXT_PHASE=phase-production-build) so CI/local builds can complete without secrets.
+const isNextProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+if (
+  process.env.NODE_ENV === "production" &&
+  !isNextProductionBuild &&
+  !(authSecret || "").trim()
+) {
+  throw new Error("NEXTAUTH_SECRET is required in production");
+}
 
 type AuthUserSnapshot = {
   id: string;
@@ -68,7 +80,8 @@ async function findUserForAuthByEmail(email: string): Promise<AuthUserSnapshot |
         _count: { select: { licenses: true } },
       },
     });
-    return fallback ? { ...fallback, eidataConsentCompleted: true } : null;
+    // Fail closed on consent when column missing in odd states — require consent modal
+    return fallback ? { ...fallback, eidataConsentCompleted: false } : null;
   }
 }
 
@@ -98,20 +111,37 @@ async function findUserForAuthById(id: string): Promise<AuthUserSnapshot | null>
         _count: { select: { licenses: true } },
       },
     });
-    return fallback ? { ...fallback, eidataConsentCompleted: true } : null;
+    return fallback ? { ...fallback, eidataConsentCompleted: false } : null;
   }
 }
 
-/** Create a local user row for a Google-authenticated email (idempotent). */
+async function unusablePasswordHash(): Promise<string> {
+  return bcrypt.hash(randomBytes(32).toString("hex"), 10);
+}
+
+/**
+ * Create or attach Google-authenticated email.
+ * If a pre-registered password account exists, Google email ownership wins:
+ * rotate password so an attacker who registered first cannot keep credentials access.
+ */
 async function ensureGoogleUser(email: string, displayName?: string | null) {
   const normalized = email.toLowerCase();
   const existing = await prisma.user.findUnique({ where: { email: normalized } });
-  if (existing) return existing;
+  if (existing) {
+    await prisma.user.update({
+      where: { id: existing.id },
+      data: {
+        password: await unusablePasswordHash(),
+        name: existing.name || displayName || normalized,
+      },
+    });
+    return existing;
+  }
 
   const created = await prisma.user.create({
     data: {
       email: normalized,
-      password: await bcrypt.hash(Math.random().toString(36), 10),
+      password: await unusablePasswordHash(),
       name: displayName || normalized,
     },
   });
@@ -119,11 +149,17 @@ async function ensureGoogleUser(email: string, displayName?: string | null) {
   return created;
 }
 
+function googleEmailVerified(profile: Profile | undefined): boolean {
+  if (!profile || typeof profile !== "object") return false;
+  const p = profile as Profile & { email_verified?: boolean };
+  return p.email_verified === true;
+}
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 60 * 60 * 24 * 14, // 14 days
-    updateAge: 60 * 60 * 24, // refresh session claim daily
+    maxAge: 60 * 60 * 24 * 14,
+    updateAge: 60 * 60 * 6, // refresh claims every 6h
   },
   useSecureCookies: process.env.NODE_ENV === "production",
   cookies: {
@@ -175,10 +211,12 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      // Never deny Google sign-in here — returning false maps to error=AccessDenied.
-      // Provisioning failures are retried in the jwt callback.
+    async signIn({ user, account, profile }) {
       if (account?.provider === "google" && user.email) {
+        if (!googleEmailVerified(profile)) {
+          console.warn("[auth] rejected Google sign-in without verified email");
+          return false;
+        }
         try {
           await ensureGoogleUser(user.email, user.name);
         } catch (err) {
@@ -187,8 +225,7 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
-    async jwt({ token, user, account }) {
-      // OAuth providers supply their own subject id — always resolve our DB user id by email.
+    async jwt({ token, user, account, trigger }) {
       if (user?.id && account?.provider === "credentials") {
         token.id = user.id;
       }
@@ -199,11 +236,12 @@ export const authOptions: NextAuthOptions = {
         .split(",")
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean);
+      // Always recompute admin from env (never sticky after env removal)
       token.isAdmin = Boolean(email && adminList.length > 0 && adminList.includes(email));
 
-      // Only hit the DB on new sign-ins (user object present) or when we don't yet have an id.
-      // Refreshes of an existing valid token skip the DB call entirely.
-      const needsDbLookup = Boolean(user) || !token.id;
+      const lastFresh = typeof token.claimsFreshAt === "number" ? token.claimsFreshAt : 0;
+      const stale = Date.now() - lastFresh > 6 * 60 * 60 * 1000;
+      const needsDbLookup = Boolean(user) || !token.id || stale || trigger === "update";
       if (!needsDbLookup || !email) return token;
 
       let dbUser = await findUserForAuthByEmail(email);
@@ -224,9 +262,10 @@ export const authOptions: NextAuthOptions = {
         await ensureDefaultConsents(dbUser.id);
         token.id = dbUser.id;
         token.onboardingCompleted = dbUser.onboardingCompleted;
-        token.eidataConsentCompleted = Boolean(dbUser.eidataConsentCompleted ?? true);
+        token.eidataConsentCompleted = Boolean(dbUser.eidataConsentCompleted ?? false);
         token.companionName = dbUser.companionName || "";
         token.personality = dbUser.personality || "";
+        token.claimsFreshAt = Date.now();
       }
       return token;
     },
@@ -246,7 +285,13 @@ export const authOptions: NextAuthOptions = {
         (session.user as { onboardingCompleted?: boolean }).onboardingCompleted = Boolean(token.onboardingCompleted);
         (session.user as { companionName?: string }).companionName = String(token.companionName || "");
         (session.user as { personality?: string }).personality = String(token.personality || "");
-        (session.user as { isAdmin?: boolean }).isAdmin = Boolean(token.isAdmin);
+        const adminList = (process.env.BUDDY_ADMIN_EMAILS || "")
+          .split(",")
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
+        (session.user as { isAdmin?: boolean }).isAdmin = Boolean(
+          email && adminList.length > 0 && adminList.includes(email),
+        );
         (session.user as { eidataConsentCompleted?: boolean }).eidataConsentCompleted = Boolean(
           token.eidataConsentCompleted,
         );
@@ -255,11 +300,20 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url }) {
       const siteUrl = getCanonicalSiteUrl();
-      if (url.startsWith("/")) return `${siteUrl}${url}`;
+      // Protocol-relative and absolute off-origin URLs must not win
+      if (url.startsWith("/") && !url.startsWith("//")) {
+        const path = url.startsWith("/") ? url : `/${url}`;
+        if (path.startsWith("//") || path.startsWith("/\\")) {
+          return resolvePostAuthCallbackUrl("/dashboard");
+        }
+        return resolvePostAuthCallbackUrl(path);
+      }
       try {
         const target = new URL(url);
         const allowed = new URL(siteUrl);
-        if (target.origin === allowed.origin) return url;
+        if (target.origin === allowed.origin) {
+          return resolvePostAuthCallbackUrl(`${target.pathname}${target.search}${target.hash}`);
+        }
       } catch {
         /* ignore malformed url */
       }

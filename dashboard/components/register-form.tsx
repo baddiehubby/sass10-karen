@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { safeAppPath } from "@/lib/safe-redirect";
 
 async function readApiError(res: Response): Promise<string> {
   try {
@@ -25,7 +26,7 @@ async function readApiError(res: Response): Promise<string> {
 export function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnUrl = searchParams.get("returnUrl") || "/pricing";
+  const returnUrl = safeAppPath(searchParams.get("returnUrl"), "/pricing");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -98,12 +99,12 @@ export function RegisterForm() {
           />
           <input
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
-            placeholder="Password (min 6)"
+            placeholder="Password (min 10)"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
+            minLength={10}
           />
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
           <button

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { parseQuery } from "@/lib/api-json";
-import { assertLicenseDomain } from "@/lib/license-domain";
+import { assertLicenseDomainFromRequest, sanitizeWidgetCss } from "@/lib/license-domain";
+import { isLicenseActive } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
+import { anonymizedSessionTokenFromLicense } from "@/lib/anonymized-mood-ingest";
 import { normalizeCompanionType, resolveTenantPersona } from "@/lib/tenant";
 import { licenseVerifyQuerySchema } from "@/lib/validation";
 
@@ -33,14 +35,27 @@ export async function GET(req: Request) {
     );
   }
 
-  if (license.plan.trim().toLowerCase() !== "free" && license.expiresAt.getTime() < Date.now()) {
+  if (license.plan.trim().toLowerCase() !== "free" && !isLicenseActive(license)) {
     return NextResponse.json(
-      { valid: false, reason: "License expired", features: null },
+      { valid: false, reason: "License inactive", features: null },
       { headers: corsHeaders() },
     );
   }
 
-  const domainCheck = assertLicenseDomain(license.domain, domain);
+  // Backfill indexed widget session token (best-effort)
+  try {
+    const token = anonymizedSessionTokenFromLicense(license.key);
+    if (license.widgetSessionToken !== token) {
+      await prisma.license.update({
+        where: { id: license.id },
+        data: { widgetSessionToken: token },
+      });
+    }
+  } catch {
+    /* ignore until salt/schema ready */
+  }
+
+  const domainCheck = assertLicenseDomainFromRequest(license.domain, req, domain);
   if (!domainCheck.ok) {
     return NextResponse.json(
       {
@@ -76,7 +91,7 @@ export async function GET(req: Request) {
         position: license.widgetPosition,
         size: license.widgetSize,
         zIndex: license.widgetZIndex,
-        customCss: license.widgetCustomCss,
+        customCss: sanitizeWidgetCss(license.widgetCustomCss),
         themeMode: license.widgetThemeMode,
       },
       moodOverride:

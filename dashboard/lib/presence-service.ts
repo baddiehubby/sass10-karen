@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import type { NextRequest } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { isLicenseActive } from "@/lib/free-license";
+import { assertLicenseDomainFromRequest } from "@/lib/license-domain";
 import type { BuddyMood } from "@/lib/mood-detection";
 import { prisma } from "@/lib/prisma";
 import {
@@ -32,6 +33,12 @@ export async function assertLicenseAccess(
   const license = await resolveLicenseByKey(licenseKey);
   if (!license) return { ok: false as const, status: 404, error: "License not found" };
 
+  // Bound licenses must present matching Origin/Referer (or matching claim)
+  const domainCheck = assertLicenseDomainFromRequest(license.domain, req);
+  if (!domainCheck.ok) {
+    return { ok: false as const, status: 403, error: "Domain not allowed" };
+  }
+
   if (options?.readOnly) {
     return { ok: true as const, license };
   }
@@ -42,7 +49,6 @@ export async function assertLicenseAccess(
   }
 
   // Companion / overlay writes: require matching secret key in header AND body.
-  // The embed key is a capability token — treat like a password; never accept licenseId alone.
   const headerKey = req.headers.get("x-buddy-license-key")?.trim();
   const bodyKey = licenseKey.trim();
   if (headerKey && bodyKey && headerKey === bodyKey && headerKey.length >= 16) {

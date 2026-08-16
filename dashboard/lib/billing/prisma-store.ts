@@ -119,6 +119,14 @@ export function createPrismaBillingStore(): BillingStore {
       return row ? mapSub(row) : null;
     },
 
+    async findLatestSubscriptionForUser(userId) {
+      const row = await prisma.subscription.findFirst({
+        where: { userId, provider: "lemonsqueezy" },
+        orderBy: { updatedAt: "desc" },
+      });
+      return row ? mapSub(row) : null;
+    },
+
     async upsertSubscription(input) {
       const row = await prisma.subscription.upsert({
         where: { providerSubscriptionId: input.providerSubscriptionId },

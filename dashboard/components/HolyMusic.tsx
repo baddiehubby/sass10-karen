@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { safeGetItem, safeSetItem } from "@/lib/client-storage";
 
 type HolyMusicProps = {
   enabled: boolean;
@@ -20,13 +21,8 @@ export function HolyMusic({ enabled, onLevel, showListenButton = false }: HolyMu
   const [started, setStarted] = useState(false);
 
   useEffect(() => {
-    try {
-      setMuted(window.localStorage.getItem(MUTED_KEY) === "1");
-      setStarted(window.localStorage.getItem(STARTED_KEY) === "1");
-    } catch {
-      setMuted(false);
-      setStarted(false);
-    }
+    setMuted(safeGetItem(MUTED_KEY) === "1");
+    setStarted(safeGetItem(STARTED_KEY) === "1");
   }, []);
 
   const createSpiritualDrone = useCallback(async () => {
@@ -104,11 +100,7 @@ export function HolyMusic({ enabled, onLevel, showListenButton = false }: HolyMu
     if (muted) return;
     await createSpiritualDrone();
     setStarted(true);
-    try {
-      window.localStorage.setItem(STARTED_KEY, "1");
-    } catch {
-      /* ignore */
-    }
+    safeSetItem(STARTED_KEY, "1");
   }, [createSpiritualDrone, muted]);
 
   useEffect(() => {
@@ -132,11 +124,7 @@ export function HolyMusic({ enabled, onLevel, showListenButton = false }: HolyMu
   function toggleMute() {
     const next = !muted;
     setMuted(next);
-    try {
-      window.localStorage.setItem(MUTED_KEY, next ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
+    safeSetItem(MUTED_KEY, next ? "1" : "0");
     if (gainRef.current) {
       const now = ctxRef.current?.currentTime || 0;
       gainRef.current.gain.cancelScheduledValues(now);

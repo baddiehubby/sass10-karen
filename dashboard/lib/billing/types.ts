@@ -80,9 +80,18 @@ export function subscriptionGrantsPremium(sub: {
   const plan = sub.plan.trim().toLowerCase();
   if (!plan || plan === "free") return false;
   const status = sub.status.trim().toLowerCase();
-  if (status === "cancelled" || status === "canceled" || status === "expired" || status === "refunded" || status === "chargebacked") {
+
+  // Hard ends — never grant
+  if (status === "expired" || status === "refunded" || status === "chargebacked") {
     return false;
   }
+
+  // Cancel-at-period-end: keep access until Lemon ends_at / renews_at
+  if (status === "cancelled" || status === "canceled") {
+    if (!sub.currentPeriodEnd) return false;
+    return sub.currentPeriodEnd.getTime() > now.getTime();
+  }
+
   if (status === "active" || status === "on_trial" || status === "past_due" || status === "paused") {
     if (sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() <= now.getTime()) return false;
     return true;

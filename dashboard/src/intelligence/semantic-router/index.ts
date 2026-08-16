@@ -134,7 +134,12 @@ const SIGNALS: Signal[] = [
     emotion: "lonely",
     topic: "self",
     weight: 0.95,
-    score: (c) => (hasAny(c.tokenSet, FAMILY_WORDS.lonely) || phraseHas(c.t, ["by myself", "no one around"]) ? 1 : 0),
+    score: (c) =>
+      hasAny(c.tokenSet, FAMILY_WORDS.lonely) ||
+      phraseHas(c.t, ["by myself", "no one around", "lonley", "lonly", "so alone"]) ||
+      fuzzyIncludes(c.t, "lonely")
+        ? 1
+        : 0,
   },
   {
     id: "sad",
@@ -286,7 +291,17 @@ const SIGNALS: Signal[] = [
     emotion: "warm",
     topic: "self",
     weight: 0.88,
-    score: (c) => (phraseHas(c.t, ["how are you", "how r you", "how's it going", "checking in"]) || (/^i feel\b/.test(c.t) && c.tokens.length <= 6) ? 1 : 0),
+    score: (c) => {
+      if (phraseHas(c.t, ["how are you", "how r you", "how's it going", "checking in"])) return 1;
+      if (/^i feel\b/.test(c.t) && c.tokens.length <= 6) {
+        // Defer to specific emotion intents when an emotion word is present
+        if (hasAny(c.tokenSet, ["calm", "lonely", "sad", "anxious", "happy", "tired", "angry", "bored"])) {
+          return 0;
+        }
+        return 1;
+      }
+      return 0;
+    },
   },
   {
     id: "memory",
@@ -329,12 +344,98 @@ const SIGNALS: Signal[] = [
     score: (c) => (phraseHas(c.t, ["cheer me", "encourage me", "pep talk", "motivate me"]) ? 1 : 0),
   },
   {
+    id: "calm",
+    intent: "calm",
+    emotion: "calm",
+    topic: "self",
+    weight: 0.95,
+    score: (c) =>
+      phraseHas(c.t, ["i feel calm", "feeling calm", "peaceful", "at peace", "relaxed", "feeling chill"]) ||
+      /^i'?m (calm|chill|peaceful)\.?$/.test(c.t)
+        ? 1
+        : 0,
+  },
+  {
+    id: "playful",
+    intent: "playfulness",
+    emotion: "playful",
+    topic: "buddy",
+    weight: 0.86,
+    score: (c) =>
+      phraseHas(c.t, ["let's play", "be silly", "make me laugh", "joke with me", "goofy"]) ||
+      c.tokenSet.has("haha") ||
+      c.tokenSet.has("lol")
+        ? 0.95
+        : 0,
+  },
+  {
+    id: "curious",
+    intent: "curiosity",
+    emotion: "curious",
+    topic: "buddy",
+    weight: 0.86,
+    score: (c) =>
+      phraseHas(c.t, ["i'm curious", "im curious", "wondering about", "what if", "just curious"])
+        ? 1
+        : 0,
+  },
+  {
+    id: "small_win",
+    intent: "small_win",
+    emotion: "excited",
+    topic: "celebration",
+    weight: 0.92,
+    score: (c) =>
+      phraseHas(c.t, [
+        "small win",
+        "tiny win",
+        "finally finished",
+        "i finished",
+        "got it done",
+        "made progress",
+        "little victory",
+      ])
+        ? 1
+        : 0,
+  },
+  {
+    id: "setback",
+    intent: "setback",
+    emotion: "heavy",
+    topic: "self",
+    weight: 0.92,
+    score: (c) =>
+      phraseHas(c.t, [
+        "i failed",
+        "i messed up",
+        "didn't get",
+        "rejected",
+        "lost the",
+        "bombed",
+        "fell short",
+        "didn't work",
+      ])
+        ? 1
+        : 0,
+  },
+  {
+    id: "returning",
+    intent: "returning",
+    emotion: "warm",
+    topic: "buddy",
+    weight: 0.95,
+    score: (c) =>
+      phraseHas(c.t, ["i'm back", "im back", "missed you", "back again", "returning", "been a while"])
+        ? 1
+        : 0,
+  },
+  {
     id: "silence",
     intent: "silence",
     emotion: "neutral",
     topic: "none",
     weight: 1,
-    score: (c) => (c.t.length === 0 || /^[.…]{1,6}$/.test(c.t) ? 1 : 0),
+    score: (c) => (c.t.length === 0 || /^[.…]{1,8}$/.test(c.t) || /^(\.\.\.|…)$/.test(c.t) ? 1 : 0),
   },
   {
     id: "orb",
@@ -370,6 +471,14 @@ export function routeSemantic(
     return hit("repeat", "warm", "buddy", null, 0.9, emptyEntity(), ["repeat"]);
   }
 
+  // Non-latin heavy input: stay present without pretending full comprehension
+  if (isMostlyNonLatin(raw) && t.replace(/[^a-z0-9\s']/g, "").trim().length < 3) {
+    return hit("smalltalk", "warm", opts?.previousTopic ?? "buddy", null, 0.45, emptyEntity(), [
+      "multilingual",
+      "uncertain_comprehension",
+    ]);
+  }
+
   const ctx: SignalContext = {
     raw,
     t,
@@ -383,11 +492,10 @@ export function routeSemantic(
   let best: { signal: Signal; score: number } | null = null;
   const fired: string[] = [];
   for (const signal of SIGNALS) {
-    const s = signal.score(ctx);
-    if (s <= 0) continue;
+    const scored = signal.score(ctx);
+    if (scored <= 0) continue;
     fired.push(signal.id);
-    const weighted = s * signal.weight;
-    // Context boost: continuity with previous topic
+    const weighted = scored * signal.weight;
     let boost = weighted;
     if (opts?.previousTopic && signal.topic === opts.previousTopic) boost += 0.05;
     if (opts?.previousMessages?.length) {
@@ -405,6 +513,41 @@ export function routeSemantic(
 
   if (opts?.isShort && tokens.length <= 2 && (!best || best.score < 0.8)) {
     return hit("short_answer", "neutral", "self", null, 0.75, emptyEntity(), ["short"]);
+  }
+
+  if (
+    best &&
+    looksSarcastic(t) &&
+    ["celebration", "excitement", "gratitude", "small_win"].includes(best.signal.intent)
+  ) {
+    return hit("uncertainty", "playful", best.signal.topic ?? "self", "possible_sarcasm", 0.42, emptyEntity(), [
+      ...fired,
+      "sarcasm",
+    ]);
+  }
+
+  if (best && looksAmbiguous(t) && best.score < 0.95) {
+    const lowered = Math.min(best.score, 0.55);
+    if (lowered < 0.5) {
+      return hit("uncertainty", "low", best.signal.topic ?? "self", "ambiguous", 0.48, emptyEntity(), [
+        ...fired,
+        "ambiguous",
+      ]);
+    }
+    best = { signal: best.signal, score: lowered };
+  }
+
+  if (best && opts?.previousMessages?.length && contradictsPrevious(t, opts.previousMessages)) {
+    const entity = extractEntities(t, tokenSet, best.signal.intent);
+    return hit(
+      best.signal.intent,
+      best.signal.emotion ?? "neutral",
+      best.signal.topic ?? "none",
+      "mood_shift",
+      Math.min(0.7, best.score),
+      entity,
+      [...fired, "contradiction"],
+    );
   }
 
   if (best) {
@@ -426,6 +569,29 @@ export function routeSemantic(
 
   return hit("smalltalk", "warm", opts?.previousTopic ?? "day", null, 0.4, emptyEntity(), ["fallback"]);
 }
+
+function looksSarcastic(t: string): boolean {
+  return (
+    /\bsarcasm\b|\/s\b|yeah right|sure jan|as if\b|totally not|just kidding|jk\b|lol not really/i.test(t) ||
+    /love (my|this) (job|life|boss).*(not|\/s)/i.test(t)
+  );
+}
+
+function looksAmbiguous(t: string): boolean {
+  return /\b(maybe|might|not sure|i think|perhaps|could be|i guess|idk)\b/i.test(t);
+}
+
+/** Detect mood polarity flip vs last user utterance. */
+export function contradictsPrevious(current: string, previousMessages: string[]): boolean {
+  const prev = (previousMessages[previousMessages.length - 1] ?? "").toLowerCase();
+  if (!prev || prev.length < 3) return false;
+  const pos = /\b(happy|great|amazing|love|excited|good|fine|awesome)\b/;
+  const neg =
+    /\b(sad|hate|awful|terrible|miserable|lonely|anxious|angry|frustrated)\b|not (happy|fine|good|great)/;
+  const cur = current.toLowerCase();
+  return (pos.test(prev) && neg.test(cur)) || (neg.test(prev) && pos.test(cur) && !neg.test(cur));
+}
+
 
 export function normalizeEmotion(emotion: BuddyEmotion): BuddyEmotion {
   return emotion;
@@ -489,4 +655,16 @@ function extractEntities(t: string, tokenSet: Set<string>, intent: BuddyIntent):
   }
 
   return { subject, relationship, concern, secondaryTopic };
+}
+
+/** Soft multilingual / non-latin: still return a coherent fallback, never crash. */
+export function isMostlyNonLatin(text: string): boolean {
+  // Punctuation-only / emoji-only is not multilingual prose
+  if (!/[A-Za-z\u00C0-\u024F\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]/.test(text)) {
+    return false;
+  }
+  const letters = text.replace(/\s/g, "");
+  if (!letters.length) return false;
+  const latin = (letters.match(/[a-zA-Z]/g) || []).length;
+  return latin / letters.length < 0.35 && letters.length >= 2;
 }

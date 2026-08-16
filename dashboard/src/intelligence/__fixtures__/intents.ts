@@ -41,6 +41,12 @@ export const INTENT_FIXTURES: Array<{ text: string; expectIntent: string }> = [
   { text: "remember when we talked about the deadline", expectIntent: "memory_reference" },
   { text: "[orb_touch]", expectIntent: "orb_touch" },
   { text: "why is the sky like that?", expectIntent: "follow_up" },
+  { text: "I feel calm", expectIntent: "calm" },
+  { text: "let's play", expectIntent: "playfulness" },
+  { text: "I'm curious about that", expectIntent: "curiosity" },
+  { text: "small win today", expectIntent: "small_win" },
+  { text: "I failed the interview", expectIntent: "setback" },
+  { text: "I'm back", expectIntent: "returning" },
 ];
 
 export function baseInput(overrides: Partial<IntelligenceInput> = {}): IntelligenceInput {

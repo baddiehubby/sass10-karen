@@ -22,6 +22,7 @@ import {
 } from "@/lib/daily-ritual";
 import { type BuddyMood, type CompanionPersonality } from "@/lib/companion-mood";
 import { hasCompletedMeet, loadPersonality } from "@/lib/mood-memory";
+import { isMemorySessionMode } from "@/lib/client-storage";
 import { UNIVERSE_FLAGS } from "@/lib/universe-flags";
 import { discoverBuddyMemory, fetchBuddyPresence, notifySoul } from "@/lib/buddy-soul-client";
 import type { PublicBond } from "@/lib/buddy-soul-types";
@@ -41,6 +42,7 @@ export function BuddyHomePresence({ companionName }: BuddyHomePresenceProps) {
   const [momentLine, setMomentLine] = useState<string | null>(null);
   const [editVibe, setEditVibe] = useState(false);
   const [soul, setSoul] = useState<PublicBond | null>(null);
+  const [memorySession, setMemorySession] = useState(false);
   const windowKind = ritualWindow();
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export function BuddyHomePresence({ companionName }: BuddyHomePresenceProps) {
     };
     sync();
     setShowMeet(!hasCompletedMeet());
+    setMemorySession(isMemorySessionMode());
     setReady(true);
     void fetchBuddyPresence().then((bond) => {
       if (!bond) return;
@@ -89,6 +92,11 @@ export function BuddyHomePresence({ companionName }: BuddyHomePresenceProps) {
 
   return (
     <div className="mt-8 w-full">
+      {memorySession ? (
+        <p className="mb-4 text-xs text-white/40">
+          I&apos;ll remember this visit for now — Buddie is still here with you.
+        </p>
+      ) : null}
       {showMeet ? <BuddyMeet companionName={companionName} onDone={() => setShowMeet(false)} /> : null}
 
       {snap.unlockTitle ? (

@@ -2,8 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { OracleClient } from "@/components/oracle-client";
 import { authOptions } from "@/lib/auth";
-import { entitlementsFromLicenses } from "@/lib/buddy-entitlements";
-import { ensureFreeLicenseForUser, isLicenseActive } from "@/lib/free-license";
+import { getUserEntitlement } from "@/lib/billing/entitlement";
+import { ensureFreeLicenseForUser } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -28,13 +28,12 @@ export default async function OraclePage() {
   if (!userId) redirect("/login");
 
   await ensureFreeLicenseForUser(userId);
-  const licenses = await prisma.license.findMany({ where: { userId } });
-  const entitlements = entitlementsFromLicenses(licenses, isLicenseActive);
+  const entitlement = await getUserEntitlement(userId);
 
   return (
     <OracleClient
-      advancedOracle={entitlements.advancedOracle}
-      tierLabel={entitlements.label}
+      advancedOracle={entitlement.entitlements.advancedOracle}
+      tierLabel={entitlement.entitlements.label}
     />
   );
 }

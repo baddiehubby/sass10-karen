@@ -40,6 +40,8 @@ model License {
   features    String
   domain      String?
   plan        String   @default("free")
+  /// HMAC widget/analytics session token (indexed lookup — never full-table scan).
+  widgetSessionToken String? @unique
   expiresAt   DateTime
   activatedAt DateTime?
   widgetTooltipText String?

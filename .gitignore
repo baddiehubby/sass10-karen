@@ -77,6 +77,8 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+.env.production
+.env.development
 .env.*
 !.env.example
 *.pem
@@ -90,6 +92,30 @@ id_rsa
 id_rsa.pub
 secrets/
 .secrets/
+
+# Local databases (never commit — may contain user PII)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.swp
+*~
+
+# Temp / test artifacts
+tmp/
+temp/
+*.tmp
+*.temp
+.turbo/
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

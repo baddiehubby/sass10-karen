@@ -133,16 +133,16 @@ export function PwaOrbView({ companionName, licenseKey, scriptUrl, apiBase, mood
         onClick={handleInstallClick}
         className="mt-5 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-xs text-white/90 transition hover:bg-white/15"
       >
-        {installState === "installed" ? "Buddy installed" : "Install Buddy"}
+        {installState === "installed" ? "Buddie installed" : "Install Buddie"}
       </button>
 
       {showIosHelp ? (
         <div className="mt-4 max-w-xs rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-left text-xs text-white/70">
-          <p className="font-medium text-white/85">iPhone / iPad install</p>
-          <ol className="mt-2 space-y-1 list-decimal pl-4">
-            <li>Tap the Share icon in Safari.</li>
+          <p className="font-medium text-white/85">Add to Home Screen</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-4">
+            <li>Tap the Share icon in your browser.</li>
             <li>Choose &quot;Add to Home Screen&quot;.</li>
-            <li>Tap Add — Buddy opens like an app.</li>
+            <li>Tap Add — Buddie opens like an app.</li>
           </ol>
         </div>
       ) : null}

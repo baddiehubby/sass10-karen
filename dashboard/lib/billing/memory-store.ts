@@ -54,6 +54,15 @@ export function createMemoryBillingStore(seed?: {
       return subscriptions.get(providerSubscriptionId) ?? null;
     },
 
+    async findLatestSubscriptionForUser(userId) {
+      let best: BillingSubscriptionRecord | null = null;
+      for (const row of subscriptions.values()) {
+        if (row.userId !== userId) continue;
+        if (!best || row.updatedAt.getTime() > best.updatedAt.getTime()) best = row;
+      }
+      return best;
+    },
+
     async upsertSubscription(input) {
       const prev = subscriptions.get(input.providerSubscriptionId);
       const now = new Date();

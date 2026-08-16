@@ -82,8 +82,17 @@ export function entitlementsForPlan(plan: string): LivingBuddyEntitlements {
 }
 
 export function entitlementsFromLicenses(
-  licenses: Array<{ plan: string; expiresAt: Date | string; active?: boolean }>,
-  isActive: (l: { plan: string; expiresAt: Date }) => boolean,
+  licenses: Array<{
+    plan: string;
+    expiresAt: Date | string;
+    lemonSqueezySubscriptionStatus?: string | null;
+    active?: boolean;
+  }>,
+  isActive: (l: {
+    plan: string;
+    expiresAt: Date;
+    lemonSqueezySubscriptionStatus?: string | null;
+  }) => boolean,
 ): LivingBuddyEntitlements {
   const rank: Record<LivingBuddyTier, number> = {
     provisional: 0,
@@ -94,7 +103,15 @@ export function entitlementsFromLicenses(
   let best = entitlementsForPlan("free");
   for (const row of licenses) {
     const expiresAt = typeof row.expiresAt === "string" ? new Date(row.expiresAt) : row.expiresAt;
-    if (!isActive({ plan: row.plan, expiresAt })) continue;
+    if (
+      !isActive({
+        plan: row.plan,
+        expiresAt,
+        lemonSqueezySubscriptionStatus: row.lemonSqueezySubscriptionStatus,
+      })
+    ) {
+      continue;
+    }
     const next = entitlementsForPlan(row.plan);
     if (rank[next.tier] > rank[best.tier]) best = next;
   }

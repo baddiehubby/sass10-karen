@@ -42,7 +42,6 @@ export function ImmersiveHomepage() {
   const [whisper, setWhisper] = useState<string | null>(null);
   const [whisperVisible, setWhisperVisible] = useState(false);
   const [showCta, setShowCta] = useState(false);
-  const [showAbout, setShowAbout] = useState(false);
   useEffect(() => {
     setBrand(brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : ""));
   }, []);
@@ -90,6 +89,12 @@ export function ImmersiveHomepage() {
       window.removeEventListener("wheel", onWheel);
     };
   }, [markInteraction]);
+
+  useEffect(() => {
+    // Show CTA quickly — whispers are atmosphere, not a gate
+    const t = window.setTimeout(() => setShowCta(true), 1800);
+    return () => window.clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const reduce =
@@ -221,30 +226,17 @@ export function ImmersiveHomepage() {
         </AnimatePresence>
       </div>
 
-      <div
-        className="pointer-events-auto fixed inset-x-0 bottom-0 flex h-20 items-end justify-center pb-[max(1rem,env(safe-area-inset-bottom))]"
-        onMouseEnter={() => setShowAbout(true)}
-        onMouseLeave={() => setShowAbout(false)}
-        onTouchStart={() => setShowAbout(true)}
-      />
-      <AnimatePresence>
-        {showAbout ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="pointer-events-auto fixed bottom-6 left-0 right-0 flex justify-center gap-6 text-xs text-white/30"
-            onMouseLeave={() => setShowAbout(false)}
-          >
-            <Link href="/about" className="hover:text-white/60">
-              About
-            </Link>
-            <Link href="/pricing" className="hover:text-white/60">
-              Pricing
-            </Link>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      <nav
+        className="pointer-events-auto fixed inset-x-0 bottom-0 flex justify-center gap-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-xs text-white/35"
+        aria-label="Site"
+      >
+        <Link href="/about" className="min-h-11 px-2 py-3 hover:text-white/70">
+          About
+        </Link>
+        <Link href="/pricing" className="min-h-11 px-2 py-3 hover:text-white/70">
+          Pricing
+        </Link>
+      </nav>
     </motion.div>
   );
 }

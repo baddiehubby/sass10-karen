@@ -303,7 +303,8 @@ export const lemonWebhookMetaSchema = z
     meta: z
       .object({
         event_name: z.string().optional(),
-        custom_data: z.record(z.unknown()).optional(),
+        // Lemon may send object or [{key,value}] depending on API version
+        custom_data: z.union([z.record(z.unknown()), z.array(z.unknown())]).optional(),
       })
       .optional(),
     data: z

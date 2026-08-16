@@ -16,10 +16,10 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "health-check": "node scripts/health-check.mjs",
-    "test": "tsx --test src/intelligence/intelligence.test.ts src/intelligence/device-capabilities.test.ts src/intelligence/conversation-premium.test.ts src/intelligence/soul-quality.test.ts src/intelligence/cost-engineering.test.ts src/intelligence/env-validation.test.ts src/intelligence/subscription-entitlement.test.ts src/intelligence/security.test.ts src/intelligence/billing.test.ts src/intelligence/mobile-perf.test.ts src/intelligence/invisible-adaptation.test.ts src/intelligence/redteam-security.test.ts src/intelligence/auth-security.test.ts",
+    "test": "tsx --test src/intelligence/intelligence.test.ts src/intelligence/device-capabilities.test.ts src/intelligence/conversation-premium.test.ts src/intelligence/soul-quality.test.ts src/intelligence/cost-engineering.test.ts src/intelligence/env-validation.test.ts src/intelligence/subscription-entitlement.test.ts src/intelligence/security.test.ts src/intelligence/billing.test.ts src/intelligence/billing-gate.test.ts src/intelligence/mobile-perf.test.ts src/intelligence/invisible-adaptation.test.ts src/intelligence/redteam-security.test.ts src/intelligence/auth-security.test.ts",
     "test:intelligence": "tsx --test src/intelligence/intelligence.test.ts src/intelligence/device-capabilities.test.ts src/intelligence/conversation-premium.test.ts src/intelligence/soul-quality.test.ts src/intelligence/cost-engineering.test.ts src/intelligence/env-validation.test.ts src/intelligence/subscription-entitlement.test.ts src/intelligence/security.test.ts src/intelligence/invisible-adaptation.test.ts",
     "test:security": "tsx --test src/intelligence/security.test.ts src/intelligence/subscription-entitlement.test.ts src/intelligence/redteam-security.test.ts src/intelligence/auth-security.test.ts",
-    "test:billing": "tsx --test src/intelligence/billing.test.ts",
+    "test:billing": "tsx --test src/intelligence/billing.test.ts src/intelligence/billing-gate.test.ts src/intelligence/subscription-entitlement.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

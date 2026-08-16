@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createPrismaBillingStore } from "@/lib/billing/prisma-store";
 import { parseLemonWebhookPayload, type LemonWebhookJson } from "@/lib/billing/parse-webhook";
 import { processParsedWebhook } from "@/lib/billing/processor";
+import { httpStatusForLemonWebhookResult } from "@/lib/billing/webhook-http";
 import { verifyLemonSignature } from "@/lib/lemonsqueezy";
 import { lemonWebhookMetaSchema } from "@/lib/validation";
 
@@ -42,8 +43,8 @@ export async function POST(req: Request) {
     }
 
     const result = await processParsedWebhook(createPrismaBillingStore(), parsed);
-    return NextResponse.json(result, { status: 200 });
-  } catch (err) {
+    return NextResponse.json(result, { status: httpStatusForLemonWebhookResult(result) });
+  } catch {
     // Never log secrets, API keys, or payment payloads
     console.error("[lemonsqueezy/webhook] handler failed");
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });

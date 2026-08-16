@@ -92,7 +92,7 @@ export function subscriptionGrantsPremium(sub: {
     return sub.currentPeriodEnd.getTime() > now.getTime();
   }
 
-  if (status === "active" || status === "on_trial" || status === "past_due" || status === "paused") {
+  if (status === "active" || status === "on_trial" || status === "past_due" || status === "paused" || status === "unpaid") {
     if (sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() <= now.getTime()) return false;
     return true;
   }

@@ -145,7 +145,7 @@ export function createPrismaBillingStore(): BillingStore {
           providerUpdatedAt: input.providerUpdatedAt,
         },
         update: {
-          userId: input.userId,
+          // Ownership is immutable after create — never reassign via webhook custom.user_id.
           providerCustomerId: input.providerCustomerId,
           variantId: input.variantId,
           plan: input.plan,

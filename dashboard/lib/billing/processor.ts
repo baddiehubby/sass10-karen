@@ -148,7 +148,8 @@ async function applyWebhook(
     return { ok: true, ignored: true, reason: "unknown_user" };
   }
 
-  const resolvedUserId = userId || existing!.userId;
+  // Never reassign an existing subscription to a different user (custom.user_id spoof / reuse).
+  const resolvedUserId = existing?.userId || userId!;
   const providerSubscriptionId =
     existing?.providerSubscriptionId ||
     (event.providerSubscriptionId.startsWith("order:") ? "" : event.providerSubscriptionId);

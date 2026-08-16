@@ -68,7 +68,8 @@ export function createMemoryBillingStore(seed?: {
       const now = new Date();
       const row: BillingSubscriptionRecord = {
         id: prev?.id ?? `sub_${randomBytes(6).toString("hex")}`,
-        userId: input.userId,
+        // Ownership immutable after create (matches Prisma store).
+        userId: prev?.userId ?? input.userId,
         provider: "lemonsqueezy",
         providerCustomerId: input.providerCustomerId,
         providerSubscriptionId: input.providerSubscriptionId,

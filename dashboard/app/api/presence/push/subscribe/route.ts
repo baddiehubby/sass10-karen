@@ -35,6 +35,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
 
+  const existing = await prisma.pushSubscription.findUnique({
+    where: { endpoint: subscription.endpoint },
+    select: { licenseId: true },
+  });
+  if (existing && existing.licenseId !== access.license.id) {
+    return NextResponse.json({ error: "Endpoint already registered" }, { status: 409 });
+  }
+
   await prisma.pushSubscription.upsert({
     where: { endpoint: subscription.endpoint },
     create: {
@@ -44,7 +52,6 @@ export async function POST(req: NextRequest) {
       auth: subscription.keys.auth,
     },
     update: {
-      licenseId: access.license.id,
       p256dh: subscription.keys.p256dh,
       auth: subscription.keys.auth,
     },

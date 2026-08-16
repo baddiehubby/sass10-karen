@@ -50,6 +50,7 @@ const moodFromString = z
 export const analyticsEventBodySchema = z
   .object({
     licenseKey: z.string().min(1).max(120).optional(),
+    widgetCredential: z.string().min(20).max(2000).optional(),
     sessionToken: z
       .string()
       .max(80)
@@ -69,10 +70,18 @@ export const analyticsEventBodySchema = z
     timestamp: z.string().max(40).optional(),
   })
   .strict()
-  .refine((d) => Boolean((d.licenseKey || "").trim() || (d.sessionToken || "").trim()), {
-    message: "licenseKey or sessionToken required",
-    path: ["licenseKey"],
-  });
+  .refine(
+    (d) =>
+      Boolean(
+        (d.licenseKey || "").trim() ||
+          (d.sessionToken || "").trim() ||
+          (d.widgetCredential || "").trim(),
+      ),
+    {
+      message: "licenseKey, sessionToken, or widgetCredential required",
+      path: ["licenseKey"],
+    },
+  );
 
 export const anonymizedMoodEventBodySchema = z
   .object({
@@ -108,11 +117,16 @@ export const anonymizedMoodEventBodySchema = z
 
 export const widgetMoodPostSchema = z
   .object({
-    licenseKey: z.string().min(1).max(120),
+    licenseKey: z.string().min(1).max(120).optional(),
+    widgetCredential: z.string().min(20).max(2000).optional(),
     mood: moodFromString,
     ttlSeconds: z.coerce.number().min(5).max(3600).optional(),
   })
-  .strict();
+  .strict()
+  .refine((d) => Boolean((d.licenseKey || "").trim() || (d.widgetCredential || "").trim()), {
+    message: "licenseKey or widgetCredential required",
+    path: ["licenseKey"],
+  });
 
 export const widgetMoodGetQuerySchema = z
   .object({

@@ -6,6 +6,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { buildAuthCookies } from "@/lib/auth-cookies";
 import { ensureDefaultConsents } from "@/lib/consent-service";
 import { ensureFreeLicenseForUser } from "@/lib/free-license";
+import { logAuthFailure, logStructured, safeErrorMessage } from "@/lib/ops/logger";
 import { prisma } from "@/lib/prisma";
 import {
   getCanonicalSiteUrl,
@@ -232,12 +233,21 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === "google" && user.email) {
         if (!googleEmailVerified(profile)) {
           console.warn("[auth] rejected Google sign-in without verified email");
+          logAuthFailure({ reason: "oauth_unverified" });
           return false;
         }
         try {
           await ensureGoogleUser(user.email, user.name);
         } catch (err) {
-          console.error("[auth] google signIn provisioning failed — denying login", err);
+          console.error("[auth] google signIn provisioning failed — denying login");
+          logAuthFailure({ reason: "oauth_provision_failed" });
+          logStructured({
+            level: "error",
+            msg: "google provisioning failed",
+            event: "auth.failure",
+            reason: "oauth_provision_failed",
+            errorCode: safeErrorMessage(err),
+          });
           return false;
         }
       }
@@ -269,7 +279,14 @@ export const authOptions: NextAuthOptions = {
           const created = await ensureGoogleUser(email, user?.name);
           dbUser = await findUserForAuthById(created.id);
         } catch (err) {
-          console.error("[auth] jwt google provisioning", err);
+          console.error("[auth] jwt google provisioning");
+          logStructured({
+            level: "error",
+            msg: "jwt google provisioning failed",
+            event: "auth.failure",
+            reason: "oauth_provision_failed",
+            errorCode: safeErrorMessage(err),
+          });
           return invalidateJwtClaims(token as Record<string, unknown>) as typeof token;
         }
       }

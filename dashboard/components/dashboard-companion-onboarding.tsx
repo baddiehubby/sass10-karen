@@ -47,7 +47,16 @@ export function DashboardCompanionOnboarding({ licenseKey }: DashboardCompanionO
     const onDisplayModeChange = (event: MediaQueryListEvent) => setPwaInstalled(event.matches);
 
     const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === "BUDDY_EXTENSION_SYNCED") setExtensionInstalled(true);
+      // Extension sync is chrome-extension:// only — never trust arbitrary web origins.
+      const origin = String(event.origin || "");
+      if (!origin.startsWith("chrome-extension://") && !origin.startsWith("moz-extension://")) {
+        return;
+      }
+      const data = event.data;
+      if (!data || typeof data !== "object" || Array.isArray(data)) return;
+      const type = (data as { type?: unknown }).type;
+      if (type !== "BUDDY_EXTENSION_SYNCED") return;
+      setExtensionInstalled(true);
     };
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();

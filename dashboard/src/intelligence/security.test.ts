@@ -36,11 +36,46 @@ describe("security: lemon plan from variant only", () => {
 });
 
 describe("security: widget mood schema", () => {
-  it("requires licenseKey and rejects licenseId-only writes", () => {
+  it("requires licenseKey or widgetCredential and rejects licenseId-only writes", () => {
     const bad = widgetMoodPostSchema.safeParse({ licenseId: "clxxx", mood: "happy" });
     assert.equal(bad.success, false);
-    const good = widgetMoodPostSchema.safeParse({ licenseKey: "buddy_test_key_123", mood: "happy" });
-    assert.equal(good.success, true);
+    const goodKey = widgetMoodPostSchema.safeParse({ licenseKey: "buddy_test_key_123", mood: "happy" });
+    assert.equal(goodKey.success, true);
+    const goodCred = widgetMoodPostSchema.safeParse({
+      widgetCredential: "a".repeat(40),
+      mood: "happy",
+    });
+    assert.equal(goodCred.success, true);
+  });
+});
+
+describe("security: short-lived widget credentials", () => {
+  it("mints, verifies, enforces scope and expiration semantics", async () => {
+    process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || "test-secret-for-widget-cred-gate";
+    const { mintWidgetCredential, verifyWidgetCredential, staticLicenseKeyWriteAllowed, licenseKeyFingerprint } =
+      await import("@/lib/widget-credential");
+
+    assert.equal(staticLicenseKeyWriteAllowed(null), false);
+    assert.equal(staticLicenseKeyWriteAllowed("app.example.com"), true);
+
+    const minted = await mintWidgetCredential({
+      licenseId: "lic_test_1",
+      licenseKey: "HQ-TEST-KEY-ABCDEF",
+      scopes: ["mood:write"],
+      ttlSec: 120,
+    });
+    assert.ok(minted.token.split(".").length === 3);
+
+    const ok = await verifyWidgetCredential(minted.token, { requiredScope: "mood:write" });
+    assert.ok(ok);
+    assert.equal(ok!.licenseId, "lic_test_1");
+    assert.equal(ok!.keyFingerprint, licenseKeyFingerprint("HQ-TEST-KEY-ABCDEF"));
+
+    const wrongScope = await verifyWidgetCredential(minted.token, { requiredScope: "presence:write" });
+    assert.equal(wrongScope, null);
+
+    const bad = await verifyWidgetCredential("not.a.jwt");
+    assert.equal(bad, null);
   });
 });
 

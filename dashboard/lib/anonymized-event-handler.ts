@@ -55,12 +55,11 @@ export async function handleAnonymizedMoodEventPost(
       return NextResponse.json({ error: "Invalid license" }, { status: 403, headers: cors });
     }
   } else if (pseudonymousToken) {
-    // Indexed lookup only — never scan all licenses
+    // Indexed lookup only — never scan all licenses; reject unknown tokens (no spam sink).
     if (license && isLicenseActive(license)) {
       userId = license.userId;
     } else if (!license) {
-      // Unknown token: accept for anonymous ingest path without user consent binding
-      userId = null;
+      return NextResponse.json({ error: "Invalid session" }, { status: 403, headers: cors });
     } else {
       return NextResponse.json({ ok: true, skipped: true, reason: "inactive_license" }, { headers: cors });
     }

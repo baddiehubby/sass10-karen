@@ -13,6 +13,11 @@ import {
   serializePresenceState,
   type PresenceState,
 } from "@/lib/presence-state";
+import {
+  licenseKeyFingerprint,
+  staticLicenseKeyWriteAllowed,
+  verifyWidgetCredential,
+} from "@/lib/widget-credential";
 
 export async function resolveLicenseByKey(licenseKey: string) {
   const key = licenseKey.trim();
@@ -28,12 +33,43 @@ export async function resolveLicenseByKey(licenseKey: string) {
 export async function assertLicenseAccess(
   req: NextRequest,
   licenseKey: string,
-  options?: { readOnly?: boolean },
+  options?: { readOnly?: boolean; widgetCredential?: string | null },
 ) {
+  const bearer =
+    (options?.widgetCredential || "").trim() ||
+    (() => {
+      const h = req.headers.get("authorization")?.trim() || "";
+      return h.toLowerCase().startsWith("bearer ") ? h.slice(7).trim() : "";
+    })();
+
+  if (bearer) {
+    const cred = await verifyWidgetCredential(bearer, {
+      requiredScope: options?.readOnly ? "theme:read" : "presence:write",
+    });
+    if (!cred) return { ok: false as const, status: 403, error: "Invalid or expired credential" };
+    const license = await prisma.license.findUnique({
+      where: { id: cred.licenseId },
+      include: { user: { select: { companionName: true } } },
+    });
+    if (!license || !isLicenseActive(license)) {
+      return { ok: false as const, status: 404, error: "License not found" };
+    }
+    if (licenseKeyFingerprint(license.key) !== cred.keyFingerprint) {
+      return { ok: false as const, status: 403, error: "Credential revoked" };
+    }
+    if (licenseKey && license.key !== licenseKey.trim()) {
+      return { ok: false as const, status: 403, error: "Forbidden" };
+    }
+    const domainCheck = assertLicenseDomainFromRequest(license.domain, req);
+    if (license.domain && !domainCheck.ok) {
+      return { ok: false as const, status: 403, error: "Domain not allowed" };
+    }
+    return { ok: true as const, license };
+  }
+
   const license = await resolveLicenseByKey(licenseKey);
   if (!license) return { ok: false as const, status: 404, error: "License not found" };
 
-  // Bound licenses must present matching Origin/Referer (or matching claim)
   const domainCheck = assertLicenseDomainFromRequest(license.domain, req);
   if (!domainCheck.ok) {
     return { ok: false as const, status: 403, error: "Domain not allowed" };
@@ -48,7 +84,15 @@ export async function assertLicenseAccess(
     return { ok: true as const, license };
   }
 
-  // Companion / overlay writes: require matching secret key in header AND body.
+  // Unbound static keys are not permanent write auth — require short-lived credential.
+  if (!staticLicenseKeyWriteAllowed(license.domain)) {
+    return {
+      ok: false as const,
+      status: 403,
+      error: "Short-lived widget credential required",
+    };
+  }
+
   const headerKey = req.headers.get("x-buddy-license-key")?.trim();
   const bodyKey = licenseKey.trim();
   if (headerKey && bodyKey && headerKey === bodyKey && headerKey.length >= 16) {

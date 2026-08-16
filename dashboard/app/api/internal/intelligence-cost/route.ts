@@ -8,6 +8,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { buildInternalCostTelemetry } from "@/src/intelligence/cost";
+import { timingSafeSecretEqual } from "@/lib/widget-credential";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ function authorized(req: NextRequest): boolean {
     ? header.slice(7).trim()
     : "";
   const custom = req.headers.get("x-buddie-telemetry-secret")?.trim() ?? "";
-  return bearer === expected || custom === expected;
+  return timingSafeSecretEqual(bearer, expected) || timingSafeSecretEqual(custom, expected);
 }
 
 export async function GET(req: NextRequest) {

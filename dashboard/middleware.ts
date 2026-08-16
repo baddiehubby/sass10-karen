@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { nextAuthSecureCookies, nextAuthSessionCookieName } from "@/lib/authz";
 import { buildAppRedirectUrl, buildLoginRedirectUrl } from "@/lib/canonical-request-url";
 import { getTrustedClientIp } from "@/lib/client-ip";
+import { resolveRequestId } from "@/lib/ops/request-id";
 import { getTenant, TENANT_COOKIE, TENANT_HEADER } from "@/lib/tenant";
 
 const middlewareSecret = process.env.NEXTAUTH_SECRET;
@@ -97,6 +98,8 @@ const PUBLIC_API_PREFIXES = [
   "/api/extensions/stats",
   "/api/download/desktop-companion",
   "/api/download/buddy-extension",
+  "/api/health",
+  "/api/ready",
   // License-key authenticated in-route (overlay / SW / extension). Not session JWT.
   "/api/presence",
 ];
@@ -117,11 +120,12 @@ function applyTenantContext(req: NextRequest, res: NextResponse) {
   return res;
 }
 
-function nextWithTenant(req: NextRequest) {
+function nextWithTenant(req: NextRequest, requestId?: string) {
   const host = req.headers.get("host") || req.nextUrl.hostname;
   const tenant = getTenant(host);
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set(TENANT_HEADER, tenant);
+  if (requestId) requestHeaders.set("x-request-id", requestId);
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   return applyTenantContext(req, res);
 }
@@ -147,6 +151,12 @@ function withCorsForWidgetApis(req: NextRequest, res: NextResponse) {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const ip = clientIp(req);
+  const requestId = resolveRequestId(req.headers);
+
+  const stamp = (res: NextResponse) => {
+    res.headers.set("x-request-id", requestId);
+    return res;
+  };
 
   if (pathname.startsWith("/api/")) {
     // Lemon webhooks: do not IP-rate-limit before signature verify (retries must land).
@@ -166,7 +176,7 @@ export async function middleware(req: NextRequest) {
       if (!allowRate(rateKey, max, WINDOW_MS)) {
         const res = NextResponse.json({ error: "Too many requests" }, { status: 429 });
         applySecurityHeaders(res);
-        return withCorsForWidgetApis(req, applyTenantContext(req, res));
+        return stamp(withCorsForWidgetApis(req, applyTenantContext(req, res)));
       }
     }
 
@@ -176,7 +186,7 @@ export async function middleware(req: NextRequest) {
       if (!token || typeof token.id !== "string" || !token.id) {
         const res = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         applySecurityHeaders(res);
-        return withCorsForWidgetApis(req, applyTenantContext(req, res));
+        return stamp(withCorsForWidgetApis(req, applyTenantContext(req, res)));
       }
     }
   }
@@ -190,19 +200,19 @@ export async function middleware(req: NextRequest) {
       const login = buildLoginRedirectUrl(pathname);
       const res = applyTenantContext(req, NextResponse.redirect(login));
       applySecurityHeaders(res, { document: true });
-      return res;
+      return stamp(res);
     }
     if (!token.eidataConsentCompleted) {
       const consent = buildAppRedirectUrl("/consent");
       const res = applyTenantContext(req, NextResponse.redirect(consent));
       applySecurityHeaders(res, { document: true });
       res.headers.set("Cache-Control", "private, no-store");
-      return res;
+      return stamp(res);
     }
-    const next = nextWithTenant(req);
+    const next = nextWithTenant(req, requestId);
     applySecurityHeaders(next, { document: true });
     next.headers.set("Cache-Control", "private, no-store");
-    return withCorsForWidgetApis(req, next);
+    return stamp(withCorsForWidgetApis(req, next));
   }
 
   if (pathname === "/consent") {
@@ -211,7 +221,7 @@ export async function middleware(req: NextRequest) {
       const login = buildLoginRedirectUrl("/consent");
       const res = applyTenantContext(req, NextResponse.redirect(login));
       applySecurityHeaders(res, { document: true });
-      return res;
+      return stamp(res);
     }
   }
 
@@ -221,13 +231,13 @@ export async function middleware(req: NextRequest) {
       const login = buildLoginRedirectUrl("/debiopwr");
       const res = applyTenantContext(req, NextResponse.redirect(login));
       applySecurityHeaders(res, { document: true });
-      return res;
+      return stamp(res);
     }
   }
 
-  const res = nextWithTenant(req);
+  const res = nextWithTenant(req, requestId);
   applySecurityHeaders(res, { document: true });
-  return withCorsForWidgetApis(req, res);
+  return stamp(withCorsForWidgetApis(req, res));
 }
 
 export const config = {

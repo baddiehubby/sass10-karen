@@ -2,6 +2,9 @@
  * Cost-aware intelligence resolver.
  * Priority: Soul Engine → local lightweight → user-authorized → fallback only if required.
  * Never degrades UX solely for an arbitrary cost target — local path is premium.
+ *
+ * Core experience target: ZERO MARGINAL AI INFERENCE COST
+ * (infra/DB/bandwidth are separate and not claimed as zero).
  */
 
 import {
@@ -16,13 +19,17 @@ import {
   getDeterministicCache,
   setDeterministicCache,
 } from "@/src/intelligence/cost/cache";
+import { coalesceSync } from "@/src/intelligence/cost/coalesce";
+import { minimizeIntelligenceContext } from "@/src/intelligence/cost/context-minimize";
 import { recordIntelligenceResolution } from "@/src/intelligence/cost/metrics";
 import {
+  assessGenuineExternalNeed,
   isUserAuthorizedIntelligenceEnabled,
   selectCostRoute,
   type CostRouteDecision,
   type CostRouteTier,
 } from "@/src/intelligence/cost/routing";
+import { summarizeMemoriesLocally } from "@/src/intelligence/memory/summarize-local";
 import { routeSemantic } from "@/src/intelligence/semantic-router";
 import { runSoulEngine } from "@/src/intelligence/soul-engine/run";
 import { sanitizeUserText } from "@/src/intelligence/safety";
@@ -39,6 +46,8 @@ export type CostAwareInput = IntelligenceInput & {
   externalRetryCount?: number;
   /** Force skip cache (tests / sensitive flows). */
   skipCache?: boolean;
+  /** Ops-only: product-approved capability gap (default false). */
+  explicitApprovedExternalGap?: boolean;
 };
 
 export type CostAwareResult = IntelligenceResult & {
@@ -46,6 +55,7 @@ export type CostAwareResult = IntelligenceResult & {
     tier: CostRouteTier;
     decision: CostRouteDecision;
     cached: boolean;
+    coalesced: boolean;
     latencyMs: number;
     estimatedCostUsd: number;
   };
@@ -54,6 +64,7 @@ export type CostAwareResult = IntelligenceResult & {
 /**
  * Authorized remote adapter hook — intentionally a no-op until a real provider is configured.
  * Must never be invoked for never-expensive intents.
+ * Must never accept user-posted API keys (see credential-policy).
  */
 export type AuthorizedIntelligenceProvider = {
   complete: (input: {
@@ -71,28 +82,21 @@ export function setAuthorizedIntelligenceProvider(provider: AuthorizedIntelligen
 export function resolveIntelligence(input: CostAwareInput): CostAwareResult {
   const started = nowMs();
   const userScope = input.userScope?.trim() || "session:anon";
-  const userText = sanitizeUserText(input.userText ?? "");
+  const rawText = sanitizeUserText(input.userText ?? "");
 
   const abuse = checkIntelligenceAbuse({
     userId: userScope,
     clientIp: input.clientIp,
-    text: userText,
+    text: rawText,
     conversationDepth: input.conversationDepth,
     recentTurnCount: input.recentTurns?.length,
     externalRetryCount: input.externalRetryCount,
   });
 
   if (!abuse.ok) {
-    const soft = softAbuseResult(abuse.softMessage, input, userText);
-    finishMetrics({
-      tier: "soul_engine",
-      latencyMs: nowMs() - started,
-      error: false,
-      estimatedCostUsd: 0,
-      cached: false,
-      userScope,
-    });
-    return {
+    const soft = softAbuseResult(abuse.softMessage, input, rawText);
+    const latencyMs = nowMs() - started;
+    const out: CostAwareResult = {
       ...soft,
       cost: {
         tier: "soul_engine",
@@ -104,12 +108,128 @@ export function resolveIntelligence(input: CostAwareInput): CostAwareResult {
           mayEscalate: false,
         },
         cached: false,
-        latencyMs: nowMs() - started,
+        coalesced: false,
+        latencyMs,
         estimatedCostUsd: 0,
       },
     };
+    emitMetrics(out, userScope, { fallback: true });
+    return out;
   }
 
+  const minimized = minimizeIntelligenceContext({
+    userText: rawText,
+    recentTurns: input.recentTurns,
+    responseHistory: input.responseHistory,
+    recentFamilies: input.recentFamilies,
+    memoryContext: input.memoryContext,
+    persistedMemories: input.persistedMemories,
+  });
+  const memorySummary = summarizeMemoriesLocally(minimized.persistedMemories);
+  const slimInput: CostAwareInput = {
+    ...input,
+    userText: minimized.userText,
+    recentTurns: minimized.recentTurns,
+    responseHistory: minimized.responseHistory,
+    recentFamilies: minimized.recentFamilies,
+    memoryContext: minimized.memoryContext,
+    persistedMemories: memorySummary.retained,
+  };
+
+  // Cache before coalesce so safe repeats prefer durable user-scoped cache over
+  // short-lived same-tick coalescing.
+  const early = peekCacheSafe(slimInput, userScope, started);
+  if (early) {
+    emitMetrics(early, userScope, { fallback: false, coalesced: false });
+    return early;
+  }
+
+  const { value, coalesced } = coalesceSync(
+    {
+      userScope,
+      userText: minimized.userText,
+      voice: input.characterVoice ?? "warm",
+      depth: input.conversationDepth ?? 1,
+    },
+    () => resolveCore(slimInput, userScope, started),
+  );
+
+  const latencyMs = nowMs() - started;
+  const out: CostAwareResult = {
+    ...value,
+    cost: { ...value.cost, coalesced, latencyMs },
+  };
+  emitMetrics(out, userScope, {
+    fallback:
+      out.cost.decision.reason.includes("suppressed") ||
+      out.cost.decision.reason.includes("fallback") ||
+      out.cost.decision.reason.startsWith("abuse_"),
+    coalesced,
+  });
+  return out;
+}
+
+function peekCacheSafe(
+  input: CostAwareInput,
+  userScope: string,
+  started: number,
+): CostAwareResult | null {
+  if (input.skipCache) return null;
+  const userText = input.userText ?? "";
+  const turns = input.recentTurns ?? [];
+  const isShort = userText.length > 0 && userText.length <= 12 && !/\?/.test(userText);
+  const lastBuddy = [...turns].reverse().find((t) => t.role === "buddy")?.text ?? "";
+  const isRepair = isConversationalRepair(userText, lastBuddy);
+  const isRepeat = isRepeatQuestion(userText, turns);
+  const previousTopic = input.previousMachine?.topic ?? input.recentTopics?.[input.recentTopics.length - 1];
+  const previousUserTexts = turns.filter((t) => t.role === "user").map((t) => t.text).slice(-6);
+  const hit = routeSemantic(userText, {
+    isRepair,
+    isRepeat,
+    isShort,
+    previousTopic,
+    previousMessages: previousUserTexts,
+  });
+  const decision = selectCostRoute({
+    intent: isRepair ? "correction" : hit.intent,
+    userText,
+    conversationDepth: input.conversationDepth ?? 1,
+    isRepeat,
+    mayCiteMemory: Boolean(input.persistedMemories?.length),
+    userAuthorizedEnabled: isUserAuthorizedIntelligenceEnabled(),
+    genuineExternalNeed: assessGenuineExternalNeed({
+      explicitApprovedGap: input.explicitApprovedExternalGap === true,
+    }),
+  });
+  if (!decision.cacheSafe) return null;
+  const key = buildUserCacheKey({
+    userScope,
+    intent: hit.intent,
+    userText,
+    voice: input.characterVoice ?? "warm",
+    depth: input.conversationDepth ?? 1,
+  });
+  const cached = getDeterministicCache(key, userScope);
+  if (!cached) return null;
+  const full = runSoulEngine({ ...input, userText, seed: input.seed ?? `cache:${key}` });
+  return {
+    ...full,
+    text: cached.text,
+    response: cached.text,
+    familyId: cached.familyId || full.familyId,
+    cost: {
+      tier: "soul_engine",
+      decision,
+      cached: true,
+      coalesced: false,
+      latencyMs: nowMs() - started,
+      estimatedCostUsd: 0,
+    },
+  };
+}
+
+function resolveCore(input: CostAwareInput, userScope: string, started: number): CostAwareResult {
+  const userText = input.userText ?? "";
   const turns = input.recentTurns ?? [];
   const isShort = userText.length > 0 && userText.length <= 12 && !/\?/.test(userText);
   const lastBuddy = [...turns].reverse().find((t) => t.role === "buddy")?.text ?? "";
@@ -126,6 +246,10 @@ export function resolveIntelligence(input: CostAwareInput): CostAwareResult {
     previousMessages: previousUserTexts,
   });
 
+  const genuineExternalNeed = assessGenuineExternalNeed({
+    explicitApprovedGap: input.explicitApprovedExternalGap === true,
+  });
+
   const decision = selectCostRoute({
     intent: isRepair ? "correction" : hit.intent,
     userText,
@@ -133,14 +257,13 @@ export function resolveIntelligence(input: CostAwareInput): CostAwareResult {
     isRepeat,
     mayCiteMemory: Boolean(input.persistedMemories?.length),
     userAuthorizedEnabled: isUserAuthorizedIntelligenceEnabled(),
-    genuineExternalNeed: false, // Soul Engine covers product surface; do not invent need
+    genuineExternalNeed,
   });
 
-  // Deterministic user-scoped cache (never shared / never private memory replies)
   if (!input.skipCache && decision.cacheSafe) {
     const key = buildUserCacheKey({
       userScope,
-      intent: decision.tier === "soul_engine" ? hit.intent : hit.intent,
+      intent: hit.intent,
       userText,
       voice: input.characterVoice ?? "warm",
       depth: input.conversationDepth ?? 1,
@@ -148,80 +271,73 @@ export function resolveIntelligence(input: CostAwareInput): CostAwareResult {
     const cached = getDeterministicCache(key, userScope);
     if (cached) {
       const full = runSoulEngine({ ...input, userText, seed: input.seed ?? `cache:${key}` });
-      // Prefer cached wording for identical safe prompts, keep machine fresh
-      const merged: CostAwareResult = {
+      return {
         ...full,
         text: cached.text,
+        response: cached.text,
         familyId: cached.familyId || full.familyId,
         cost: {
           tier: "soul_engine",
           decision,
           cached: true,
+          coalesced: false,
           latencyMs: nowMs() - started,
           estimatedCostUsd: 0,
         },
       };
-      finishMetrics({
-        tier: "soul_engine",
-        latencyMs: merged.cost.latencyMs,
-        cached: true,
-        estimatedCostUsd: 0,
-        userScope,
-      });
-      return merged;
     }
   }
 
-  // Never escalate never-expensive / local-preferred
   if (!decision.mayEscalate || decision.neverExpensive || isProviderCircuitOpen()) {
-    const local = runLocal(input, userText, decision.tier === "local_lightweight" ? "local_lightweight" : "soul_engine");
+    const local = runLocal(
+      input,
+      userText,
+      decision.tier === "local_lightweight" ? "local_lightweight" : "soul_engine",
+    );
     maybeCache(local, decision, userScope, userText, input);
-    const latencyMs = nowMs() - started;
-    finishMetrics({
-      tier: local.cost.tier,
-      latencyMs,
-      estimatedCostUsd: 0,
-      cached: false,
-      userScope,
-    });
-    return { ...local, cost: { ...local.cost, latencyMs, decision } };
+    return {
+      ...local,
+      cost: {
+        ...local.cost,
+        latencyMs: nowMs() - started,
+        decision,
+        coalesced: false,
+      },
+    };
   }
 
-  // Authorized path — only when explicitly enabled AND mayEscalate
-  // Currently no provider is registered by default → soft local fallback (premium UX preserved)
   const external = tryAuthorizedSync(userText);
   if (external) {
     const base = runSoulEngine({ ...input, userText });
-    const latencyMs = nowMs() - started;
     recordProviderSuccess();
-    finishMetrics({
-      tier: "user_authorized",
-      latencyMs,
-      estimatedCostUsd: 0.002,
-      userScope,
-    });
     return {
       ...base,
       text: external.text,
+      response: external.text,
       cost: {
         tier: "user_authorized",
         decision,
         cached: false,
-        latencyMs,
+        coalesced: false,
+        latencyMs: nowMs() - started,
         estimatedCostUsd: 0.002,
       },
     };
   }
 
   const local = runLocal(input, userText, "soul_engine");
-  const latencyMs = nowMs() - started;
-  finishMetrics({
-    tier: "soul_engine",
-    latencyMs,
-    estimatedCostUsd: 0,
-    userScope,
-  });
-  return { ...local, cost: { ...local.cost, latencyMs, decision } };
+  return {
+    ...local,
+    cost: {
+      ...local.cost,
+      latencyMs: nowMs() - started,
+      decision: {
+        ...decision,
+        reason: "authorized_unavailable_local_fallback",
+      },
+      coalesced: false,
+    },
+  };
 }
 
 function runLocal(
@@ -242,6 +358,7 @@ function runLocal(
         mayEscalate: false,
       },
       cached: false,
+      coalesced: false,
       latencyMs: 0,
       estimatedCostUsd: 0,
     },
@@ -271,14 +388,9 @@ function maybeCache(
   });
 }
 
-/**
- * Sync-safe authorized attempt — async providers must register a sync-capable shim
- * or remain null. Never blocks the product on network.
- */
 function tryAuthorizedSync(userText: string): { text: string } | null {
   if (!authorizedProvider) return null;
   if (isProviderCircuitOpen()) return null;
-  // Provider interface is async; we do not block. Callers needing async should use resolveIntelligenceAsync.
   void userText;
   void getProviderTimeoutMs;
   return null;
@@ -294,48 +406,36 @@ export async function resolveIntelligenceAsync(input: CostAwareInput): Promise<C
   if (!authorizedProvider || isProviderCircuitOpen()) return syncFirst;
 
   try {
-    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timeout = getProviderTimeoutMs();
-    const timer =
-      ctrl && typeof setTimeout === "function"
-        ? setTimeout(() => ctrl.abort(), timeout)
-        : null;
     const out = await Promise.race([
-      authorizedProvider.complete({ userText: sanitizeUserText(input.userText ?? ""), timeoutMs: timeout }),
+      authorizedProvider.complete({
+        userText: sanitizeUserText(input.userText ?? ""),
+        timeoutMs: timeout,
+      }),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), timeout + 50)),
     ]);
-    if (timer) clearTimeout(timer);
     if (!out?.text) {
       recordProviderFailure();
-      finishMetrics({
-        tier: "soul_engine",
-        latencyMs: nowMs() - started,
-        providerFailure: true,
-        estimatedCostUsd: 0,
-        userScope: input.userScope,
-      });
       return resolveIntelligence({ ...input, skipCache: true });
     }
     recordProviderSuccess();
     const base = runSoulEngine({ ...input, userText: sanitizeUserText(input.userText ?? "") });
     const latencyMs = nowMs() - started;
-    finishMetrics({
-      tier: "user_authorized",
-      latencyMs,
-      estimatedCostUsd: 0.002,
-      userScope: input.userScope,
-    });
-    return {
+    const result: CostAwareResult = {
       ...base,
       text: out.text,
+      response: out.text,
       cost: {
         tier: "user_authorized",
         decision: syncFirst.cost.decision,
         cached: false,
+        coalesced: false,
         latencyMs,
         estimatedCostUsd: 0.002,
       },
     };
+    emitMetrics(result, input.userScope ?? "session:anon", { fallback: false });
+    return result;
   } catch {
     recordProviderFailure();
     return resolveIntelligence({ ...input, skipCache: true });
@@ -348,11 +448,27 @@ function softAbuseResult(message: string, input: CostAwareInput, userText: strin
     userText: userText.slice(0, 12) || "…",
     seed: `abuse:${message.slice(0, 24)}`,
   });
-  return { ...base, text: message };
+  return { ...base, text: message, response: message };
 }
 
-function finishMetrics(input: Parameters<typeof recordIntelligenceResolution>[0]): void {
-  recordIntelligenceResolution(input);
+function emitMetrics(
+  out: CostAwareResult,
+  userScope: string,
+  flags: { fallback?: boolean; coalesced?: boolean },
+): void {
+  const local = out.cost.estimatedCostUsd === 0 && out.inference === "none";
+  recordIntelligenceResolution({
+    tier: out.cost.tier,
+    latencyMs: out.cost.latencyMs,
+    estimatedCostUsd: out.cost.estimatedCostUsd,
+    cached: out.cost.cached,
+    userScope,
+    local,
+    confidence: out.confidence,
+    advancedRoute: out.requiresAdvancedIntelligence,
+    fallback: Boolean(flags.fallback) || out.cost.decision.reason.includes("fallback"),
+    coalesced: flags.coalesced ?? out.cost.coalesced,
+  });
 }
 
 function nowMs(): number {

@@ -9,6 +9,7 @@ export {
   looksLikeStaticProductRequest,
   isBasicEmotionalSupport,
   selectCostRoute,
+  assessGenuineExternalNeed,
   isUserAuthorizedIntelligenceEnabled,
 } from "@/src/intelligence/cost/routing";
 export type { CostRouteTier, CostRouteDecision } from "@/src/intelligence/cost/routing";
@@ -37,6 +38,24 @@ export {
   resetIntelligenceMetrics,
 } from "@/src/intelligence/cost/metrics";
 export type { IntelligenceCostSnapshot } from "@/src/intelligence/cost/metrics";
+
+export { minimizeIntelligenceContext, CONTEXT_LIMITS } from "@/src/intelligence/cost/context-minimize";
+export type { MinimizedContext } from "@/src/intelligence/cost/context-minimize";
+
+export {
+  coalesceSync,
+  coalesceRequest,
+  resetCoalesceState,
+  coalesceInflightCount,
+} from "@/src/intelligence/cost/coalesce";
+
+export {
+  evaluateUserProviderCredential,
+  isArbitraryProviderProxyAllowed,
+} from "@/src/intelligence/cost/credential-policy";
+
+export { buildInternalCostTelemetry } from "@/src/intelligence/cost/telemetry";
+export type { InternalCostTelemetry } from "@/src/intelligence/cost/telemetry";
 
 export {
   resolveIntelligence,

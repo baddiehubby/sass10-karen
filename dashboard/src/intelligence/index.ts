@@ -6,6 +6,11 @@
 
 export type * from "@/src/intelligence/types";
 export { runSoulEngine, localIntelligenceRouter } from "@/src/intelligence/soul-engine/run";
+export {
+  assembleFromPrimitives,
+  RESPONSE_DEDUP_WINDOW,
+  pickPrimitive,
+} from "@/src/intelligence/soul-engine/primitives";
 export { routeSemantic } from "@/src/intelligence/semantic-router";
 export { composeResponse } from "@/src/intelligence/response-composer";
 export {

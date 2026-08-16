@@ -108,8 +108,17 @@ const SIGNALS: Signal[] = [
     weight: 1.15,
     score: (c) => {
       const negTired = /not\s+tired|isn'?t\s+tired|aren'?t\s+tired|don'?t\s+feel\s+tired/.test(c.t);
-      const done = hasAny(c.tokenSet, FAMILY_WORDS.tired_emotional) || phraseHas(c.t, ["just done", "had enough", "burned out", "burnt out"]);
-      return negTired && done ? 1 : phraseHas(c.t, ["emotionally exhausted", "emotionally done", "just done with"]) ? 0.95 : 0;
+      const done =
+        hasAny(c.tokenSet, FAMILY_WORDS.tired_emotional) ||
+        phraseHas(c.t, ["just done", "had enough", "burned out", "burnt out"]);
+      // "exhausted but not tired" = soul-tired, not sleep debt
+      const exhaustedNotBody =
+        negTired &&
+        (c.tokenSet.has("exhausted") ||
+          phraseHas(c.t, ["emotionally exhausted", "so drained", "completely drained"]));
+      if (negTired && done) return 1;
+      if (exhaustedNotBody) return 1;
+      return phraseHas(c.t, ["emotionally exhausted", "emotionally done", "just done with"]) ? 0.95 : 0;
     },
   },
   {

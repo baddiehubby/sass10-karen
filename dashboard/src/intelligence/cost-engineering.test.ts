@@ -4,13 +4,20 @@ import { describe, it, beforeEach } from "node:test";
 import { baseInput } from "@/src/intelligence/__fixtures__/intents";
 import {
   ABUSE_LIMITS,
+  CONTEXT_LIMITS,
   NEVER_EXPENSIVE_INTENTS,
+  assessGenuineExternalNeed,
+  buildInternalCostTelemetry,
   checkIntelligenceAbuse,
   clearDeterministicCache,
+  evaluateUserProviderCredential,
   getIntelligenceCostSnapshot,
+  isArbitraryProviderProxyAllowed,
   isNeverExpensiveIntent,
   looksLikeStaticProductRequest,
+  minimizeIntelligenceContext,
   resetAbuseState,
+  resetCoalesceState,
   resetIntelligenceMetrics,
   resolveIntelligence,
   selectCostRoute,
@@ -18,13 +25,18 @@ import {
   recordProviderFailure,
   isProviderCircuitOpen,
 } from "@/src/intelligence/cost";
+import { createAuthorizedIntelligenceProvider } from "@/src/intelligence/cost/providers/authorized";
+import { summarizeMemoriesLocally } from "@/src/intelligence/memory/summarize-local";
 import { buddyReplyFull } from "@/lib/buddy-intelligence";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 describe("cost routing priority", () => {
   beforeEach(() => {
     resetAbuseState();
     resetIntelligenceMetrics();
     clearDeterministicCache();
+    resetCoalesceState();
     setAuthorizedIntelligenceProvider(null);
   });
 
@@ -94,6 +106,7 @@ describe("user-scoped deterministic cache", () => {
     resetAbuseState();
     resetIntelligenceMetrics();
     clearDeterministicCache();
+    resetCoalesceState();
   });
 
   it("caches safe greetings per user and does not share across users", () => {
@@ -172,6 +185,7 @@ describe("observability snapshot", () => {
     resetAbuseState();
     resetIntelligenceMetrics();
     clearDeterministicCache();
+    resetCoalesceState();
   });
 
   it("tracks local vs external rates without user-facing leakage", () => {
@@ -189,6 +203,131 @@ describe("observability snapshot", () => {
     assert.equal(snap.external_resolution_rate, 0);
     assert.equal(snap.estimated_cost_per_active_user, 0);
     assert.ok(snap.average_latency >= 0);
+    assert.ok(snap.local_responses >= 5);
+    assert.ok(snap.local_confidence > 0);
+    assert.equal(snap.estimated_external_cost, 0);
+    assert.ok(typeof snap.advanced_route_count === "number");
+    assert.ok(typeof snap.fallback_count === "number");
+  });
+
+  it("builds internal telemetry structure without proxy allowance", () => {
+    buddyReplyFull({
+      text: "hey",
+      seed: "tel-1",
+      userScope: "user:tel",
+      persistMemories: false,
+    });
+    const tel = buildInternalCostTelemetry();
+    assert.equal(tel.claimScope, "zero_marginal_ai_inference_cost_core_experience");
+    assert.match(tel.disclaimer, /Does not include database/i);
+    assert.equal(tel.gates.arbitraryProviderProxyAllowed, false);
+    assert.ok(tel.snapshot.local_responses >= 1);
+  });
+});
+
+describe("context minimize + coalesce + credentials", () => {
+  beforeEach(() => {
+    resetAbuseState();
+    resetIntelligenceMetrics();
+    clearDeterministicCache();
+    resetCoalesceState();
+  });
+
+  it("minimizes long turn history", () => {
+    const turns = Array.from({ length: 30 }, (_, i) => ({
+      role: (i % 2 === 0 ? "user" : "buddy") as "user" | "buddy",
+      text: `turn ${i} ${"word ".repeat(40)}`,
+      at: new Date().toISOString(),
+    }));
+    const m = minimizeIntelligenceContext({
+      userText: "hello",
+      recentTurns: turns,
+      responseHistory: turns.filter((t) => t.role === "buddy").map((t) => t.text),
+    });
+    assert.ok(m.recentTurns.length <= CONTEXT_LIMITS.MAX_RECENT_TURNS);
+    assert.ok(m.droppedTurns >= 20);
+    assert.ok(m.keptChars < turns.reduce((n, t) => n + t.text.length, 0));
+  });
+
+  it("coalesces identical same-tick resolutions", () => {
+    const text = "help me plan my ambitious year goals carefully";
+    const a = resolveIntelligence({
+      ...baseInput({ userText: text, seed: "coa-a", conversationDepth: 4 }),
+      userScope: "user:coa",
+    });
+    const b = resolveIntelligence({
+      ...baseInput({ userText: text, seed: "coa-b", conversationDepth: 4 }),
+      userScope: "user:coa",
+    });
+    assert.equal(a.cost.coalesced, false);
+    assert.equal(b.cost.coalesced, true);
+    assert.equal(a.text, b.text);
+    assert.equal(a.cost.cached, false);
+    assert.equal(b.cost.cached, false);
+  });
+
+  it("rejects BYOK credentials and forbids arbitrary proxy", () => {
+    const d = evaluateUserProviderCredential({
+      provider: "openai",
+      apiKey: "sk-test",
+      storeOnServer: true,
+    });
+    assert.equal(d.accepted, false);
+    assert.equal(isArbitraryProviderProxyAllowed(), false);
+    assert.equal(createAuthorizedIntelligenceProvider({ userPostedApiKey: "sk-test" }), null);
+  });
+
+  it("does not escalate from requiresAdvancedIntelligence alone", () => {
+    assert.equal(
+      assessGenuineExternalNeed({
+        requiresAdvancedIntelligence: true,
+        confidence: 0.1,
+        explicitApprovedGap: false,
+      }),
+      false,
+    );
+    const d = selectCostRoute({
+      intent: "goals",
+      userText: "help me plan my year with nuance",
+      conversationDepth: 6,
+      genuineExternalNeed: assessGenuineExternalNeed({
+        requiresAdvancedIntelligence: true,
+        explicitApprovedGap: false,
+      }),
+      userAuthorizedEnabled: true,
+    });
+    assert.equal(d.mayEscalate, false);
+    assert.equal(d.neverExpensive, true);
+  });
+
+  it("summarizes memories locally without inference", () => {
+    const summary = summarizeMemoriesLocally([
+      {
+        category: "relationship",
+        subject: "sister",
+        relationship: "family",
+        topic: "family",
+        fact: "sister may be going through difficulties; user is concerned",
+        confidence: 0.9,
+        relevance: 0.86,
+        source: "user_statement",
+        createdAt: new Date().toISOString(),
+      },
+      {
+        category: "other",
+        subject: "user",
+        relationship: null,
+        topic: "noise",
+        fact: "low confidence noise",
+        confidence: 0.3,
+        relevance: 0.2,
+        source: "user_statement",
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    assert.equal(summary.usedExternalInference, false);
+    assert.equal(summary.retained.length, 1);
+    assert.match(summary.rollup, /sister/i);
   });
 });
 
@@ -197,6 +336,7 @@ describe("authorized provider gate", () => {
     resetAbuseState();
     resetIntelligenceMetrics();
     clearDeterministicCache();
+    resetCoalesceState();
     setAuthorizedIntelligenceProvider(null);
   });
 
@@ -215,5 +355,29 @@ describe("authorized provider gate", () => {
     assert.doesNotMatch(out.text, /REMOTE SHOULD NOT APPEAR/);
     assert.equal(called, 0);
     assert.equal(out.cost.estimatedCostUsd, 0);
+  });
+});
+
+describe("no hidden AI provider proxy in API routes", () => {
+  it("scans app/api for openai/anthropic completion proxies", () => {
+    const apiRoot = join(process.cwd(), "app", "api");
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (name.endsWith(".ts") || name.endsWith(".js")) files.push(p);
+      }
+    };
+    walk(apiRoot);
+    const forbidden =
+      /api\.openai\.com|api\.anthropic\.com|openai\.chat|anthropic\.messages|ChatCompletion|createCompletion\s*\(/i;
+    const offenders: string[] = [];
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      if (forbidden.test(src)) offenders.push(f);
+    }
+    assert.deepEqual(offenders, []);
+    assert.ok(files.some((f) => f.replace(/\\/g, "/").includes("internal/intelligence-cost")));
   });
 });

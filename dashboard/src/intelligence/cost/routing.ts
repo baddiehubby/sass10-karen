@@ -156,6 +156,25 @@ export function selectCostRoute(input: {
   };
 }
 
+/**
+ * Genuine external need is NEVER inferred from low confidence or
+ * `requiresAdvancedIntelligence` alone — those are observability flags.
+ * Keep false for the core product so marginal AI inference cost stays $0.
+ * Future ops may pass an explicit product-approved gap only.
+ */
+export function assessGenuineExternalNeed(input: {
+  requiresAdvancedIntelligence?: boolean;
+  confidence?: number;
+  /** Explicit product/ops override — default false. */
+  explicitApprovedGap?: boolean;
+}): boolean {
+  if (!input.explicitApprovedGap) return false;
+  // Even with an approved gap, never treat flag/confidence as automatic spend.
+  void input.requiresAdvancedIntelligence;
+  void input.confidence;
+  return true;
+}
+
 /** Env gate — remote authorized path off by default. */
 export function isUserAuthorizedIntelligenceEnabled(
   env: NodeJS.ProcessEnv | Record<string, string | undefined> = typeof process !== "undefined" ? process.env : {},

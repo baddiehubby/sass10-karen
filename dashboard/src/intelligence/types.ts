@@ -215,11 +215,18 @@ export type RoutedContext = {
 
 export type ComposedReply = {
   text: string;
+  /** Alias of text — Soul Engine public contract. */
+  response: string;
+  confidence: number;
   intent: BuddyIntent;
   emotion: BuddyEmotion;
+  /** Alias of emotion for the public contract. */
+  emotionalTone: BuddyEmotion;
   topic: BuddyTopic;
   depth: number;
   familyId: string;
+  /** True only when local composition is genuinely insufficient (observability — not an LLM claim). */
+  requiresAdvancedIntelligence: boolean;
   orbCue: "idle" | "listening" | "thinking" | "responding" | "comforting" | "excited" | "playful" | "curious";
   source: "local-intelligence";
   /** Explicit: not an LLM completion. */
@@ -234,4 +241,6 @@ export type IntelligenceResult = ComposedReply & {
   memoryToPersist: MemoryCandidate[];
   /** Ambiguous candidates — do not store permanently. */
   memoryRejected: MemoryCandidate[];
+  /** All structured candidates considered this turn (persist ∪ reject). */
+  memoryCandidates: MemoryCandidate[];
 };

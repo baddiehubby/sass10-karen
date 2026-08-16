@@ -1,5 +1,5 @@
 /**
- * Premium response composer — procedural assembly, not canned stacks.
+ * Premium response composer — composable primitives + procedural cores.
  * Personality: warm, playful, gentle, curious, slightly magical, non-judgmental.
  * Avoids emotional clichés like "I'm here for you."
  */
@@ -7,16 +7,15 @@
 import { memoryHintLine } from "@/src/intelligence/memory";
 import { preferredResponseLength } from "@/src/intelligence/device-capabilities";
 import { safetyOverlay } from "@/src/intelligence/safety";
+import { assembleFromPrimitives, RESPONSE_DEDUP_WINDOW } from "@/src/intelligence/soul-engine/primitives";
 import {
   avoidRepeatText,
   chooseFamily,
-  hash,
   isTooSimilar,
   mutateWording,
   pickVariant,
 } from "@/src/intelligence/variation";
 import type {
-  BuddyEmotion,
   BuddyIntent,
   ComposedReply,
   DeviceCapabilities,
@@ -24,37 +23,6 @@ import type {
 } from "@/src/intelligence/types";
 
 type Family = { familyId: string; cores: string[] };
-
-const OPENERS = [
-  "Mm.",
-  "Okay.",
-  "Ah.",
-  "Hey.",
-  "Soft pulse from the orb —",
-  "Quiet glow,",
-  "Between heartbeats,",
-  "Tiny spark:",
-  "Real soft,",
-  "Curious,",
-];
-
-const METAPHORS = [
-  "like weather shifting behind glass",
-  "like a lantern turned down low",
-  "like tide pulling at ankles",
-  "like a page mid-turn",
-  "like dust motes in late light",
-  "like a knot loosening one loop",
-];
-
-const FOLLOWUPS = [
-  "What feels truest in it?",
-  "Want to name one piece?",
-  "Shall we stay with that a second?",
-  "Is there a smaller corner of it?",
-  "What would help by an inch?",
-  "Curious what sits underneath.",
-];
 
 const FAMILIES: Partial<Record<BuddyIntent, Family[]>> = {
   greeting: [
@@ -258,11 +226,12 @@ export function composeResponse(ctx: RoutedContext, device?: DeviceCapabilities)
   let family = intentFamilies.find((f) => f.familyId === familyId) ?? intentFamilies[0]!;
 
   const short = preferredResponseLength(device) === "short" || ctx.engagementState === "quiet";
+  const historyWindow = ctx.responseHistory.slice(-RESPONSE_DEDUP_WINDOW);
   let text = assemble(ctx, family, short);
 
-  // Hard anti-repetition loop
+  // Hard anti-repetition loop (rolling window)
   let attempt = 0;
-  while (isTooSimilar(text, ctx.responseHistory) && attempt < 8) {
+  while (isTooSimilar(text, historyWindow) && attempt < 8) {
     familyId = chooseFamily(
       preferred,
       [...ctx.recentFamilies, familyId],
@@ -275,17 +244,26 @@ export function composeResponse(ctx: RoutedContext, device?: DeviceCapabilities)
     attempt += 1;
   }
 
-  text = avoidRepeatText(text, ctx.responseHistory, ctx.seed);
+  text = avoidRepeatText(text, historyWindow, ctx.seed);
   text = stripClichés(text);
   text = safetyOverlay(text, ctx.intent, ctx.emotion);
 
+  const requiresAdvancedIntelligence =
+    ctx.confidence < 0.35 &&
+    ctx.depth >= 4 &&
+    !["silence", "short_answer", "greeting", "farewell", "orb_touch"].includes(ctx.intent);
+
   return {
     text,
+    response: text,
+    confidence: ctx.confidence,
     intent: ctx.intent,
     emotion: ctx.emotion,
+    emotionalTone: ctx.emotion,
     topic: ctx.topic,
     depth: ctx.depth,
     familyId,
+    requiresAdvancedIntelligence,
     orbCue: orbFrom(ctx),
     source: "local-intelligence",
     inference: "none",
@@ -294,124 +272,20 @@ export function composeResponse(ctx: RoutedContext, device?: DeviceCapabilities)
 
 function assemble(ctx: RoutedContext, family: Family, short: boolean, salt = 0): string {
   const seed = `${ctx.seed}:${family.familyId}:${ctx.depth}:${salt}:${ctx.novelty.toFixed(2)}`;
-  const parts: string[] = [];
-
-  // Low confidence: stay coherent without pretending certainty
-  if (ctx.confidence < 0.5 && !short) {
-    const hedges = [
-      "I might be reading that sideways —",
-      "Not fully sure I caught it,",
-      "If I'm off, nudge me —",
-    ];
-    parts.push(hedges[hash(seed + "hedge") % hedges.length]!);
-  }
-
-  if (ctx.subtopic === "mood_shift" && !short) {
-    parts.push("Sounds like the weather shifted.");
-  }
-
-  const useOpener = ctx.novelty > 0.45 && ctx.depth % 3 !== 0 && hash(seed + "op") % 3 === 0;
-  if (useOpener && !short) {
-    const recentOpenings = ctx.responseHistory.map(openingFingerprint);
-    const avoidOpen = OPENERS.map((o, i) => ({ o, i })).filter(({ o }) =>
-      recentOpenings.includes(openingFingerprint(o)),
-    );
-    const { item: opener } = pickVariant(
-      OPENERS,
-      seed + "opener",
-      avoidOpen.map(({ i }) => i),
-    );
-    parts.push(opener);
-  }
-
   const avoidCore = family.cores
     .map((c, i) => ({ c, i }))
-    .filter(({ c }) => ctx.responseHistory.some((h) => h.toLowerCase().includes(c.slice(0, 16).toLowerCase())))
+    .filter(({ c }) =>
+      ctx.responseHistory
+        .slice(-RESPONSE_DEDUP_WINDOW)
+        .some((h) => h.toLowerCase().includes(c.slice(0, 16).toLowerCase())),
+    )
     .map(({ i }) => i);
   const { item: core } = pickVariant(family.cores, seed + "core", avoidCore);
-  parts.push(capitalizeJoin(core));
-
-  // Entity-aware seasoning for support
-  if (ctx.intent === "support_other" && ctx.entity.subject && !core.includes(ctx.entity.subject)) {
-    if (hash(seed + "ent") % 2 === 0) {
-      parts.push(`Especially with your ${ctx.entity.subject} in mind.`);
-    }
-  }
-
-  if (ctx.mayCiteMemory && ctx.persistedMemories.length) {
-    const hint = memoryHintLine(ctx.persistedMemories, true);
-    if (hint && ctx.depth % 2 === 1) parts.push(hint);
-  }
-
-  const useMetaphor =
-    !short &&
-    ctx.depth >= 2 &&
-    ctx.continuity < 0.85 &&
-    hash(seed + "meta") % 4 === 0 &&
-    ["sadness", "loneliness", "anxiety", "emotional_exhaustion", "reflection"].includes(ctx.intent);
-  if (useMetaphor) {
-    const { item: m } = pickVariant(METAPHORS, seed + "m");
-    parts.push(`It feels ${m}.`);
-  }
-
-  const useFollow =
-    !short &&
-    shouldFollow(ctx) &&
-    hash(seed + "fu") % (ctx.novelty > 0.6 ? 2 : 3) === 0;
-  if (useFollow) {
-    const recentQs = ctx.responseHistory.filter((h) => h.includes("?")).map(openingFingerprint);
-    const avoidFu = FOLLOWUPS.map((f, i) => ({ f, i })).filter(({ f }) =>
-      recentQs.includes(openingFingerprint(f)),
-    );
-    const { item: f } = pickVariant(
-      FOLLOWUPS,
-      seed + "f",
-      avoidFu.map(({ i }) => i),
-    );
-    if (hash(seed + "place") % 5 === 0 && parts.length) {
-      parts.unshift(f);
-    } else {
-      parts.push(f);
-    }
-  }
-
-  // Length variation
-  let text = parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-  if (short) {
-    text = parts.slice(0, Math.min(2, parts.length)).join(" ");
-  } else if (ctx.depth >= 4 && hash(seed + "len") % 3 === 0) {
-    // occasionally keep lean even at depth
-    text = parts.slice(0, 2).join(" ");
-  }
-
-  // Tone tweak by emotion
-  if (ctx.emotion === "playful" && !text.includes("!") && hash(seed + "!") % 4 === 0) {
-    text = text.replace(/\.$/, ".");
-  }
-
-  return text;
-}
-
-function shouldFollow(ctx: RoutedContext): boolean {
-  if (["farewell", "silence", "gratitude", "orb_touch", "short_answer", "im_fine"].includes(ctx.intent)) {
-    return false;
-  }
-  return ctx.depth >= 2 || ctx.engagementState === "warming" || ctx.engagementState === "deep";
-}
-
-function capitalizeJoin(s: string): string {
-  const t = s.trim();
-  if (!t) return t;
-  return t.charAt(0).toUpperCase() + t.slice(1);
-}
-
-function openingFingerprint(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "")
-    .split(/\s+/)
-    .slice(0, 4)
-    .join(" ");
+  const memoryHint =
+    ctx.mayCiteMemory && ctx.persistedMemories.length
+      ? memoryHintLine(ctx.persistedMemories, true)
+      : null;
+  return assembleFromPrimitives({ ctx, core, short, salt, memoryHint });
 }
 
 function stripClichés(text: string): string {
@@ -419,7 +293,6 @@ function stripClichés(text: string): string {
   for (const re of BANNED_CLICHES) {
     out = out.replace(re, "I'm with you in this");
   }
-  // Still avoid the replacement if it became repetitive — prefer neutral
   if (/i'?m with you in this/i.test(out) && /i'?m with you in this/i.test(text)) {
     out = out.replace(/i'?m with you in this/gi, "Noted, gently");
   }

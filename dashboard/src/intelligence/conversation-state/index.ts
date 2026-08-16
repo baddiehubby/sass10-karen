@@ -47,7 +47,11 @@ function estimateTopicStreak(turns: ConversationTurn[]): number {
 
 export function isConversationalRepair(userText: string, lastBuddy: string): boolean {
   const t = userText.toLowerCase();
-  if (/^(no|nope|not what i meant|i meant|actually|wait)/i.test(t)) return true;
+  // Word boundary required — "nothing" must not match "no".
+  if (/^(no|nope|not what i meant|i meant|actually|wait)\b/i.test(t)) return true;
+  if (/\bi changed my mind\b|\bthat'?s not what i meant\b|\bi didn'?t mean (that|it)\b/i.test(t)) {
+    return true;
+  }
   if (lastBuddy && /that'?s not|wrong|misunderstood/i.test(t)) return true;
   if (isMemoryForgetRequest(t)) return true;
   return false;

@@ -45,13 +45,43 @@ export function extractMemoryCandidates(input: {
 }): { persist: MemoryCandidate[]; reject: MemoryCandidate[] } {
   const createdAt = input.createdAt ?? new Date().toISOString();
   const candidates: MemoryCandidate[] = [];
-  const { entity, userText, topic } = input;
+  const { entity, userText, topic, intent } = input;
   const t = userText.trim();
   const lower = t.toLowerCase();
 
   // Never store empty / pure punctuation / sarcasm-only hedges as facts
   if (!t || /^[.…!?]+$/.test(t) || t.length < 4) {
     return { persist: [], reject: [] };
+  }
+
+  // Corrections / mind-change — never invent permanent facts from the turn
+  if (
+    intent === "correction" ||
+    intent === "repair" ||
+    /\bi changed my mind\b|\bthat'?s not what i meant\b|\bi didn'?t mean\b|\bnot what i meant\b/i.test(
+      lower,
+    )
+  ) {
+    return { persist: [], reject: [] };
+  }
+
+  // Soft memory cue without a concrete fact — reject (ask; don't invent)
+  if (/\bremember when\b|\byou said\b|\blast time\b/i.test(lower) && !entity.subject) {
+    return {
+      persist: [],
+      reject: [
+        candidate({
+          category: "other",
+          subject: "user",
+          relationship: null,
+          topic: "memory",
+          fact: "user referenced a prior moment without a new concrete fact",
+          confidence: 0.4,
+          relevance: 0.5,
+          createdAt,
+        }),
+      ],
+    };
   }
 
   if (entity.subject && entity.concern) {

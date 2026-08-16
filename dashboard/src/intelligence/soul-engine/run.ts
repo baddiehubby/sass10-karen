@@ -164,6 +164,10 @@ export function runSoulEngine(input: IntelligenceInput): IntelligenceResult {
   return {
     ...composed,
     text,
+    response: text,
+    confidence: hit.confidence,
+    emotionalTone: emotion,
+    requiresAdvancedIntelligence: composed.requiresAdvancedIntelligence,
     routed: {
       ...routed,
       recentFamilies: variation.recentFamilies,
@@ -173,6 +177,7 @@ export function runSoulEngine(input: IntelligenceInput): IntelligenceResult {
     turn,
     memoryToPersist,
     memoryRejected,
+    memoryCandidates: [...memoryToPersist, ...memoryRejected],
   };
 }
 

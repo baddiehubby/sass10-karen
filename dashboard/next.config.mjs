@@ -19,6 +19,16 @@ const withPWA = withPWAInit({
 const nextConfig = {
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "buddieai.com" }],
+        destination: "https://www.buddieai.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

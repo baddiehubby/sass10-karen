@@ -1,10 +1,21 @@
 import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getTenant, TENANT_COOKIE, TENANT_HEADER } from "@/lib/tenant";
+import { nextAuthSecureCookies, nextAuthSessionCookieName } from "@/lib/authz";
+import { buildAppRedirectUrl, buildLoginRedirectUrl } from "@/lib/canonical-request-url";
 import { getTrustedClientIp } from "@/lib/client-ip";
+import { getTenant, TENANT_COOKIE, TENANT_HEADER } from "@/lib/tenant";
 
 const middlewareSecret = process.env.NEXTAUTH_SECRET;
+
+async function readSessionToken(req: NextRequest) {
+  return getToken({
+    req,
+    secret: middlewareSecret,
+    secureCookie: nextAuthSecureCookies(),
+    cookieName: nextAuthSessionCookieName(),
+  });
+}
 
 /** In-memory fixed-window rate limits (per Edge instance). */
 const rateBucket = new Map<string, { count: number; resetAt: number }>();
@@ -160,8 +171,9 @@ export async function middleware(req: NextRequest) {
     }
 
     if (!isPublicApi(pathname)) {
-      const token = await getToken({ req, secret: middlewareSecret });
-      if (!token) {
+      const token = await readSessionToken(req);
+      // Coarse gate — handlers still derive identity via getServerSession / sessionUserId.
+      if (!token || typeof token.id !== "string" || !token.id) {
         const res = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         applySecurityHeaders(res);
         return withCorsForWidgetApis(req, applyTenantContext(req, res));
@@ -173,16 +185,15 @@ export async function middleware(req: NextRequest) {
     pathname === "/dashboard" ||
     (pathname.startsWith("/dashboard/") && !pathname.startsWith("/dashboard/debiopwr"))
   ) {
-    const token = await getToken({ req, secret: middlewareSecret });
-    if (!token) {
-      const login = new URL("/login", req.url);
-      login.searchParams.set("callbackUrl", pathname);
+    const token = await readSessionToken(req);
+    if (!token || typeof token.id !== "string" || !token.id) {
+      const login = buildLoginRedirectUrl(pathname);
       const res = applyTenantContext(req, NextResponse.redirect(login));
       applySecurityHeaders(res, { document: true });
       return res;
     }
     if (!token.eidataConsentCompleted) {
-      const consent = new URL("/consent", req.url);
+      const consent = buildAppRedirectUrl("/consent");
       const res = applyTenantContext(req, NextResponse.redirect(consent));
       applySecurityHeaders(res, { document: true });
       res.headers.set("Cache-Control", "private, no-store");
@@ -195,9 +206,9 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname === "/consent") {
-    const token = await getToken({ req, secret: middlewareSecret });
-    if (!token) {
-      const login = new URL("/login", req.url);
+    const token = await readSessionToken(req);
+    if (!token || typeof token.id !== "string" || !token.id) {
+      const login = buildLoginRedirectUrl("/consent");
       const res = applyTenantContext(req, NextResponse.redirect(login));
       applySecurityHeaders(res, { document: true });
       return res;
@@ -205,9 +216,9 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname === "/debiopwr" || pathname.startsWith("/debiopwr/")) {
-    const token = await getToken({ req, secret: middlewareSecret });
-    if (!token) {
-      const login = new URL("/login", req.url);
+    const token = await readSessionToken(req);
+    if (!token || typeof token.id !== "string" || !token.id) {
+      const login = buildLoginRedirectUrl("/debiopwr");
       const res = applyTenantContext(req, NextResponse.redirect(login));
       applySecurityHeaders(res, { document: true });
       return res;

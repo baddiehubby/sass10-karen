@@ -1,8 +1,9 @@
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import type { NextAuthOptions, Profile } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { buildAuthCookies } from "@/lib/auth-cookies";
 import { ensureDefaultConsents } from "@/lib/consent-service";
 import { ensureFreeLicenseForUser } from "@/lib/free-license";
 import { prisma } from "@/lib/prisma";
@@ -19,6 +20,27 @@ logAuthUrlDebug("authOptions");
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const authSecret = process.env.NEXTAUTH_SECRET;
+const isProdRuntime = process.env.NODE_ENV === "production";
+
+/** Bind JWT to credential material so password rotate / Google attach invalidates old sessions. */
+function credentialFingerprint(passwordHash: string): string {
+  return createHash("sha256").update(`bdy-auth-v1:${passwordHash}`).digest("hex").slice(0, 32);
+}
+
+function invalidateJwtClaims(token: Record<string, unknown>): Record<string, unknown> {
+  delete token.id;
+  delete token.cred;
+  delete token.onboardingCompleted;
+  delete token.eidataConsentCompleted;
+  delete token.companionName;
+  delete token.personality;
+  delete token.claimsFreshAt;
+  delete token.isAdmin;
+  token.email = undefined;
+  token.name = undefined;
+  token.sub = undefined;
+  return token;
+}
 
 // Fail closed at runtime in production — not during `next build` page-data collection
 // (NEXT_PHASE=phase-production-build) so CI/local builds can complete without secrets.
@@ -33,6 +55,7 @@ if (
 
 type AuthUserSnapshot = {
   id: string;
+  password: string;
   onboardingCompleted: boolean;
   eidataConsentCompleted?: boolean;
   companionName: string | null;
@@ -60,6 +83,7 @@ async function findUserForAuthByEmail(email: string): Promise<AuthUserSnapshot |
       where: { email },
       select: {
         id: true,
+        password: true,
         onboardingCompleted: true,
         eidataConsentCompleted: true,
         companionName: true,
@@ -74,6 +98,7 @@ async function findUserForAuthByEmail(email: string): Promise<AuthUserSnapshot |
       where: { email },
       select: {
         id: true,
+        password: true,
         onboardingCompleted: true,
         companionName: true,
         personality: true,
@@ -91,6 +116,7 @@ async function findUserForAuthById(id: string): Promise<AuthUserSnapshot | null>
       where: { id },
       select: {
         id: true,
+        password: true,
         onboardingCompleted: true,
         eidataConsentCompleted: true,
         companionName: true,
@@ -105,6 +131,7 @@ async function findUserForAuthById(id: string): Promise<AuthUserSnapshot | null>
       where: { id },
       select: {
         id: true,
+        password: true,
         onboardingCompleted: true,
         companionName: true,
         personality: true,
@@ -159,29 +186,19 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 24 * 14,
-    updateAge: 60 * 60 * 6, // refresh claims every 6h
+    // Refresh + credential fingerprint check at least hourly (logout / Google attach revoke).
+    updateAge: 60 * 60,
   },
-  useSecureCookies: process.env.NODE_ENV === "production",
-  cookies: {
-    sessionToken: {
-      name:
-        process.env.NODE_ENV === "production"
-          ? "__Secure-next-auth.session-token"
-          : "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-      },
-    },
-  },
+  useSecureCookies: isProdRuntime,
+  cookies: buildAuthCookies(isProdRuntime),
   providers: [
     ...(googleClientId && googleClientSecret
       ? [
           GoogleProvider({
             clientId: googleClientId,
             clientSecret: googleClientSecret,
+            // Explicit — do not disable. NextAuth Google defaults include these; pin them.
+            checks: ["pkce", "state"],
           }),
         ]
       : []),
@@ -220,7 +237,8 @@ export const authOptions: NextAuthOptions = {
         try {
           await ensureGoogleUser(user.email, user.name);
         } catch (err) {
-          console.error("[auth] google signIn provisioning failed (login still allowed)", err);
+          console.error("[auth] google signIn provisioning failed — denying login", err);
+          return false;
         }
       }
       return true;
@@ -240,7 +258,7 @@ export const authOptions: NextAuthOptions = {
       token.isAdmin = Boolean(email && adminList.length > 0 && adminList.includes(email));
 
       const lastFresh = typeof token.claimsFreshAt === "number" ? token.claimsFreshAt : 0;
-      const stale = Date.now() - lastFresh > 6 * 60 * 60 * 1000;
+      const stale = Date.now() - lastFresh > 60 * 60 * 1000;
       const needsDbLookup = Boolean(user) || !token.id || stale || trigger === "update";
       if (!needsDbLookup || !email) return token;
 
@@ -252,36 +270,47 @@ export const authOptions: NextAuthOptions = {
           dbUser = await findUserForAuthById(created.id);
         } catch (err) {
           console.error("[auth] jwt google provisioning", err);
+          return invalidateJwtClaims(token as Record<string, unknown>) as typeof token;
         }
       }
 
-      if (dbUser) {
-        if (dbUser._count.licenses === 0) {
-          await ensureFreeLicenseForUser(dbUser.id);
-        }
-        await ensureDefaultConsents(dbUser.id);
-        token.id = dbUser.id;
-        token.onboardingCompleted = dbUser.onboardingCompleted;
-        token.eidataConsentCompleted = Boolean(dbUser.eidataConsentCompleted ?? false);
-        token.companionName = dbUser.companionName || "";
-        token.personality = dbUser.personality || "";
-        token.claimsFreshAt = Date.now();
+      if (!dbUser) {
+        // Deleted / unknown account — drop identity claims (forces re-auth).
+        return invalidateJwtClaims(token as Record<string, unknown>) as typeof token;
       }
+
+      const cred = credentialFingerprint(dbUser.password);
+      if (typeof token.cred === "string" && token.cred !== cred) {
+        // Password rotated (e.g. Google attach) or credentials changed — invalidate.
+        return invalidateJwtClaims(token as Record<string, unknown>) as typeof token;
+      }
+
+      if (dbUser._count.licenses === 0) {
+        await ensureFreeLicenseForUser(dbUser.id);
+      }
+      await ensureDefaultConsents(dbUser.id);
+      token.id = dbUser.id;
+      token.cred = cred;
+      token.onboardingCompleted = dbUser.onboardingCompleted;
+      token.eidataConsentCompleted = Boolean(dbUser.eidataConsentCompleted ?? false);
+      token.companionName = dbUser.companionName || "";
+      token.personality = dbUser.personality || "";
+      token.claimsFreshAt = Date.now();
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         const email = (session.user.email || token.email || "").toString().toLowerCase();
-        let userId = typeof token.id === "string" ? token.id : "";
-        if (!userId && email) {
-          try {
-            const dbUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-            if (dbUser) userId = dbUser.id;
-          } catch (err) {
-            console.error("[auth] session resolve user id", err);
-          }
-        }
+        // Identity only from verified JWT claims — never invent from client.
+        const userId = typeof token.id === "string" ? token.id : "";
         session.user.id = userId;
+        if (!userId) {
+          // Expired / invalidated JWT — present empty session user id so API gates 401.
+          (session.user as { onboardingCompleted?: boolean }).onboardingCompleted = false;
+          (session.user as { eidataConsentCompleted?: boolean }).eidataConsentCompleted = false;
+          (session.user as { isAdmin?: boolean }).isAdmin = false;
+          return session;
+        }
         (session.user as { onboardingCompleted?: boolean }).onboardingCompleted = Boolean(token.onboardingCompleted);
         (session.user as { companionName?: string }).companionName = String(token.companionName || "");
         (session.user as { personality?: string }).personality = String(token.personality || "");

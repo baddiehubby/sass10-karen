@@ -35,7 +35,8 @@ describe("production env validation", () => {
   it("accepts a complete production-shaped config", () => {
     const issues = collectProductionEnvIssues({
       NODE_ENV: "production",
-      DATABASE_URL: "postgresql://user:pass@host:5432/db",
+      // No user:pass@ form — release secret-scan treats that as a credential leak.
+      DATABASE_URL: "postgresql://db.example.com:5432/buddie",
       NEXTAUTH_SECRET: "long-enough-secret-value",
       NEXTAUTH_URL: "https://www.buddieai.com",
       NEXT_PUBLIC_SITE_URL: "https://www.buddieai.com",

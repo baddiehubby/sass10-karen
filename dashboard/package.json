@@ -46,6 +46,7 @@
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0",
     "sentiment": "^5.0.2",
+    "server-only": "^0.0.1",
     "three": "^0.172.0",
     "uuid": "^14.0.0",
     "web-push": "^3.6.7",

@@ -72,6 +72,10 @@ for (const rel of tracked) {
       if (name === "private_key_block" && /jose|PEM|format|template|example/i.test(text) && !/MII[A-Za-z0-9+/=]{40,}/.test(text)) {
         continue;
       }
+      // Test fixtures may mention credential-shaped URLs without being live secrets.
+      if (name === "postgres_creds" && /\.test\.(ts|tsx|js|mjs|cjs)$/.test(rel)) {
+        continue;
+      }
       findings.push({ path: rel, name, detail: "pattern match" });
     }
   }

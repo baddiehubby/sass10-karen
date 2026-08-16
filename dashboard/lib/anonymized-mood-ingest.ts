@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createHash, createHmac } from "crypto";
 import { prisma } from "@/lib/prisma";
 

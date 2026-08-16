@@ -8,6 +8,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { buddyReplyFull } from "@/lib/buddy-intelligence";
+import type { CompanionPersonality } from "@/lib/companion-mood";
 import { loadPersonality } from "@/lib/mood-memory";
 import { ABUSE_LIMITS } from "@/src/intelligence/cost";
 import type { ConversationMachineState, ConversationTurn } from "@/src/intelligence";
@@ -17,22 +18,33 @@ const MIN_GAP_MS = 650;
 
 type CompanionTalkProps = {
   companionName: string;
+  /** Server-seeded voice — same character on every device when provided. */
+  voice?: CompanionPersonality;
   onReply?: (text: string) => void;
 };
 
-function resolveVoice(): "warm" | "chill" | "playful" | "mystical" | "focused" {
-  const voice = loadPersonality();
-  return voice === "chill" || voice === "playful" || voice === "warm" || voice === "mystical" || voice === "focused"
-    ? voice
+function resolveVoice(preferred?: CompanionPersonality): CompanionPersonality {
+  if (
+    preferred === "chill" ||
+    preferred === "playful" ||
+    preferred === "warm" ||
+    preferred === "mystical" ||
+    preferred === "focused"
+  ) {
+    return preferred;
+  }
+  const local = loadPersonality();
+  return local === "chill" || local === "playful" || local === "warm" || local === "mystical" || local === "focused"
+    ? local
     : "warm";
 }
 
-function softPresenceLine(companionName: string, seed: string): string {
+function softPresenceLine(companionName: string, seed: string, voice: CompanionPersonality): string {
   try {
     return buddyReplyFull({
       text: "just checking you're still here",
       name: companionName,
-      voice: resolveVoice(),
+      voice,
       depth: 1,
       seed: `presence:${seed}`,
       persistMemories: false,
@@ -42,7 +54,7 @@ function softPresenceLine(companionName: string, seed: string): string {
   }
 }
 
-export function CompanionTalk({ companionName, onReply }: CompanionTalkProps) {
+export function CompanionTalk({ companionName, voice: voiceProp, onReply }: CompanionTalkProps) {
   const [draft, setDraft] = useState("");
   const [line, setLine] = useState<string | null>(null);
   const lastSentAt = useRef(0);
@@ -51,6 +63,7 @@ export function CompanionTalk({ companionName, onReply }: CompanionTalkProps) {
   const turnsRef = useRef<ConversationTurn[]>([]);
   const machineRef = useRef<ConversationMachineState | undefined>(undefined);
   const depthRef = useRef(1);
+  const voice = resolveVoice(voiceProp);
 
   function send(raw: string) {
     const text = raw.replace(/\s+/g, " ").trim();
@@ -75,7 +88,7 @@ export function CompanionTalk({ companionName, onReply }: CompanionTalkProps) {
       const composed = buddyReplyFull({
         text,
         name: companionName,
-        voice: resolveVoice(),
+        voice,
         depth: depthRef.current,
         history: historyRef.current.slice(-8),
         families: familiesRef.current.slice(-10),
@@ -107,7 +120,7 @@ export function CompanionTalk({ companionName, onReply }: CompanionTalkProps) {
       setLine(composed.text);
       onReply?.(composed.text);
     } catch {
-      const fallback = softPresenceLine(companionName, String(now));
+      const fallback = softPresenceLine(companionName, String(now), voice);
       setLine(fallback);
       onReply?.(fallback);
     }

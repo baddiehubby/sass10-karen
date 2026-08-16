@@ -21,7 +21,7 @@ import {
   todaysIntention,
 } from "@/lib/daily-ritual";
 import { type BuddyMood, type CompanionPersonality } from "@/lib/companion-mood";
-import { hasCompletedMeet, loadPersonality } from "@/lib/mood-memory";
+import { hasCompletedMeet, loadPersonality, savePersonality } from "@/lib/mood-memory";
 import { isMemorySessionMode } from "@/lib/client-storage";
 import { UNIVERSE_FLAGS } from "@/lib/universe-flags";
 import { discoverBuddyMemory, fetchBuddyPresence, notifySoul } from "@/lib/buddy-soul-client";
@@ -30,14 +30,16 @@ import { CompanionTalk } from "@/components/companion-talk";
 
 type BuddyHomePresenceProps = {
   companionName: string;
+  /** Account personality from the server — seeds local vibe on every device. */
+  personality?: CompanionPersonality;
 };
 
-export function BuddyHomePresence({ companionName }: BuddyHomePresenceProps) {
+export function BuddyHomePresence({ companionName, personality: serverPersonality }: BuddyHomePresenceProps) {
   const [ready, setReady] = useState(false);
   const [showMeet, setShowMeet] = useState(false);
   const [awakeLine, setAwakeLine] = useState<string | null>(null);
   const [snap, setSnap] = useState<UniverseSnapshot | null>(null);
-  const [personality, setPersonality] = useState<CompanionPersonality>("warm");
+  const [personality, setPersonality] = useState<CompanionPersonality>(serverPersonality ?? "warm");
   const [showIntention, setShowIntention] = useState(false);
   const [momentLine, setMomentLine] = useState<string | null>(null);
   const [editVibe, setEditVibe] = useState(false);
@@ -50,6 +52,16 @@ export function BuddyHomePresence({ companionName }: BuddyHomePresenceProps) {
       setSnap(loadUniverse());
       setPersonality(loadPersonality());
     };
+    if (
+      serverPersonality === "chill" ||
+      serverPersonality === "playful" ||
+      serverPersonality === "warm" ||
+      serverPersonality === "mystical" ||
+      serverPersonality === "focused"
+    ) {
+      savePersonality(serverPersonality);
+      setPersonality(serverPersonality);
+    }
     sync();
     setShowMeet(!hasCompletedMeet());
     setMemorySession(isMemorySessionMode());
@@ -64,7 +76,7 @@ export function BuddyHomePresence({ companionName }: BuddyHomePresenceProps) {
       window.removeEventListener("buddy-mood-changed", sync);
       window.removeEventListener("buddy-universe-changed", sync);
     };
-  }, []);
+  }, [serverPersonality]);
 
   function checkIn(mood: BuddyMood) {
     const next = recordBuddyCheckIn(mood);
@@ -110,6 +122,7 @@ export function BuddyHomePresence({ companionName }: BuddyHomePresenceProps) {
 
       <CompanionTalk
         companionName={companionName}
+        voice={personality}
         onReply={(text) => {
           setAwakeLine(text);
         }}

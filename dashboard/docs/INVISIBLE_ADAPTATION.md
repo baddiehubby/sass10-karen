@@ -30,5 +30,8 @@ Never surface `Error.message` or provider strings.
 
 ## Tests
 
-`src/intelligence/invisible-adaptation.test.ts` — CSS on mobile UAs, no plumbing in replies, copy hygiene.
-
+`src/intelligence/invisible-adaptation.test.ts` — CSS on mobile UAs, no plumbing in replies, copy hygiene.  
+`src/intelligence/cross-device-premium.test.ts` — full surface matrix (iPhone / Android / Chrome / Edge / Safari / Firefox).
+
+See also [CROSS_DEVICE_PREMIUM.md](./CROSS_DEVICE_PREMIUM.md). **Physical device QA remains required** before calling mobile production-ready.
+

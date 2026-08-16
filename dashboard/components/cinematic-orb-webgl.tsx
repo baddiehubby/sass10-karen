@@ -5,7 +5,7 @@
  * Never import this from login/landing entry paths statically.
  */
 
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { MeshDistortMaterial, Sphere } from "@react-three/drei";
 import * as THREE from "three";
@@ -112,6 +112,9 @@ export type CinematicOrbWebGlProps = {
   mouseRef?: React.MutableRefObject<{ x: number; y: number }>;
   height?: string;
   shimmer?: boolean;
+  /** Fired once the WebGL layer can safely replace the CSS orb. */
+  onReady?: () => void;
+  onFailed?: () => void;
 };
 
 export function CinematicOrbWebGl({
@@ -122,6 +125,8 @@ export function CinematicOrbWebGl({
   mouseRef,
   height = "min(68vh, 520px)",
   shimmer = false,
+  onReady,
+  onFailed,
 }: CinematicOrbWebGlProps) {
   const internalMouse = useRef({ x: 0, y: 0 });
   const mouse = mouseRef ?? internalMouse;
@@ -130,6 +135,20 @@ export function CinematicOrbWebGl({
     if (typeof window === "undefined") return 1;
     return Math.min(window.devicePixelRatio || 1, 1.75);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const id = window.requestAnimationFrame(() => {
+      if (!cancelled) onReady?.();
+    });
+    const onLost = () => onFailed?.();
+    window.addEventListener("webglcontextlost", onLost);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(id);
+      window.removeEventListener("webglcontextlost", onLost);
+    };
+  }, [onReady, onFailed]);
 
   return (
     <div

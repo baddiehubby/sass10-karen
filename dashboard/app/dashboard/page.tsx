@@ -32,7 +32,7 @@ export default async function DashboardPage() {
 
   const userRow = await prisma.user.findUnique({
     where: { id: userId },
-    select: { companionName: true, createdAt: true, onboardingCompleted: true },
+    select: { companionName: true, personality: true, createdAt: true, onboardingCompleted: true },
   });
 
   if (!userRow?.onboardingCompleted) {
@@ -42,6 +42,15 @@ export default async function DashboardPage() {
   await ensureFreeLicenseForUser(userId);
 
   const companionName = userRow.companionName?.trim() || branding.shortName || "Buddie";
+  const personalityRaw = (userRow.personality || "warm").trim().toLowerCase();
+  const personality =
+    personalityRaw === "chill" ||
+    personalityRaw === "playful" ||
+    personalityRaw === "warm" ||
+    personalityRaw === "mystical" ||
+    personalityRaw === "focused"
+      ? personalityRaw
+      : "warm";
 
   const licenses = await prisma.license.findMany({
     where: { userId },
@@ -80,6 +89,7 @@ export default async function DashboardPage() {
   return (
     <BuddieHome
       companionName={companionName}
+      personality={personality}
       topMood={topMood}
       daysTogether={daysTogether}
       licenseKey={orbLicense?.key ?? null}

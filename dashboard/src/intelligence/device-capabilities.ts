@@ -104,9 +104,10 @@ export function detectCapabilityProfile(env?: GlobalLike): CapabilityProfile {
 
   const saveData = Boolean(nav.connection?.saveData);
   const slowNet = /2g/.test(nav.connection?.effectiveType ?? "");
-  const lowCores = typeof nav.hardwareConcurrency === "number" && nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 4;
   const lowMem = deviceMemoryGb !== null && deviceMemoryGb <= 4;
-  const lowPower = saveData || slowNet || lowMem || (lowCores && !webgpu);
+  // Do NOT treat missing WebGPU + few cores as "low power" — that shortened iPhone
+  // personality vs desktop. Save-Data / slow net / tiny memory are real constraints.
+  const lowPower = saveData || slowNet || lowMem;
 
   const browserClass = classifyBrowser(ua);
   const persistentStorage = indexedDB || serviceWorker;
@@ -150,7 +151,8 @@ export function detectCapabilityProfile(env?: GlobalLike): CapabilityProfile {
 export function resolveIntelligenceStrategy(profile?: CapabilityProfile): IntelligenceStrategy {
   const p = profile ?? detectCapabilityProfile();
 
-  // Limited / WebKit-class / low-power: composed local path — deliberately designed, not degraded.
+  // Limited / WebKit-class: composed local path — same Soul Engine character, no optional enricher.
+  // Prefer short replies only for genuine a11y / network constraints — never for "Safari".
   if (!p.optionalTinyModelPractical || p.lowPower || p.browserClass === "webkit") {
     return {
       id: "composed_local",
@@ -160,7 +162,7 @@ export function resolveIntelligenceStrategy(profile?: CapabilityProfile): Intell
       memory: true,
       proceduralComposition: true,
       optionalTinyModel: false,
-      preferShortResponses: p.lowPower || p.reducedMotion,
+      preferShortResponses: p.reducedMotion || p.lowPower,
       cachePersistence: p.persistentCache,
     };
   }

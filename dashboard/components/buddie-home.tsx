@@ -7,9 +7,11 @@ import { DashboardLiveOrb } from "@/components/dashboard-live-orb";
 import { BuddyHomePresence } from "@/components/buddy-home-presence";
 import { HolyMusic } from "@/components/HolyMusic";
 import { pronounForName } from "@/lib/dashboard-format";
+import type { CompanionPersonality } from "@/lib/companion-mood";
 
 export type BuddieHomeProps = {
   companionName: string;
+  personality?: CompanionPersonality;
   topMood: string;
   daysTogether: number;
   licenseKey: string | null;
@@ -31,6 +33,7 @@ const ROOMS = [
 
 export function BuddieHome({
   companionName,
+  personality,
   topMood,
   daysTogether,
   licenseKey,
@@ -66,7 +69,7 @@ export function BuddieHome({
         />
       </div>
 
-      <BuddyHomePresence companionName={companionName} />
+      <BuddyHomePresence companionName={companionName} personality={personality} />
 
       <p className="relative z-10 mt-8 text-sm font-light tracking-wide text-white/45">
         {pronoun} been with you for{" "}

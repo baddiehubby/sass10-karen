@@ -12,6 +12,7 @@ import { awardBadgeByName } from "@/lib/badges";
 import { canIngestAnonymizedEvent, widgetOptInFromRequest } from "@/lib/eidata-ingest-policy";
 import { hasConsent } from "@/lib/consent-service";
 import { parseJsonBody } from "@/lib/api-json";
+import { getTrustedClientIp } from "@/lib/client-ip";
 import { prisma } from "@/lib/prisma";
 import { analyticsEventBodySchema } from "@/lib/validation";
 
@@ -25,11 +26,7 @@ function corsHeaders() {
 }
 
 function clientIp(req: Request): string {
-  const xf = req.headers.get("x-forwarded-for");
-  if (xf) return xf.split(",")[0]?.trim() || "unknown";
-  const real = req.headers.get("x-real-ip");
-  if (real) return real.trim();
-  return "unknown";
+  return getTrustedClientIp(req);
 }
 
 export async function OPTIONS() {

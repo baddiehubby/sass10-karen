@@ -15,8 +15,16 @@ function trimOrigin(url: string): string {
 /**
  * Public app origin for API bases, widget embeds, and Lemon redirect URLs.
  * Prefer NEXT_PUBLIC_APP_URL, then NEXT_PUBLIC_SITE_URL, then canonical auth URL.
+ * Production never returns localhost or non-www buddieai hosts.
  */
 export function getAppBaseUrl(): string {
+  if (process.env.NODE_ENV === "production") {
+    const app = process.env.NEXT_PUBLIC_APP_URL?.trim();
+    if (app && !LOCALHOST_URL_RE.test(app)) return normalizeProductionOrigin(app);
+    const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+    if (site && !LOCALHOST_URL_RE.test(site)) return normalizeProductionOrigin(site);
+    return PRODUCTION_SITE_URL;
+  }
   const app = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (app) return trimOrigin(app);
   const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();

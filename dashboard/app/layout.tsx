@@ -27,7 +27,7 @@ const seoDescription =
   "Protect your users and comply with the EU AI Act. Buddy AI adds emotional intelligence to any chatbot – detect harm, monitor sentiment, and build trust. Embed in 30 seconds.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://buddieai.com"),
+  metadataBase: new URL("https://www.buddieai.com"),
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

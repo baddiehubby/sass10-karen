@@ -40,11 +40,28 @@ function applySecurityHeaders(res: NextResponse, opts?: { document?: boolean }) 
   h.set("X-Content-Type-Options", "nosniff");
   h.set("X-Frame-Options", "DENY");
   h.set("X-XSS-Protection", "1; mode=block");
-  h.set("Strict-Transport-Security", "max-age=31536000");
+  h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   h.set("Referrer-Policy", "strict-origin-when-cross-origin");
   h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  // Strict default-src breaks Next.js pages; API routes get a minimal CSP. App pages rely on globals.css font stack.
-  if (!opts?.document) {
+  // Document pages: allow Next.js + same-origin assets; frame-ancestors deny (widgets are not iframed as app pages).
+  // API routes keep a tighter default-src.
+  if (opts?.document) {
+    h.set(
+      "Content-Security-Policy",
+      [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob: https:",
+        "font-src 'self' data:",
+        "connect-src 'self' https://www.buddieai.com https://*.lemonsqueezy.com https://*.sentry.io https://*.ingest.sentry.io",
+        "frame-src 'self' https://*.lemonsqueezy.com",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self' https://*.lemonsqueezy.com",
+      ].join("; "),
+    );
+  } else {
     h.set(
       "Content-Security-Policy",
       "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:;",
@@ -168,8 +185,13 @@ export async function middleware(req: NextRequest) {
       const consent = new URL("/consent", req.url);
       const res = applyTenantContext(req, NextResponse.redirect(consent));
       applySecurityHeaders(res, { document: true });
+      res.headers.set("Cache-Control", "private, no-store");
       return res;
     }
+    const next = nextWithTenant(req);
+    applySecurityHeaders(next, { document: true });
+    next.headers.set("Cache-Control", "private, no-store");
+    return withCorsForWidgetApis(req, next);
   }
 
   if (pathname === "/consent") {

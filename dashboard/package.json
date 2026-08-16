@@ -37,7 +37,7 @@
     "jose": "^5.0.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.468.0",
-    "next": "^14.2.0",
+    "next": "14.2.35",
     "next-auth": "4.24.15",
     "next-mdx-remote": "^6.0.0",
     "next-sitemap": "^4.2.3",
@@ -53,6 +53,16 @@
     "web-push": "^3.6.7",
     "zod": "^3.25.76"
   },
+  "overrides": {
+    "brace-expansion@1": "1.1.18",
+    "brace-expansion@2": "2.1.4",
+    "brace-expansion@5": "5.0.9",
+    "fast-uri": "^4.1.2",
+    "js-yaml": "3.15.1",
+    "nanoid": "^3.3.18",
+    "postcss": "^8.5.26",
+    "serialize-javascript": "^7.1.0"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/canvas-confetti": "^1.9.0",
@@ -66,6 +76,6 @@
     "eslint-config-next": "^14.2.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
-    "typescript": "^5.9.3"
+    "typescript": "5.9.3"
   }
 }

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { parseJsonBody, parseQuery } from "@/lib/api-json";
 import { authOptions } from "@/lib/auth";
+import { assertLicenseDomain } from "@/lib/license-domain";
 import { prisma } from "@/lib/prisma";
 import { getPresetCss, mergePresetWithHex } from "@/lib/theme-presets";
 import { getAppBaseUrl } from "@/lib/site-url";
@@ -43,9 +44,8 @@ async function loadLicense(key: string, domain: string): Promise<LoadLicenseResu
   const license = await prisma.license.findUnique({ where: { key } });
   if (!license) return { ok: false, reason: "not_found" };
   if (license.expiresAt.getTime() < Date.now()) return { ok: false, reason: "expired" };
-  if (license.domain && domain && license.domain !== domain) {
-    return { ok: false, reason: "domain" };
-  }
+  const domainCheck = assertLicenseDomain(license.domain, domain);
+  if (!domainCheck.ok) return { ok: false, reason: "domain" };
   return { ok: true, license };
 }
 

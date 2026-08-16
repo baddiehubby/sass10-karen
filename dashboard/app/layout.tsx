@@ -11,11 +11,15 @@ import "./globals.css";
 const sans = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
 });
 
 const mono = JetBrains_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
+  preload: false,
 });
 
 const seoTitle = "Buddie AI – The Emotional Safety Layer for AI Chat (EU AI Act Ready)";
@@ -80,6 +84,11 @@ export default function RootLayout({
             </div>
           </div>
           <Toaster position="top-right" />
+          <noscript>
+            <div className="mx-auto max-w-lg px-6 py-16 text-center text-sm text-slate-200">
+              Buddie needs JavaScript for the companion orb and check-ins. Please enable it to continue.
+            </div>
+          </noscript>
           <Suspense fallback={<div className="flex-1">{children}</div>}>
             <SiteChrome widgetScriptUrl={widgetScriptUrl} apiBase={apiBase}>
               {children}

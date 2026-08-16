@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import { safeSetItem } from "@/lib/client-storage";
 import { EIDATA_NEVER_COLLECT, EIDATA_POLICY_VERSION, REGULATORY_FRAMEWORKS } from "@/lib/eidata-compliance";
 
 type ConsentRow = {
@@ -54,9 +55,9 @@ export function ConsentManagementPanel() {
       try {
         const analytics = rows.find((r) => r.purpose === "anonymous_analytics");
         if (analytics?.status === "granted") {
-          window.localStorage.setItem("buddy_analytics_opt_in", "yes");
+          safeSetItem("buddy_analytics_opt_in", "yes");
         } else {
-          window.localStorage.setItem("buddy_analytics_opt_in", "no");
+          safeSetItem("buddy_analytics_opt_in", "no");
         }
       } catch {
         /* ignore */

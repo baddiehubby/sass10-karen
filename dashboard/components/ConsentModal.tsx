@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
+import { safeSetItem } from "@/lib/client-storage";
 
 type ConsentModalProps = {
   /** When true, user cannot navigate away until Accept or Decline. */
@@ -57,11 +58,11 @@ export function ConsentModal({ blocking = true }: ConsentModalProps) {
       }
 
       try {
-        window.localStorage.setItem(
+        safeSetItem(
           "buddy_analytics_opt_in",
           anonymousAnalytics && mode === "accept" ? "yes" : "no",
         );
-        window.localStorage.setItem(
+        safeSetItem(
           "buddy_server_anonymous_analytics",
           anonymousAnalytics && mode === "accept" ? "granted" : "denied",
         );

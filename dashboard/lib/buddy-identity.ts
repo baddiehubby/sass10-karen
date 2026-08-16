@@ -1,3 +1,5 @@
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/client-storage";
+
 export type AuraId =
   | "ember"
   | "soft-aura"
@@ -49,7 +51,7 @@ export function defaultIdentity(now = new Date()): BuddyIdentity {
 function readIdentity(): BuddyIdentity | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(IDENTITY_KEY);
+    const raw = safeGetItem(IDENTITY_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<BuddyIdentity>;
     if (parsed.version !== 1) return null;
@@ -65,11 +67,7 @@ export function loadIdentity(): BuddyIdentity {
 
 export function saveIdentity(next: BuddyIdentity): BuddyIdentity {
   if (typeof window === "undefined") return next;
-  try {
-    window.localStorage.setItem(IDENTITY_KEY, JSON.stringify(next));
-  } catch {
-    /* quota */
-  }
+  safeSetItem(IDENTITY_KEY, JSON.stringify(next));
   window.dispatchEvent(new Event("buddy-universe-changed"));
   return next;
 }
@@ -80,10 +78,6 @@ export function patchIdentity(patch: Partial<BuddyIdentity>): BuddyIdentity {
 
 export function resetIdentity(): void {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(IDENTITY_KEY);
-  } catch {
-    /* ignore */
-  }
+  safeRemoveItem(IDENTITY_KEY);
   window.dispatchEvent(new Event("buddy-universe-changed"));
 }

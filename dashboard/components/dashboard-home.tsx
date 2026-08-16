@@ -14,6 +14,7 @@ import { HolyMusic } from "@/components/HolyMusic";
 import { BuddyHomePresence } from "@/components/buddy-home-presence";
 import { formatMomentSentence, formatRelativeTime, pronounForName } from "@/lib/dashboard-format";
 import { loadDisplayPrefs, type BuddyDisplayPrefs } from "@/lib/mood-memory";
+import { safeGetItem } from "@/lib/client-storage";
 
 export type DashboardHomeProps = {
   companionName: string;
@@ -54,12 +55,8 @@ export function DashboardHome({
   const [showMore, setShowMore] = useState(false);
 
   useEffect(() => {
-    try {
-      setAnalyticsOptIn(window.localStorage.getItem("buddy_analytics_opt_in") === "yes");
-      setTheme(loadDisplayPrefs().theme);
-    } catch {
-      setAnalyticsOptIn(false);
-    }
+    setAnalyticsOptIn(safeGetItem("buddy_analytics_opt_in") === "yes");
+    setTheme(loadDisplayPrefs().theme);
     const onPrefs = () => setTheme(loadDisplayPrefs().theme);
     window.addEventListener("buddy-prefs-changed", onPrefs);
     return () => window.removeEventListener("buddy-prefs-changed", onPrefs);

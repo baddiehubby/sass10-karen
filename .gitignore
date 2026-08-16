@@ -79,6 +79,17 @@ web_modules/
 .env.local
 .env.*
 !.env.example
+*.pem
+*.p12
+*.pfx
+*.key
+*credentials*.json
+*serviceAccount*.json
+*service-account*.json
+id_rsa
+id_rsa.pub
+secrets/
+.secrets/
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

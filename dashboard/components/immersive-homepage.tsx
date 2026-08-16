@@ -63,6 +63,10 @@ export function ImmersiveHomepage() {
   }, []);
 
   useEffect(() => {
+    const reduce =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+
     const onMove = (e: MouseEvent) => {
       markInteraction();
       const nx = (e.clientX / window.innerWidth - 0.5) * 2;
@@ -88,13 +92,23 @@ export function ImmersiveHomepage() {
   }, [markInteraction]);
 
   useEffect(() => {
+    const reduce =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setShowCta(true);
+      return;
+    }
     const id = window.setInterval(() => {
       if (Date.now() - lastInteractionRef.current > 5000) setBreathing(true);
-    }, 800);
+    }, 1200);
     return () => window.clearInterval(id);
   }, []);
 
   useEffect(() => {
+    const reduce =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+
     let cancelled = false;
     let hideTimer: number | undefined;
     let cycleTimer: number | undefined;

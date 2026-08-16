@@ -15,7 +15,12 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
-    "health-check": "node scripts/health-check.mjs"
+    "health-check": "node scripts/health-check.mjs",
+    "test": "tsx --test src/intelligence/intelligence.test.ts src/intelligence/device-capabilities.test.ts src/intelligence/conversation-premium.test.ts src/intelligence/subscription-entitlement.test.ts src/intelligence/security.test.ts src/intelligence/billing.test.ts src/intelligence/mobile-perf.test.ts",
+    "test:intelligence": "tsx --test src/intelligence/intelligence.test.ts src/intelligence/device-capabilities.test.ts src/intelligence/conversation-premium.test.ts src/intelligence/subscription-entitlement.test.ts src/intelligence/security.test.ts",
+    "test:security": "tsx --test src/intelligence/security.test.ts src/intelligence/subscription-entitlement.test.ts",
+    "test:billing": "tsx --test src/intelligence/billing.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -58,6 +63,7 @@
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5.9.3"
   }
 }

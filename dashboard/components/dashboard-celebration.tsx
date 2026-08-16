@@ -5,6 +5,36 @@ import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 
+async function softUnlockAfterCheckout(tier: string | null): Promise<"unlocked" | "pending" | "error"> {
+  try {
+    await fetch("/api/billing/sync", { method: "POST", cache: "no-store" });
+  } catch {
+    /* Lemon may be slow — keep trying status */
+  }
+
+  for (let i = 0; i < 6; i++) {
+    try {
+      const res = await fetch("/api/billing/status", { cache: "no-store" });
+      if (!res.ok) {
+        await new Promise((r) => setTimeout(r, 1500));
+        continue;
+      }
+      const data = (await res.json()) as {
+        entitlements?: { requiresSubscription?: boolean };
+        subscriptionLabel?: string;
+      };
+      if (data.entitlements && data.entitlements.requiresSubscription === false) {
+        return "unlocked";
+      }
+    } catch {
+      /* retry */
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+    void tier;
+  }
+  return "pending";
+}
+
 export function DashboardCelebration() {
   const params = useSearchParams();
   const router = useRouter();
@@ -29,7 +59,12 @@ export function DashboardCelebration() {
     if (!paymentSuccess && !celebrate) return;
 
     handled.current = true;
-    confetti({ particleCount: 180, spread: 95, origin: { y: 0.7 } });
+
+    const prefersReduce =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!prefersReduce) {
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.7 } });
+    }
 
     const tierLabel =
       tier === "starter"
@@ -39,15 +74,31 @@ export function DashboardCelebration() {
           : tier === "premium" || tier === "agency"
             ? "Premium"
             : null;
+
+    if (!paymentSuccess) {
+      toast.success("Welcome back to Buddie.");
+      router.replace("/dashboard", { scroll: false });
+      return;
+    }
+
     toast.success(
-      paymentSuccess
-        ? tierLabel
-          ? `Payment successful — Buddy ${tierLabel} is active.`
-          : "Payment successful. Your Buddy is ready."
-        : "Welcome back to Buddy.",
+      tierLabel
+        ? `Checkout received for ${tierLabel}. Confirming with Buddie’s servers…`
+        : "Checkout received. Confirming with Buddie’s servers…",
     );
 
-    router.replace("/dashboard", { scroll: false });
+    void softUnlockAfterCheckout(tier).then((state) => {
+      if (state === "unlocked") {
+        toast.success("Premium is active. Welcome deeper in.");
+      } else {
+        toast(
+          "Payment is processing. Premium unlocks as soon as Lemon confirms — refresh anytime.",
+          { icon: "⏳" },
+        );
+      }
+      router.replace("/dashboard", { scroll: false });
+      router.refresh();
+    });
   }, [params, router]);
 
   return null;

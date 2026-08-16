@@ -25,6 +25,7 @@ import { hasCompletedMeet, loadPersonality } from "@/lib/mood-memory";
 import { UNIVERSE_FLAGS } from "@/lib/universe-flags";
 import { discoverBuddyMemory, fetchBuddyPresence, notifySoul } from "@/lib/buddy-soul-client";
 import type { PublicBond } from "@/lib/buddy-soul-types";
+import { CompanionTalk } from "@/components/companion-talk";
 
 type BuddyHomePresenceProps = {
   companionName: string;
@@ -98,6 +99,13 @@ export function BuddyHomePresence({ companionName }: BuddyHomePresenceProps) {
 
       <BuddyGreeting line={awakeLine ?? prompt} />
       {momentLine ? <p className="mt-3 text-sm text-white/55">{momentLine}</p> : null}
+
+      <CompanionTalk
+        companionName={companionName}
+        onReply={(text) => {
+          setAwakeLine(text);
+        }}
+      />
       {soul?.available ? (
         <p className="mt-3 text-[11px] uppercase tracking-[0.2em] text-white/30">
           {soul.stageLabel}

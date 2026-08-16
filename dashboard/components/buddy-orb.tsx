@@ -48,6 +48,8 @@ export function BuddyOrb({
   evolution,
 }: BuddyOrbProps) {
   const wrapRef = useRef<HTMLButtonElement | HTMLDivElement | null>(null);
+  const tiltRaf = useRef<number>(0);
+  const pendingTilt = useRef({ x: 0, y: 0 });
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [awake, setAwake] = useState(false);
   const [reduce, setReduce] = useState(Boolean(reducedMotion));
@@ -80,7 +82,10 @@ export function BuddyOrb({
     const onVis = () => setHidden(document.hidden);
     onVis();
     document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      if (tiltRaf.current) cancelAnimationFrame(tiltRaf.current);
+    };
   }, []);
 
   const visual = useMemo(
@@ -104,13 +109,18 @@ export function BuddyOrb({
   );
 
   function onPointerMove(e: PointerEvent<HTMLButtonElement | HTMLDivElement>) {
-    if (!interactive || reduce) return;
+    if (!interactive || reduce || hidden) return;
     const el = wrapRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width - 0.5;
     const y = (e.clientY - r.top) / r.height - 0.5;
-    setTilt({ x: x * 10, y: y * -10 });
+    pendingTilt.current = { x: x * 10, y: y * -10 };
+    if (tiltRaf.current) return;
+    tiltRaf.current = requestAnimationFrame(() => {
+      tiltRaf.current = 0;
+      setTilt(pendingTilt.current);
+    });
   }
 
   const scale = (awake ? Math.max(1.04, visual.pulseScale) : visual.pulseScale) ;

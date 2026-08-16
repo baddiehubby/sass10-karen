@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseQuery } from "@/lib/api-json";
+import { assertLicenseDomain } from "@/lib/license-domain";
 import { prisma } from "@/lib/prisma";
 import { normalizeCompanionType, resolveTenantPersona } from "@/lib/tenant";
 import { licenseVerifyQuerySchema } from "@/lib/validation";
@@ -39,9 +40,14 @@ export async function GET(req: Request) {
     );
   }
 
-  if (license.domain && domain && license.domain !== domain) {
+  const domainCheck = assertLicenseDomain(license.domain, domain);
+  if (!domainCheck.ok) {
     return NextResponse.json(
-      { valid: false, reason: "Domain not allowed", features: null },
+      {
+        valid: false,
+        reason: domainCheck.reason === "domain_required" ? "Domain required" : "Domain not allowed",
+        features: null,
+      },
       { headers: corsHeaders() },
     );
   }

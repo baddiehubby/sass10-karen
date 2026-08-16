@@ -30,6 +30,7 @@ model User {
   sentEmails SentEmail[]
   consents  UserConsent[]
   buddyBond BuddyBond?
+  subscriptions Subscription[]
 }
 
 model License {
@@ -110,14 +111,44 @@ model LemonSqueezyWebhookEvent {
   eventName   String
   lemonEventId String?
   licenseId   String?
+  subscriptionId String?
   payload     String
   receivedAt  DateTime @default(now())
 
   license License? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
   @@index([licenseId, receivedAt])
+  @@index([subscriptionId, receivedAt])
   @@index([eventName, receivedAt])
   @@unique([lemonEventId])
+}
+
+/// Normalized provider subscription — server source of truth for billing state.
+model Subscription {
+  id                     String    @id @default(cuid())
+  userId                 String
+  provider               String    @default("lemonsqueezy")
+  providerCustomerId     String?
+  providerSubscriptionId String    @unique
+  variantId              String?
+  /// App plan: starter | pro | premium | agency | free
+  plan                   String    @default("free")
+  status                 String
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelledAt            DateTime?
+  customerPortalUrl      String?
+  /// Lemon attributes.updated_at — used to ignore stale out-of-order webhooks.
+  providerUpdatedAt      DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  webhookEvents          LemonSqueezyWebhookEvent[]
+
+  @@index([userId, status])
+  @@index([provider, status])
 }
 
 model PendingPayment {

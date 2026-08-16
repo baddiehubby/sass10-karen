@@ -1,4 +1,5 @@
-import { deriveMoodState, wakeLine, type BuddyMood, type MoodCheckIn } from "@/lib/companion-mood";
+import { intelligentCheckInReply } from "@/lib/buddy-intelligence";
+import { deriveMoodState, type BuddyMood, type MoodCheckIn } from "@/lib/companion-mood";
 import { loadIdentity, localDayKey, saveIdentity, type AuraId, type BuddyIdentity } from "@/lib/buddy-identity";
 import { pickBuddyMoment, type BuddyMoment } from "@/lib/buddy-moments";
 import { ritualWindow } from "@/lib/daily-ritual";
@@ -128,7 +129,7 @@ export function setIntention(text: string): BuddyIdentity {
 }
 
 export function checkInReply(mood: BuddyMood): string {
-  return wakeLine(mood);
+  return intelligentCheckInReply(mood);
 }
 
 export type ShareKind = "vibe" | "energy" | "oracle" | "constellation" | "week" | "milestone";

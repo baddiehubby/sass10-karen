@@ -48,8 +48,8 @@ export async function POST(req: Request) {
   }
 
   const mime = file.type;
-  if (mime !== "image/png" && mime !== "image/svg+xml") {
-    return NextResponse.json({ error: "Only PNG or SVG allowed" }, { status: 400 });
+  if (mime !== "image/png") {
+    return NextResponse.json({ error: "Only PNG allowed" }, { status: 400 });
   }
 
   const buf = Buffer.from(await file.arrayBuffer());
@@ -57,7 +57,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Max file size is 800KB" }, { status: 400 });
   }
 
-  const ext = mime === "image/svg+xml" ? "svg" : "png";
+  // Reject SVG disguised as PNG (basic magic-byte check)
+  if (buf.length >= 8) {
+    const isPng =
+      buf[0] === 0x89 &&
+      buf[1] === 0x50 &&
+      buf[2] === 0x4e &&
+      buf[3] === 0x47;
+    if (!isPng) {
+      return NextResponse.json({ error: "Invalid PNG" }, { status: 400 });
+    }
+  }
+
+  const ext = "png";
   const dir = path.join(process.cwd(), "public", "license-themes");
   await mkdir(dir, { recursive: true });
 

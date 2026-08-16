@@ -70,6 +70,8 @@ const PUBLIC_API_PREFIXES = [
   "/api/extensions/stats",
   "/api/download/desktop-companion",
   "/api/download/buddy-extension",
+  // License-key authenticated in-route (overlay / SW / extension). Not session JWT.
+  "/api/presence",
 ];
 
 function isPublicApi(pathname: string) {
@@ -122,9 +124,17 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/api/")) {
     const rateKey = pathname.startsWith("/api/auth/")
       ? `auth:${ip}:${pathname}`
-      : `api:${ip}:${pathname}`;
+      : pathname.startsWith("/api/lemonsqueezy/webhook")
+        ? `lemon-wh:${ip}`
+        : `api:${ip}:${pathname}`;
 
-    const max = pathname.startsWith("/api/auth/") ? 5 : 60;
+    let max = 60;
+    if (pathname.startsWith("/api/auth/")) max = 8;
+    if (pathname.includes("/register") || pathname.includes("/callback/credentials")) max = 5;
+    if (pathname.startsWith("/api/lemonsqueezy/webhook")) max = 40;
+    if (pathname.startsWith("/api/widget/mood")) max = 30;
+    if (pathname.startsWith("/api/auth/register") || pathname.startsWith("/api/auth/login")) max = 5;
+
     if (!allowRate(rateKey, max, WINDOW_MS)) {
       const res = NextResponse.json({ error: "Too many requests" }, { status: 429 });
       applySecurityHeaders(res);

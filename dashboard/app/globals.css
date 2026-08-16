@@ -2006,3 +2006,39 @@ html.light .future-cta-panel {
   }
 }
 
+
+/* Buddie premium consumer home */
+.buddie-home {
+  --buddie-ink: #f4efe6;
+  --buddie-ember: #e8c4a0;
+  --buddie-night: #0b0a09;
+  color: var(--buddie-ink);
+}
+.buddie-brand {
+  font-family: var(--font-buddie-display), Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.buddie-display {
+  font-family: var(--font-buddie-display), Georgia, serif;
+  font-weight: 400;
+  line-height: 1.35;
+}
+.buddie-aurora {
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(232, 196, 160, 0.14), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(120, 150, 140, 0.08), transparent 50%),
+    radial-gradient(ellipse 40% 35% at 15% 30%, rgba(90, 70, 60, 0.2), transparent 45%);
+}
+.buddie-cta {
+  border: 1px solid rgba(232, 196, 160, 0.45);
+  background: rgba(232, 196, 160, 0.08);
+  color: var(--buddie-ink);
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.buddie-cta:hover {
+  background: rgba(232, 196, 160, 0.16);
+  border-color: rgba(232, 196, 160, 0.7);
+}

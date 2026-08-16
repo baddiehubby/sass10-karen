@@ -8,17 +8,18 @@ import {
   type PresenceState,
 } from "@/lib/presence-state";
 import type { BuddyMood } from "@/lib/mood-detection";
+import { safeGetItem, safeSetItem } from "@/lib/client-storage";
 
 const LICENSE_STORAGE_KEY = "buddy_presence_license_key";
 
 export function storePresenceLicenseKey(licenseKey: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(LICENSE_STORAGE_KEY, licenseKey.trim());
+  safeSetItem(LICENSE_STORAGE_KEY, licenseKey.trim());
 }
 
 export function getStoredPresenceLicenseKey(): string {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem(LICENSE_STORAGE_KEY)?.trim() || "";
+  return safeGetItem(LICENSE_STORAGE_KEY)?.trim() || "";
 }
 
 export async function fetchPresenceState(licenseKey: string): Promise<PresenceState | null> {
@@ -93,7 +94,7 @@ async function syncConsentToWidgetStorage(): Promise<void> {
     };
     const analytics = data.consents?.find((c) => c.purpose === "anonymous_analytics");
     const granted = analytics?.status === "granted";
-    window.localStorage.setItem("buddy_analytics_opt_in", granted ? "yes" : "no");
+    safeSetItem("buddy_analytics_opt_in", granted ? "yes" : "no");
   } catch {
     /* not signed in */
   }

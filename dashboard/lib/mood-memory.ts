@@ -1,5 +1,6 @@
 import type { CompanionPersonality, MoodCheckIn } from "@/lib/companion-mood";
 import { isBuddyMood } from "@/lib/companion-mood";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/client-storage";
 
 const CHECKIN_KEY = "buddy_mood_checkins_v1";
 const PERSONALITY_KEY = "buddy_personality_v1";
@@ -10,7 +11,7 @@ export type OracleStyle = "cosmic" | "pandit";
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try {
-    const raw = window.localStorage.getItem(key);
+    const raw = safeGetItem(key);
     if (!raw) return fallback;
     return JSON.parse(raw) as T;
   } catch {
@@ -32,11 +33,7 @@ function notifyMoodChanged() {
 
 export function saveCheckIn(entry: MoodCheckIn, limit = 90): MoodCheckIn[] {
   const next = [entry, ...loadCheckIns()].slice(0, limit);
-  try {
-    window.localStorage.setItem(CHECKIN_KEY, JSON.stringify(next));
-  } catch {
-    /* quota / private mode */
-  }
+  safeSetItem(CHECKIN_KEY, JSON.stringify(next));
   notifyMoodChanged();
   return next;
 }
@@ -45,21 +42,13 @@ export function updateLatestCheckIn(patch: Partial<Pick<MoodCheckIn, "note" | "i
   const rows = loadCheckIns();
   if (!rows[0]) return rows;
   const next = [{ ...rows[0], ...patch }, ...rows.slice(1)];
-  try {
-    window.localStorage.setItem(CHECKIN_KEY, JSON.stringify(next));
-  } catch {
-    /* quota / private mode */
-  }
+  safeSetItem(CHECKIN_KEY, JSON.stringify(next));
   notifyMoodChanged();
   return next;
 }
 
 export function clearCheckIns(): void {
-  try {
-    window.localStorage.removeItem(CHECKIN_KEY);
-  } catch {
-    /* ignore */
-  }
+  safeRemoveItem(CHECKIN_KEY);
   notifyMoodChanged();
 }
 
@@ -67,19 +56,11 @@ const MEET_KEY = "buddy_meet_done_v1";
 
 export function hasCompletedMeet(): boolean {
   if (typeof window === "undefined") return true;
-  try {
-    return window.localStorage.getItem(MEET_KEY) === "yes";
-  } catch {
-    return true;
-  }
+  return safeGetItem(MEET_KEY) === "yes";
 }
 
 export function markMeetComplete(): void {
-  try {
-    window.localStorage.setItem(MEET_KEY, "yes");
-  } catch {
-    /* ignore */
-  }
+  safeSetItem(MEET_KEY, "yes");
 }
 
 export function loadPersonality(): CompanionPersonality {
@@ -91,11 +72,7 @@ export function loadPersonality(): CompanionPersonality {
 }
 
 export function savePersonality(value: CompanionPersonality): void {
-  try {
-    window.localStorage.setItem(PERSONALITY_KEY, value);
-  } catch {
-    /* ignore */
-  }
+  safeSetItem(PERSONALITY_KEY, value);
   notifyMoodChanged();
 }
 
@@ -104,11 +81,7 @@ export function loadOracleStyle(): OracleStyle {
 }
 
 export function saveOracleStyle(value: OracleStyle): void {
-  try {
-    window.localStorage.setItem(ORACLE_STYLE_KEY, value);
-  } catch {
-    /* ignore */
-  }
+  safeSetItem(ORACLE_STYLE_KEY, value);
 }
 
 const PREFS_KEY = "buddy_display_prefs_v1";
@@ -135,11 +108,7 @@ export function loadDisplayPrefs(): BuddyDisplayPrefs {
 
 export function saveDisplayPrefs(patch: Partial<BuddyDisplayPrefs>): BuddyDisplayPrefs {
   const next = { ...loadDisplayPrefs(), ...patch };
-  try {
-    window.localStorage.setItem(PREFS_KEY, JSON.stringify(next));
-  } catch {
-    /* ignore */
-  }
+  safeSetItem(PREFS_KEY, JSON.stringify(next));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("buddy-prefs-changed"));
   }

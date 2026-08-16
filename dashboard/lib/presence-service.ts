@@ -41,8 +41,11 @@ export async function assertLicenseAccess(
     return { ok: true as const, license };
   }
 
+  // Companion / overlay writes: require matching secret key in header AND body.
+  // The embed key is a capability token — treat like a password; never accept licenseId alone.
   const headerKey = req.headers.get("x-buddy-license-key")?.trim();
-  if (headerKey && headerKey === licenseKey.trim()) {
+  const bodyKey = licenseKey.trim();
+  if (headerKey && bodyKey && headerKey === bodyKey && headerKey.length >= 16) {
     return { ok: true as const, license };
   }
 

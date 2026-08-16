@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { safeGetItem, safeSetItem } from "@/lib/client-storage";
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   useEffect(() => {
-    const saved = (localStorage.getItem("hq_theme_mode") as "dark" | "light" | null) || "dark";
+    const saved = (safeGetItem("hq_theme_mode") as "dark" | "light" | null) || "dark";
     setTheme(saved);
     document.documentElement.classList.toggle("light", saved === "light");
   }, []);
@@ -14,7 +15,7 @@ export function ThemeToggle() {
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
-    localStorage.setItem("hq_theme_mode", next);
+    safeSetItem("hq_theme_mode", next);
     document.documentElement.classList.toggle("light", next === "light");
   }
 

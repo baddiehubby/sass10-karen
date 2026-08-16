@@ -70,7 +70,7 @@ export function entitlementsForPlan(plan: string): LivingBuddyEntitlements {
   }
   return {
     tier: "provisional",
-    label: "Buddy account",
+    label: "Sacred Day",
     moodHistoryDays: 7,
     advancedOracle: false,
     richEvolution: false,

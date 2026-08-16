@@ -108,19 +108,21 @@ export const anonymizedMoodEventBodySchema = z
 
 export const widgetMoodPostSchema = z
   .object({
-    licenseKey: z.string().max(120).optional(),
-    licenseId: z.string().max(80).optional(),
+    licenseKey: z.string().min(1).max(120),
     mood: moodFromString,
     ttlSeconds: z.coerce.number().min(5).max(3600).optional(),
+  })
+  .strict();
+
+export const widgetMoodGetQuerySchema = z
+  .object({
+    licenseId: z.string().max(80).optional(),
+    licenseKey: z.string().max(120).optional(),
   })
   .refine((d) => Boolean((d.licenseKey || "").trim() || (d.licenseId || "").trim()), {
     message: "licenseKey or licenseId required",
     path: ["licenseKey"],
   });
-
-export const widgetMoodGetQuerySchema = z.object({
-  licenseId: z.string().min(1).max(80),
-});
 
 export const widgetConfigPostSchema = z.object({
   licenseKey: z.string().min(1).max(120),
@@ -202,7 +204,7 @@ export const onboardingCompleteBodySchema = z.object({
     .string()
     .max(20)
     .transform((s) => s.trim().toLowerCase())
-    .pipe(z.enum(["cheerful", "calm", "genius"])),
+    .pipe(z.enum(["chill", "playful", "warm", "mystical", "focused", "cheerful", "calm", "genius"])),
 });
 
 export const outreachSendBodySchema = z.object({

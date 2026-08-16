@@ -8,7 +8,7 @@ export default async function CollabMoodPage() {
   if (!session?.user?.id) redirect("/login");
 
   const licenses = await prisma.license.findMany({
-    where: { userId: session.user.id, plan: "agency" },
+    where: { userId: session.user.id, plan: { in: ["agency", "premium", "enterprise"] } },
     select: { id: true, key: true },
     orderBy: { createdAt: "desc" },
   });
@@ -25,7 +25,7 @@ export default async function CollabMoodPage() {
     <main className="mx-auto w-full max-w-5xl px-6 py-10">
       <h1 className="text-3xl font-semibold text-white">Collaborative Mood</h1>
       <p className="mt-2 text-slate-300">
-        Agency widgets synchronize mood across domains by posting and polling <code>/api/widget/mood</code>.
+        Premium / Agency widgets synchronize mood across domains by posting and polling <code>/api/widget/mood</code>.
       </p>
 
       <div className="mt-6 space-y-3">

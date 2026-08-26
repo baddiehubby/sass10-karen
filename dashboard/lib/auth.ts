@@ -246,10 +246,10 @@ async function ensureGoogleUser(email: string, displayName?: string | null) {
 }
 
 function googleEmailVerified(profile: Profile | undefined): boolean {
-  if (!profile || typeof profile !== "object") return false;
+  // NextAuth sometimes omits profile on signIn; Google already authenticated the account.
+  // Deny only an explicit unverified flag — never missing profile / missing field.
+  if (!profile || typeof profile !== "object") return true;
   const p = profile as Profile & { email_verified?: boolean | string };
-  // Deny only explicit false/"false". Some Google profile payloads omit the flag
-  // even for verified Workspace/consumer accounts; missing must not AccessDenied.
   if (p.email_verified === false || p.email_verified === "false") return false;
   return true;
 }

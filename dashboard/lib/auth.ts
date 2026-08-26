@@ -148,30 +148,45 @@ async function unusablePasswordHash(): Promise<string> {
 }
 
 /**
- * Production may lag schema.prisma (P2022 on User.eidataConsentCompleted).
+ * Production may lag schema.prisma (P2022 on additive columns).
  * Idempotent ADD COLUMN — safe to call on every Google provisioning attempt.
  * Uses the runtime DATABASE_URL on Vercel (local CLI may redact secrets).
  */
-let eidataConsentColumnEnsure: Promise<void> | null = null;
+let authSchemaColumnEnsure: Promise<void> | null = null;
 
-function ensureEidataConsentColumn(): Promise<void> {
-  if (!eidataConsentColumnEnsure) {
-    eidataConsentColumnEnsure = (async () => {
+function ensureAuthSchemaColumns(): Promise<void> {
+  if (!authSchemaColumnEnsure) {
+    authSchemaColumnEnsure = (async () => {
       try {
         await prisma.$executeRawUnsafe(
           `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "eidataConsentCompleted" BOOLEAN NOT NULL DEFAULT false`,
         );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "License" ADD COLUMN IF NOT EXISTS "widgetSessionToken" TEXT`,
+        );
       } catch (err) {
         // Allow retry on next sign-in if DDL was denied or DB briefly unavailable.
-        eidataConsentColumnEnsure = null;
+        authSchemaColumnEnsure = null;
         console.warn(
-          "[auth] could not ensure User.eidataConsentCompleted column:",
+          "[auth] could not ensure auth-related columns:",
           safeErrorMessage(err),
         );
       }
     })();
   }
-  return eidataConsentColumnEnsure;
+  return authSchemaColumnEnsure;
+}
+
+async function attachFreeLicenseBestEffort(userId: string): Promise<void> {
+  try {
+    await ensureFreeLicenseForUser(userId);
+  } catch (err) {
+    // License bootstrap must never deny Google OAuth — dashboard can retry later.
+    console.warn(
+      "[auth] free license bootstrap deferred:",
+      safeErrorMessage(err),
+    );
+  }
 }
 
 /**
@@ -181,7 +196,7 @@ function ensureEidataConsentColumn(): Promise<void> {
  */
 async function ensureGoogleUser(email: string, displayName?: string | null) {
   const normalized = email.toLowerCase();
-  await ensureEidataConsentColumn();
+  await ensureAuthSchemaColumns();
 
   // Narrow select — never SELECT * so a missing optional column cannot deny OAuth.
   const existing = await prisma.user.findUnique({
@@ -189,13 +204,17 @@ async function ensureGoogleUser(email: string, displayName?: string | null) {
     select: { id: true, name: true },
   });
   if (existing) {
+    // Narrow select on update — Prisma returns all scalars by default and P2022 on
+    // User.eidataConsentCompleted would otherwise deny returning Google users.
     await prisma.user.update({
       where: { id: existing.id },
       data: {
         password: await unusablePasswordHash(),
         name: existing.name || displayName || normalized,
       },
+      select: { id: true },
     });
+    await attachFreeLicenseBestEffort(existing.id);
     return existing;
   }
 
@@ -210,7 +229,7 @@ async function ensureGoogleUser(email: string, displayName?: string | null) {
       },
       select: { id: true, name: true },
     });
-    await ensureFreeLicenseForUser(created.id);
+    await attachFreeLicenseBestEffort(created.id);
     return created;
   } catch (err) {
     if (!isMissingEidataConsentColumn(err)) throw err;
@@ -221,7 +240,7 @@ async function ensureGoogleUser(email: string, displayName?: string | null) {
       INSERT INTO "User" ("id", "email", "password", "name", "onboardingCompleted", "createdAt", "updatedAt")
       VALUES (${id}, ${normalized}, ${password}, ${name}, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `;
-    await ensureFreeLicenseForUser(id);
+    await attachFreeLicenseBestEffort(id);
     return { id, name };
   }
 }
@@ -288,14 +307,26 @@ export const authOptions: NextAuthOptions = {
         try {
           await ensureGoogleUser(user.email, user.name);
         } catch (err) {
-          console.error("[auth] google signIn provisioning failed — denying login");
+          const prismaMeta =
+            err && typeof err === "object"
+              ? (err as { code?: string; meta?: { column?: string; modelName?: string } })
+              : null;
+          const detail = [
+            safeErrorMessage(err),
+            prismaMeta?.code,
+            prismaMeta?.meta?.modelName,
+            prismaMeta?.meta?.column,
+          ]
+            .filter(Boolean)
+            .join(":");
+          console.error("[auth] google signIn provisioning failed — denying login", detail);
           logAuthFailure({ reason: "oauth_provision_failed" });
           logStructured({
             level: "error",
             msg: "google provisioning failed",
             event: "auth.failure",
             reason: "oauth_provision_failed",
-            errorCode: safeErrorMessage(err),
+            errorCode: detail || safeErrorMessage(err),
           });
           return false;
         }
@@ -352,9 +383,20 @@ export const authOptions: NextAuthOptions = {
       }
 
       if (dbUser._count.licenses === 0) {
-        await ensureFreeLicenseForUser(dbUser.id);
+        try {
+          await ensureFreeLicenseForUser(dbUser.id);
+        } catch (err) {
+          console.warn(
+            "[auth] jwt free license bootstrap deferred:",
+            safeErrorMessage(err),
+          );
+        }
       }
-      await ensureDefaultConsents(dbUser.id);
+      try {
+        await ensureDefaultConsents(dbUser.id);
+      } catch (err) {
+        console.warn("[auth] ensureDefaultConsents deferred:", safeErrorMessage(err));
+      }
       token.id = dbUser.id;
       token.cred = cred;
       token.onboardingCompleted = dbUser.onboardingCompleted;

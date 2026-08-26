@@ -148,13 +148,46 @@ async function unusablePasswordHash(): Promise<string> {
 }
 
 /**
+ * Production may lag schema.prisma (P2022 on User.eidataConsentCompleted).
+ * Idempotent ADD COLUMN — safe to call on every Google provisioning attempt.
+ * Uses the runtime DATABASE_URL on Vercel (local CLI may redact secrets).
+ */
+let eidataConsentColumnEnsure: Promise<void> | null = null;
+
+function ensureEidataConsentColumn(): Promise<void> {
+  if (!eidataConsentColumnEnsure) {
+    eidataConsentColumnEnsure = (async () => {
+      try {
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "eidataConsentCompleted" BOOLEAN NOT NULL DEFAULT false`,
+        );
+      } catch (err) {
+        // Allow retry on next sign-in if DDL was denied or DB briefly unavailable.
+        eidataConsentColumnEnsure = null;
+        console.warn(
+          "[auth] could not ensure User.eidataConsentCompleted column:",
+          safeErrorMessage(err),
+        );
+      }
+    })();
+  }
+  return eidataConsentColumnEnsure;
+}
+
+/**
  * Create or attach Google-authenticated email.
  * If a pre-registered password account exists, Google email ownership wins:
  * rotate password so an attacker who registered first cannot keep credentials access.
  */
 async function ensureGoogleUser(email: string, displayName?: string | null) {
   const normalized = email.toLowerCase();
-  const existing = await prisma.user.findUnique({ where: { email: normalized } });
+  await ensureEidataConsentColumn();
+
+  // Narrow select — never SELECT * so a missing optional column cannot deny OAuth.
+  const existing = await prisma.user.findUnique({
+    where: { email: normalized },
+    select: { id: true, name: true },
+  });
   if (existing) {
     await prisma.user.update({
       where: { id: existing.id },
@@ -166,15 +199,31 @@ async function ensureGoogleUser(email: string, displayName?: string | null) {
     return existing;
   }
 
-  const created = await prisma.user.create({
-    data: {
-      email: normalized,
-      password: await unusablePasswordHash(),
-      name: displayName || normalized,
-    },
-  });
-  await ensureFreeLicenseForUser(created.id);
-  return created;
+  const password = await unusablePasswordHash();
+  const name = displayName || normalized;
+  try {
+    const created = await prisma.user.create({
+      data: {
+        email: normalized,
+        password,
+        name,
+      },
+      select: { id: true, name: true },
+    });
+    await ensureFreeLicenseForUser(created.id);
+    return created;
+  } catch (err) {
+    if (!isMissingEidataConsentColumn(err)) throw err;
+    // Schema still missing the column (DDL denied) — insert without it.
+    console.warn("[auth] Google user create falling back without eidataConsentCompleted");
+    const id = `c${randomBytes(16).toString("hex")}`;
+    await prisma.$executeRaw`
+      INSERT INTO "User" ("id", "email", "password", "name", "onboardingCompleted", "createdAt", "updatedAt")
+      VALUES (${id}, ${normalized}, ${password}, ${name}, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `;
+    await ensureFreeLicenseForUser(id);
+    return { id, name };
+  }
 }
 
 function googleEmailVerified(profile: Profile | undefined): boolean {

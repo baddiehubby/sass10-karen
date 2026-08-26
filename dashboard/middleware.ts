@@ -156,6 +156,17 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const ip = clientIp(req);
   const requestId = resolveRequestId(req.headers);
+  const host = (req.headers.get("host") || req.nextUrl.hostname || "").toLowerCase();
+
+  // Apex → www so NextAuth state/pkce cookies stay on the same host as Google callback
+  // (NEXTAUTH_URL is https://www.buddieai.com). Mismatched hosts → "State cookie was missing"
+  // → AccessDenied / OAuthCallback on login.
+  if (host === "buddieai.com" || host === "sachapandit.com") {
+    const url = req.nextUrl.clone();
+    url.hostname = host === "sachapandit.com" ? "www.sachapandit.com" : "www.buddieai.com";
+    url.protocol = "https:";
+    return NextResponse.redirect(url, 308);
+  }
 
   const stamp = (res: NextResponse) => {
     res.headers.set("x-request-id", requestId);
@@ -185,9 +196,9 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    // NextAuth must own Set-Cookie (state / pkce / session). Do not call
-    // res.cookies.set or document CSP here — middleware cookie merges can drop
-    // OAuth state and surface as OAUTH_CALLBACK_ERROR "State cookie was missing".
+    // NextAuth must own Set-Cookie (state / pkce / session). Do not mutate the
+    // response (cookies OR security headers) — middleware merges can drop OAuth
+    // state and surface as OAUTH_CALLBACK_ERROR "State cookie was missing".
     if (pathname.startsWith("/api/auth/")) {
       const host = req.headers.get("host") || req.nextUrl.hostname;
       const tenant = getTenant(host);
@@ -195,7 +206,6 @@ export async function middleware(req: NextRequest) {
       requestHeaders.set(TENANT_HEADER, tenant);
       requestHeaders.set("x-request-id", requestId);
       const res = NextResponse.next({ request: { headers: requestHeaders } });
-      applySecurityHeaders(res);
       return stamp(res);
     }
 

@@ -16,22 +16,41 @@ export type UserConsentRecord = {
   regulations: string[];
 };
 
-export async function ensureDefaultConsents(userId: string): Promise<void> {
-  const existing = await prisma.userConsent.findMany({
-    where: { userId },
-    select: { purpose: true },
-  });
-  const have = new Set(existing.map((r) => r.purpose));
-  const missing = CONSENT_PURPOSES.filter((p) => !have.has(p));
-  if (missing.length === 0) return;
+function isMissingConsentTable(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const maybe = err as { code?: string; meta?: { table?: string }; message?: string };
+  return (
+    (maybe.code === "P2021" || maybe.code === "P2022") &&
+    (maybe.meta?.table === "public.UserConsent" ||
+      String(maybe.message || "").includes("UserConsent"))
+  );
+}
 
-  await prisma.userConsent.createMany({
-    data: missing.map((purpose) => ({
-      userId,
-      purpose,
-      status: CONSENT_PURPOSE_META[purpose].defaultStatus,
-    })),
-  });
+export async function ensureDefaultConsents(userId: string): Promise<void> {
+  try {
+    const existing = await prisma.userConsent.findMany({
+      where: { userId },
+      select: { purpose: true },
+    });
+    const have = new Set(existing.map((r) => r.purpose));
+    const missing = CONSENT_PURPOSES.filter((p) => !have.has(p));
+    if (missing.length === 0) return;
+
+    await prisma.userConsent.createMany({
+      data: missing.map((purpose) => ({
+        userId,
+        purpose,
+        status: CONSENT_PURPOSE_META[purpose].defaultStatus,
+      })),
+    });
+  } catch (err) {
+    // Production schema drift must never fail Google OAuth / JWT bootstrap.
+    if (isMissingConsentTable(err)) {
+      console.warn("[consent] UserConsent table missing — skipping default consent bootstrap");
+      return;
+    }
+    throw err;
+  }
 }
 
 export async function getUserConsents(userId: string): Promise<UserConsentRecord[]> {

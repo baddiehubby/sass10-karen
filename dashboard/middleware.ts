@@ -70,7 +70,8 @@ function applySecurityHeaders(res: NextResponse, opts?: { document?: boolean }) 
         "frame-src 'self' https://*.lemonsqueezy.com",
         "frame-ancestors 'none'",
         "base-uri 'self'",
-        "form-action 'self' https://*.lemonsqueezy.com",
+        // Allow NextAuth Google OAuth redirect chains (form POST → 302 → accounts.google.com).
+        "form-action 'self' https://accounts.google.com https://*.google.com https://*.lemonsqueezy.com",
       ].join("; "),
     );
   } else {

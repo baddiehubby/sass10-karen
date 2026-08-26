@@ -33,6 +33,7 @@ export function LoginCard({ nextAuthUrl, tenant }: LoginCardProps) {
     authError === "google" ||
     authError === "OAuthSignin" ||
     authError === "OAuthCallback" ||
+    authError === "AccessDenied" ||
     authError === "Configuration";
 
   return (

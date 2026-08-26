@@ -247,8 +247,11 @@ async function ensureGoogleUser(email: string, displayName?: string | null) {
 
 function googleEmailVerified(profile: Profile | undefined): boolean {
   if (!profile || typeof profile !== "object") return false;
-  const p = profile as Profile & { email_verified?: boolean };
-  return p.email_verified === true;
+  const p = profile as Profile & { email_verified?: boolean | string };
+  // Deny only explicit false/"false". Some Google profile payloads omit the flag
+  // even for verified Workspace/consumer accounts; missing must not AccessDenied.
+  if (p.email_verified === false || p.email_verified === "false") return false;
+  return true;
 }
 
 export const authOptions: NextAuthOptions = {

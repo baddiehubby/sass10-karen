@@ -184,6 +184,20 @@ export async function middleware(req: NextRequest) {
       }
     }
 
+    // NextAuth must own Set-Cookie (state / pkce / session). Do not call
+    // res.cookies.set or document CSP here — middleware cookie merges can drop
+    // OAuth state and surface as OAUTH_CALLBACK_ERROR "State cookie was missing".
+    if (pathname.startsWith("/api/auth/")) {
+      const host = req.headers.get("host") || req.nextUrl.hostname;
+      const tenant = getTenant(host);
+      const requestHeaders = new Headers(req.headers);
+      requestHeaders.set(TENANT_HEADER, tenant);
+      requestHeaders.set("x-request-id", requestId);
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
+      applySecurityHeaders(res);
+      return stamp(res);
+    }
+
     if (!isPublicApi(pathname)) {
       const token = await readSessionToken(req);
       // Coarse gate — handlers still derive identity via getServerSession / sessionUserId.

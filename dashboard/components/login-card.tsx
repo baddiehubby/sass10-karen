@@ -57,8 +57,9 @@ export function LoginCard({ nextAuthUrl, tenant }: LoginCardProps) {
 
       {showOAuthSetupHint ? (
         <p className="mt-4 max-w-sm rounded-lg border border-rose-300/25 bg-rose-500/10 px-3 py-2 text-center text-xs leading-relaxed text-rose-100/90">
-          Google sign-in failed. In Google Cloud Console → Credentials → your{" "}
-          <strong>Web client</strong>, add this exact Authorized redirect URI:{" "}
+          Google sign-in failed. Confirm cookies are allowed for this site, then retry. In Google
+          Cloud Console → Credentials → your <strong>Web client</strong>, the Authorized redirect
+          URI must be exactly:{" "}
           <code className="break-all text-rose-50">{oauthRedirectUri}</code>
         </p>
       ) : null}

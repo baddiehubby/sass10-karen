@@ -5,6 +5,7 @@
  * Orb first; intelligence warms in the background. Never show plumbing.
  */
 
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { BuddyOrb } from "@/components/buddy-orb";
@@ -34,6 +35,7 @@ export function BuddieOnboardingExperience({
   alreadyComplete?: boolean;
 }) {
   const router = useRouter();
+  const { update } = useSession();
   const [step, setStep] = useState<Step>("orb");
   const [name, setName] = useState(defaultName);
   const [vibe, setVibe] = useState<CompanionPersonality>("warm");
@@ -83,6 +85,7 @@ export function BuddieOnboardingExperience({
           setError(SAVE_SOFT_ERROR);
           return;
         }
+        await update();
         router.replace("/dashboard");
         router.refresh();
       } catch {

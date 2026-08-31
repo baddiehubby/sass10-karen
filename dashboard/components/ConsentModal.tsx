@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
@@ -12,6 +13,7 @@ type ConsentModalProps = {
 
 export function ConsentModal({ blocking = true }: ConsentModalProps) {
   const router = useRouter();
+  const { update } = useSession();
   const [companionMood, setCompanionMood] = useState(false);
   const [anonymousAnalytics, setAnonymousAnalytics] = useState(false);
   const [modelTraining, setModelTraining] = useState(false);
@@ -70,6 +72,8 @@ export function ConsentModal({ blocking = true }: ConsentModalProps) {
         /* ignore */
       }
 
+      // JWT must reflect eidataConsentCompleted before middleware allows /dashboard.
+      await update();
       router.push("/dashboard");
       router.refresh();
     } finally {

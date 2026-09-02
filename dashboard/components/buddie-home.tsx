@@ -1,5 +1,6 @@
 "use client";
 
+import { ProCheckoutButton } from "@/components/pro-checkout-button";
 import Link from "next/link";
 import { Suspense } from "react";
 import { DashboardCelebration } from "@/components/dashboard-celebration";
@@ -80,14 +81,15 @@ export function BuddieHome({
       </p>
 
       {isSacredDay ? (
-        <div className="relative z-10 mt-10 w-full max-w-sm space-y-3">
-          <p className="buddie-display text-xl text-[#f4efe6]">Sacred Day</p>
+        <div className="relative z-10 mt-10 w-full max-w-sm space-y-4">
+          <p className="buddie-display text-xl text-[#f4efe6]">Your Buddie is ready</p>
           <p className="text-sm leading-relaxed text-white/50">
-            You&apos;re already home with Buddie. When you&apos;re ready, Premium deepens memory,
-            garden, and rituals — without starting over.
+            Buddie is live on Sacred Day. Choose a plan to bring the full companion experience to life —
+            memory, garden, and rituals deepen without starting over.
           </p>
-          <Link href="/pricing" className="buddie-cta inline-flex min-h-12 items-center justify-center px-8">
-            Open Premium invitation
+          <ProCheckoutButton label="Start Pro" />
+          <Link href="/pricing" className="block text-xs text-white/40 underline-offset-2 hover:text-white/60 hover:underline">
+            Compare all plans
           </Link>
         </div>
       ) : null}

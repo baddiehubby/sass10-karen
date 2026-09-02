@@ -18,7 +18,25 @@ export function ConsentSessionRefresh() {
 
     void (async () => {
       try {
-        await update();
+        const updated = await update();
+        // #region agent log
+        fetch("http://127.0.0.1:7611/ingest/87ee683e-41c7-4485-9b1b-9c00188d4aac", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f590a1" },
+          body: JSON.stringify({
+            sessionId: "f590a1",
+            hypothesisId: "A",
+            location: "consent-session-refresh.tsx:update",
+            message: "stale JWT refresh path",
+            data: {
+              eidataConsentCompleted: Boolean(
+                (updated?.user as { eidataConsentCompleted?: boolean } | undefined)?.eidataConsentCompleted,
+              ),
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
         if (cancelled) return;
         router.replace("/dashboard");
         router.refresh();

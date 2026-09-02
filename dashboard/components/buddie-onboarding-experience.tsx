@@ -80,6 +80,20 @@ export function BuddieOnboardingExperience({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ companionName, personality: vibe }),
         });
+        // #region agent log
+        fetch("http://127.0.0.1:7611/ingest/87ee683e-41c7-4485-9b1b-9c00188d4aac", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f590a1" },
+          body: JSON.stringify({
+            sessionId: "f590a1",
+            hypothesisId: "G",
+            location: "buddie-onboarding-experience.tsx:complete",
+            message: "onboarding complete API",
+            data: { ok: res.ok, status: res.status },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
         if (!res.ok) {
           // Never surface server/API wording to the user
           setError(SAVE_SOFT_ERROR);

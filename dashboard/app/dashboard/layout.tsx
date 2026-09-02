@@ -3,6 +3,7 @@ import { Fraunces, Outfit } from "next/font/google";
 import { UniverseShell } from "@/components/universe-shell";
 import { DashboardMinimalNav } from "@/components/dashboard-minimal-nav";
 import { IntelligenceWarmup } from "@/components/intelligence-warmup";
+import { DashboardPersistentPresence } from "@/components/dashboard-persistent-presence";
 
 const display = Fraunces({
   subsets: ["latin"],
@@ -31,6 +32,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <DashboardMinimalNav />
       <IntelligenceWarmup />
       <UniverseShell>{children}</UniverseShell>
+      {/* Existing BuddyOrb, layout-mounted so presence survives room navigation. */}
+      <DashboardPersistentPresence />
     </div>
   );
 }

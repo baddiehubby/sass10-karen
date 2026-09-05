@@ -25,7 +25,7 @@ export function SiteChrome({ children, widgetScriptUrl, apiBase }: SiteChromePro
   const pathname = usePathname() ?? "/";
   const branding = brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : "");
   const immersive = isImmersiveRoute(pathname);
-  const showWidget = pathname !== "/" && !pathname.startsWith("/dashboard");
+  const showWidget = pathname !== "/" && !pathname.startsWith("/dashboard") && pathname !== "/pwa";
 
   return (
     <>

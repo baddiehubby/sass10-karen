@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Buddie</string>
+    <string name="stage_label">Native Android companion</string>
+    <string name="companion_not_enabled">Sign in and verify access to enable your companion.</string>
+    <string name="open_buddie">Open Buddie</string>
+    <string name="open_oracle">Open Oracle</string>
+    <string name="companion_status">Companion status</string>
+    <string name="invalid_link">That Buddie link is not supported.</string>
+    <string name="open_failed">No browser is available to open Buddie.</string>
+    <string name="sign_in">Sign in securely</string>
+    <string name="checking_access">Checking access…</string>
+    <string name="enable_companion">Enable Companion</string>
+    <string name="disable_companion">Disable Companion</string>
+    <string name="logout">Log out</string>
+    <string name="authenticated">Authenticated</string>
+    <string name="entitlement_required">ENTITLEMENT_REQUIRED</string>
+    <string name="overlay_permission_explanation">Buddie needs Android’s “display over other apps” permission to keep your companion orb visible while you use other apps.</string>
+    <string name="open_overlay_settings">Open overlay settings</string>
+    <string name="notification_permission_explanation">Notifications are required so Android can show the visible foreground-service notification while Buddie is active.</string>
+    <string name="offline">OFFLINE</string>
+    <string name="session_error">Your secure session could not be verified. Please sign in again.</string>
+    <string name="companion_notification_title">Buddie Companion</string>
+    <string name="companion_notification_text">Your Buddie is active. Tap to open Buddie.</string>
+    <string name="companion_notification_channel">Active companion</string>
+    <string name="companion_notification_channel_description">Visible status while the Buddie companion orb is active.</string>
+</resources>

@@ -15,20 +15,25 @@ const REFRESH_TTL_SECONDS = 14 * 24 * 60 * 60;
 const CLOCK_SKEW_MS = 60_000;
 const BASE64URL_RE = /^[A-Za-z0-9_-]+$/;
 
-type HandoffClaims = JWTPayload & {
+export type MobileProofPurpose = "exchange" | "refresh" | "logout";
+
+export type HandoffClaims = JWTPayload & {
   typ: "buddie_mobile_handoff";
   uid: string;
   lid: string;
+  did: string;
   cch: string;
   sth: string;
   spki: string;
   dkt: string;
 };
 
-type RefreshClaims = JWTPayload & {
+export type RefreshClaims = JWTPayload & {
   typ: "buddie_mobile_refresh";
   uid: string;
   lid: string;
+  did: string;
+  fid: string;
   cv: string;
   spki: string;
   dkt: string;
@@ -58,6 +63,15 @@ export function validateBridgeState(value: string): boolean {
   return value.length >= 32 && value.length <= 128 && BASE64URL_RE.test(value);
 }
 
+export function validateRequestOrigin(value: string | null, expectedBaseUrl: string): boolean {
+  if (!value) return false;
+  try {
+    return value === new URL(expectedBaseUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
 export function validateDevicePublicKey(spki: string): boolean {
   if (spki.length < 80 || spki.length > 256 || !BASE64URL_RE.test(spki)) return false;
   try {
@@ -85,7 +99,7 @@ export function verifyPkceVerifier(verifier: string, challenge: string): boolean
 }
 
 export function mobileProofMessage(input: {
-  purpose: "exchange" | "refresh";
+  purpose: MobileProofPurpose;
   credential: string;
   timestamp: number;
   nonce: string;
@@ -100,7 +114,7 @@ export function mobileProofMessage(input: {
 }
 
 export function verifyDeviceProof(input: {
-  purpose: "exchange" | "refresh";
+  purpose: MobileProofPurpose;
   credential: string;
   timestamp: number;
   nonce: string;
@@ -139,13 +153,23 @@ export function verifyDeviceProof(input: {
   }
 }
 
+export type IssuedMobileHandoff = {
+  token: string;
+  jti: string;
+  deviceId: string;
+  deviceThumbprint: string;
+  expiresAt: number;
+};
+
 export async function issueMobileHandoff(input: {
   userId: string;
   licenseId: string;
   codeChallenge: string;
   state: string;
   devicePublicKey: string;
-}): Promise<string> {
+  deviceId?: string;
+  now?: number;
+}): Promise<IssuedMobileHandoff> {
   if (
     !input.userId ||
     !input.licenseId ||
@@ -159,10 +183,16 @@ export async function issueMobileHandoff(input: {
   const deviceThumbprint = base64UrlSha256(
     Buffer.from(input.devicePublicKey, "base64url"),
   );
-  return new EncryptJWT({
+  const now = input.now ?? Date.now();
+  const issuedAt = Math.floor(now / 1000);
+  const expiresAt = issuedAt + HANDOFF_TTL_SECONDS;
+  const jti = randomBytes(18).toString("base64url");
+  const deviceId = input.deviceId ?? randomBytes(18).toString("base64url");
+  const token = await new EncryptJWT({
     typ: "buddie_mobile_handoff",
     uid: input.userId,
     lid: input.licenseId,
+    did: deviceId,
     cch: input.codeChallenge,
     sth: base64UrlSha256(input.state),
     spki: input.devicePublicKey,
@@ -171,10 +201,17 @@ export async function issueMobileHandoff(input: {
     .setProtectedHeader({ alg: "dir", enc: "A256GCM", typ: "JWT" })
     .setIssuer(ISSUER)
     .setAudience(HANDOFF_AUDIENCE)
-    .setIssuedAt()
-    .setExpirationTime(Math.floor(Date.now() / 1000) + HANDOFF_TTL_SECONDS)
-    .setJti(randomBytes(18).toString("base64url"))
+    .setIssuedAt(issuedAt)
+    .setExpirationTime(expiresAt)
+    .setJti(jti)
     .encrypt(encryptionKey("handoff"));
+  return {
+    token,
+    jti,
+    deviceId,
+    deviceThumbprint,
+    expiresAt: expiresAt * 1000,
+  };
 }
 
 export async function verifyMobileHandoff(token: string): Promise<HandoffClaims | null> {
@@ -190,10 +227,13 @@ export async function verifyMobileHandoff(token: string): Promise<HandoffClaims 
       payload.typ !== "buddie_mobile_handoff" ||
       typeof payload.uid !== "string" ||
       typeof payload.lid !== "string" ||
+      typeof payload.did !== "string" ||
       typeof payload.cch !== "string" ||
       typeof payload.sth !== "string" ||
       typeof payload.spki !== "string" ||
       typeof payload.dkt !== "string" ||
+      typeof payload.jti !== "string" ||
+      typeof payload.exp !== "number" ||
       !validateDevicePublicKey(payload.spki)
     ) {
       return null;
@@ -207,17 +247,30 @@ export async function verifyMobileHandoff(token: string): Promise<HandoffClaims 
 export async function issueMobileRefresh(input: {
   userId: string;
   licenseId: string;
+  deviceId: string;
+  familyId?: string;
   credentialVersion: string;
   devicePublicKey: string;
-}): Promise<{ token: string; expiresAt: number }> {
+  now?: number;
+}): Promise<{
+  token: string;
+  jti: string;
+  familyId: string;
+  expiresAt: number;
+}> {
   if (!validateDevicePublicKey(input.devicePublicKey)) {
     throw new Error("Invalid mobile device key");
   }
-  const expiresAt = Math.floor(Date.now() / 1000) + REFRESH_TTL_SECONDS;
+  const issuedAt = Math.floor((input.now ?? Date.now()) / 1000);
+  const expiresAt = issuedAt + REFRESH_TTL_SECONDS;
+  const jti = randomBytes(18).toString("base64url");
+  const familyId = input.familyId ?? randomBytes(18).toString("base64url");
   const token = await new EncryptJWT({
     typ: "buddie_mobile_refresh",
     uid: input.userId,
     lid: input.licenseId,
+    did: input.deviceId,
+    fid: familyId,
     cv: input.credentialVersion,
     spki: input.devicePublicKey,
     dkt: base64UrlSha256(Buffer.from(input.devicePublicKey, "base64url")),
@@ -225,11 +278,11 @@ export async function issueMobileRefresh(input: {
     .setProtectedHeader({ alg: "dir", enc: "A256GCM", typ: "JWT" })
     .setIssuer(ISSUER)
     .setAudience(REFRESH_AUDIENCE)
-    .setIssuedAt()
+    .setIssuedAt(issuedAt)
     .setExpirationTime(expiresAt)
-    .setJti(randomBytes(18).toString("base64url"))
+    .setJti(jti)
     .encrypt(encryptionKey("refresh"));
-  return { token, expiresAt: expiresAt * 1000 };
+  return { token, jti, familyId, expiresAt: expiresAt * 1000 };
 }
 
 export async function verifyMobileRefresh(token: string): Promise<RefreshClaims | null> {
@@ -245,9 +298,13 @@ export async function verifyMobileRefresh(token: string): Promise<RefreshClaims 
       payload.typ !== "buddie_mobile_refresh" ||
       typeof payload.uid !== "string" ||
       typeof payload.lid !== "string" ||
+      typeof payload.did !== "string" ||
+      typeof payload.fid !== "string" ||
       typeof payload.cv !== "string" ||
       typeof payload.spki !== "string" ||
       typeof payload.dkt !== "string" ||
+      typeof payload.jti !== "string" ||
+      typeof payload.exp !== "number" ||
       !validateDevicePublicKey(payload.spki)
     ) {
       return null;

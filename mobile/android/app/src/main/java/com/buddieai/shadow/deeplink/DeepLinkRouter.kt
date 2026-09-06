@@ -20,7 +20,7 @@ object DeepLinkRouter {
         if (raw.isNullOrBlank()) return null
 
         val uri = runCatching { URI(raw.trim()) }.getOrNull() ?: return null
-        if (uri.userInfo != null || uri.fragment != null) return null
+        if (uri.userInfo != null || uri.fragment != null || uri.rawQuery != null) return null
 
         return when (uri.scheme?.lowercase()) {
             "buddieai" -> parseCustomScheme(uri)

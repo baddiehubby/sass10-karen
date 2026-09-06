@@ -14,6 +14,11 @@ import {
   verifyMobileRefresh,
   verifyPkceVerifier,
 } from "@/lib/mobile-auth";
+import {
+  exchangeAuthorizationCode,
+  logoutMobileDevice,
+  rotateMobileRefreshToken,
+} from "@/lib/mobile-auth-store";
 import { getPresenceForLicense, upsertPresenceState } from "@/lib/presence-service";
 import { prisma } from "@/lib/prisma";
 
@@ -42,6 +47,13 @@ const requestSchema = z.discriminatedUnion("action", [
       ...proofFields,
     })
     .strict(),
+  z
+    .object({
+      action: z.literal("logout"),
+      refreshToken: z.string().min(80).max(4096),
+      ...proofFields,
+    })
+    .strict(),
 ]);
 
 function noStoreJson(body: unknown, status = 200) {
@@ -51,10 +63,9 @@ function noStoreJson(body: unknown, status = 200) {
   });
 }
 
-async function buildSessionResponse(input: {
+async function loadSessionContext(input: {
   userId: string;
   licenseId: string;
-  devicePublicKey: string;
 }) {
   const [user, license] = await Promise.all([
     prisma.user.findUnique({
@@ -81,22 +92,29 @@ async function buildSessionResponse(input: {
     getUserEntitlement(user.id),
     buildCompanionSyncPayload(user.id),
   ]);
-  if (!companion || companion.licenseKey !== license.key) return null;
+  if (
+    !entitlement.hasPaidAccess ||
+    !companion ||
+    companion.licenseKey !== license.key
+  ) {
+    return null;
+  }
 
+  return { user, license, entitlement, companion };
+}
+
+async function buildSessionResponse(
+  context: NonNullable<Awaited<ReturnType<typeof loadSessionContext>>>,
+  refresh: { token: string; expiresAt: number },
+) {
+  const { license, entitlement, companion } = context;
   let presence = await getPresenceForLicense(license.key);
-  if (entitlement.hasPaidAccess && presence) {
+  if (presence) {
     presence = await upsertPresenceState({
       ...presence,
       lastCheckIn: new Date().toISOString(),
     });
   }
-
-  const refresh = await issueMobileRefresh({
-    userId: user.id,
-    licenseId: license.id,
-    credentialVersion: mobileCredentialVersion(user.password),
-    devicePublicKey: input.devicePublicKey,
-  });
 
   return {
     tokenType: "Device-Bound",
@@ -148,21 +166,54 @@ export async function POST(req: Request) {
       return noStoreJson({ error: "Invalid or expired connection" }, 401);
     }
 
-    const session = await buildSessionResponse({
+    const context = await loadSessionContext({
       userId: handoff.uid,
       licenseId: handoff.lid,
+    });
+    if (!context) {
+      return noStoreJson({ error: "Account or entitlement is unavailable" }, 403);
+    }
+
+    const refresh = await issueMobileRefresh({
+      userId: context.user.id,
+      licenseId: context.license.id,
+      deviceId: handoff.did,
+      credentialVersion: mobileCredentialVersion(context.user.password),
       devicePublicKey: handoff.spki,
     });
-    return session
-      ? noStoreJson(session)
-      : noStoreJson({ error: "Account or entitlement is unavailable" }, 403);
+    const exchanged = await exchangeAuthorizationCode({
+      code: body.code,
+      handoff: {
+        jti: handoff.jti!,
+        userId: handoff.uid,
+        licenseId: handoff.lid,
+        deviceId: handoff.did,
+        deviceThumbprint: handoff.dkt,
+        devicePublicKey: handoff.spki,
+      },
+      proof: {
+        purpose: "exchange",
+        nonce: body.nonce,
+        timestamp: body.timestamp,
+      },
+      refresh: {
+        id: crypto.randomUUID(),
+        ...refresh,
+        credentialVersion: mobileCredentialVersion(context.user.password),
+      },
+    });
+    if (!exchanged) {
+      return noStoreJson({ error: "Invalid or expired connection" }, 401);
+    }
+    return noStoreJson(await buildSessionResponse(context, refresh));
   }
 
   const refreshClaims = await verifyMobileRefresh(body.refreshToken);
+  const proofPurpose = body.action === "logout" ? "logout" : "refresh";
   if (
     !refreshClaims ||
     !verifyDeviceProof({
-      purpose: "refresh",
+      purpose: proofPurpose,
       credential: body.refreshToken,
       timestamp: body.timestamp,
       nonce: body.nonce,
@@ -173,20 +224,68 @@ export async function POST(req: Request) {
     return noStoreJson({ error: "Native session expired" }, 401);
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: refreshClaims.uid },
-    select: { password: true },
+  const refreshBinding = {
+    jti: refreshClaims.jti!,
+    userId: refreshClaims.uid,
+    licenseId: refreshClaims.lid,
+    deviceId: refreshClaims.did,
+    familyId: refreshClaims.fid,
+    credentialVersion: refreshClaims.cv,
+    deviceThumbprint: refreshClaims.dkt,
+    devicePublicKey: refreshClaims.spki,
+  };
+
+  if (body.action === "logout") {
+    const loggedOut = await logoutMobileDevice({
+      token: body.refreshToken,
+      refresh: refreshBinding,
+      proof: {
+        purpose: "logout",
+        nonce: body.nonce,
+        timestamp: body.timestamp,
+      },
+    });
+    return loggedOut
+      ? noStoreJson({ ok: true })
+      : noStoreJson({ error: "Native session expired" }, 401);
+  }
+
+  const context = await loadSessionContext({
+    userId: refreshClaims.uid,
+    licenseId: refreshClaims.lid,
   });
-  if (!user || mobileCredentialVersion(user.password) !== refreshClaims.cv) {
+  if (!context) {
+    return noStoreJson({ error: "Account or entitlement is unavailable" }, 403);
+  }
+  if (mobileCredentialVersion(context.user.password) !== refreshClaims.cv) {
     return noStoreJson({ error: "Native session expired" }, 401);
   }
 
-  const session = await buildSessionResponse({
-    userId: refreshClaims.uid,
-    licenseId: refreshClaims.lid,
+  const nextRefresh = await issueMobileRefresh({
+    userId: context.user.id,
+    licenseId: context.license.id,
+    deviceId: refreshClaims.did,
+    familyId: refreshClaims.fid,
+    credentialVersion: refreshClaims.cv,
     devicePublicKey: refreshClaims.spki,
   });
-  return session
-    ? noStoreJson(session)
-    : noStoreJson({ error: "Account or entitlement is unavailable" }, 403);
+  const rotation = await rotateMobileRefreshToken({
+    oldToken: body.refreshToken,
+    old: refreshBinding,
+    proof: {
+      purpose: "refresh",
+      nonce: body.nonce,
+      timestamp: body.timestamp,
+    },
+    next: {
+      id: crypto.randomUUID(),
+      ...nextRefresh,
+      credentialVersion: refreshClaims.cv,
+    },
+  });
+  if (rotation !== "rotated") {
+    return noStoreJson({ error: "Native session expired" }, 401);
+  }
+
+  return noStoreJson(await buildSessionResponse(context, nextRefresh));
 }

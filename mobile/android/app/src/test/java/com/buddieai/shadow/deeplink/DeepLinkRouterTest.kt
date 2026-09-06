@@ -45,6 +45,9 @@ class DeepLinkRouterTest {
     fun `userinfo fragments and malformed input are rejected`() {
         assertNull(DeepLinkRouter.parse("https://user@www.buddieai.com/pwa"))
         assertNull(DeepLinkRouter.parse("https://www.buddieai.com/pwa#fragment"))
+        assertNull(DeepLinkRouter.parse("https://www.buddieai.com/pwa?next=oracle"))
+        assertNull(DeepLinkRouter.parse("buddieai://oracle?next=settings"))
+        assertNull(DeepLinkRouter.parse("buddieai://open?"))
         assertNull(DeepLinkRouter.parse("not a uri"))
         assertNull(DeepLinkRouter.parse(""))
         assertNull(DeepLinkRouter.parse(null))

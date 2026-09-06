@@ -8,12 +8,18 @@ import java.net.URL
 import java.security.MessageDigest
 import java.util.Base64
 
+interface MobileSessionApi {
+    fun exchange(code: String, verifier: String, state: String): NativeSession
+    fun refresh(refreshToken: String): NativeSession
+    fun logout(refreshToken: String)
+}
+
 class MobileApiClient(
     private val deviceKeys: DeviceKeyManager,
     private val endpoint: String = SESSION_ENDPOINT,
-) {
-    fun exchange(code: String, verifier: String, state: String): NativeSession {
-        return execute(
+) : MobileSessionApi {
+    override fun exchange(code: String, verifier: String, state: String): NativeSession {
+        return executeSession(
             action = "exchange",
             credential = code,
             payload = JSONObject()
@@ -24,8 +30,8 @@ class MobileApiClient(
         )
     }
 
-    fun refresh(refreshToken: String): NativeSession {
-        return execute(
+    override fun refresh(refreshToken: String): NativeSession {
+        return executeSession(
             action = "refresh",
             credential = refreshToken,
             payload = JSONObject()
@@ -34,7 +40,23 @@ class MobileApiClient(
         )
     }
 
-    private fun execute(action: String, credential: String, payload: JSONObject): NativeSession {
+    override fun logout(refreshToken: String) {
+        execute(
+            action = "logout",
+            credential = refreshToken,
+            payload = JSONObject()
+                .put("action", "logout")
+                .put("refreshToken", refreshToken),
+        )
+    }
+
+    private fun executeSession(
+        action: String,
+        credential: String,
+        payload: JSONObject,
+    ): NativeSession = parseSession(execute(action, credential, payload))
+
+    private fun execute(action: String, credential: String, payload: JSONObject): JSONObject {
         val timestamp = System.currentTimeMillis()
         val nonce = deviceKeys.randomUrlSafe(24)
         val proofMessage = listOf(
@@ -77,7 +99,7 @@ class MobileApiClient(
                     message = "Mobile session request failed ($status)",
                 )
             }
-            return parseSession(JSONObject(body))
+            return if (body.isBlank()) JSONObject() else JSONObject(body)
         } catch (error: MobileApiException) {
             throw error
         } catch (error: IOException) {

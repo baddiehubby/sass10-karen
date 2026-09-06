@@ -5,11 +5,12 @@ import com.buddieai.shadow.security.DeviceKeyManager
 import com.buddieai.shadow.security.SecureStorage
 import java.security.MessageDigest
 import java.util.Base64
+import java.util.concurrent.atomic.AtomicLong
 
 class NativeAuthRepository(
     private val storage: SecureStorage,
     private val deviceKeys: DeviceKeyManager,
-    private val api: MobileApiClient = MobileApiClient(deviceKeys),
+    private val api: MobileSessionApi = MobileApiClient(deviceKeys),
 ) {
     fun createSignInUri(): Uri {
         val verifier = deviceKeys.randomUrlSafe(64)
@@ -25,9 +26,21 @@ class NativeAuthRepository(
     }
 
     fun exchangeCallback(uri: Uri): NativeSession {
-        require(uri.scheme == "buddieai" && uri.host == "auth") { "Invalid auth callback" }
+        require(
+            uri.scheme == "buddieai" &&
+                uri.host == "auth" &&
+                uri.userInfo == null &&
+                uri.port == -1 &&
+                uri.path.isNullOrEmpty() &&
+                uri.query.isNullOrEmpty()
+        ) { "Invalid auth callback" }
         val fragment = uri.fragment ?: throw IllegalArgumentException("Missing auth callback")
         val fragmentUri = Uri.parse("https://callback.invalid/?$fragment")
+        require(
+            fragmentUri.queryParameterNames == setOf("code", "state") &&
+                fragmentUri.getQueryParameters("code").size == 1 &&
+                fragmentUri.getQueryParameters("state").size == 1
+        ) { "Invalid auth callback" }
         val code = fragmentUri.getQueryParameter("code")
             ?: throw IllegalArgumentException("Missing auth code")
         val returnedState = fragmentUri.getQueryParameter("state")
@@ -38,8 +51,16 @@ class NativeAuthRepository(
             ?: throw IllegalStateException("No sign-in is pending")
         require(returnedState == expectedState) { "Auth state mismatch" }
 
+        val generation = sessionGeneration.get()
         return try {
-            api.exchange(code, verifier, returnedState).also(::saveSession)
+            try {
+                api.exchange(code, verifier, returnedState).also {
+                    saveSessionIfCurrent(it, generation)
+                }
+            } catch (error: MobileApiException) {
+                if (error.kind == MobileApiError.UNAUTHORIZED) clearSession()
+                throw error
+            }
         } finally {
             storage.remove(PENDING_STATE)
             storage.remove(PENDING_VERIFIER)
@@ -47,14 +68,22 @@ class NativeAuthRepository(
     }
 
     fun refresh(): NativeSession {
-        val token = storage.get(REFRESH_TOKEN)
-            ?: throw MobileApiException(MobileApiError.UNAUTHORIZED, "No native session")
-        val expiresAt = storage.get(REFRESH_EXPIRES_AT)?.toLongOrNull() ?: 0L
-        if (expiresAt <= System.currentTimeMillis()) {
-            clearSession()
-            throw MobileApiException(MobileApiError.UNAUTHORIZED, "Native session expired")
+        return synchronized(refreshLock) {
+            val generation = sessionGeneration.get()
+            val token = storage.get(REFRESH_TOKEN)
+                ?: throw MobileApiException(MobileApiError.UNAUTHORIZED, "No native session")
+            val expiresAt = storage.get(REFRESH_EXPIRES_AT)?.toLongOrNull() ?: 0L
+            if (expiresAt <= System.currentTimeMillis()) {
+                clearSession()
+                throw MobileApiException(MobileApiError.UNAUTHORIZED, "Native session expired")
+            }
+            try {
+                api.refresh(token).also { saveSessionIfCurrent(it, generation) }
+            } catch (error: MobileApiException) {
+                if (error.kind == MobileApiError.UNAUTHORIZED) clearSession()
+                throw error
+            }
         }
-        return api.refresh(token).also(::saveSession)
     }
 
     fun hasSession(): Boolean {
@@ -63,13 +92,32 @@ class NativeAuthRepository(
     }
 
     fun clearSession() {
-        storage.clear()
-        deviceKeys.clear()
+        synchronized(sessionWriteLock) {
+            sessionGeneration.incrementAndGet()
+            storage.clear()
+            deviceKeys.clear()
+        }
     }
 
-    private fun saveSession(session: NativeSession) {
-        storage.put(REFRESH_TOKEN, session.refreshToken)
-        storage.put(REFRESH_EXPIRES_AT, session.refreshExpiresAt.toString())
+    fun logout() {
+        val token = storage.get(REFRESH_TOKEN)
+        sessionGeneration.incrementAndGet()
+        try {
+            if (token != null) api.logout(token)
+        } finally {
+            synchronized(sessionWriteLock) {
+                storage.clear()
+                deviceKeys.clear()
+            }
+        }
+    }
+
+    private fun saveSessionIfCurrent(session: NativeSession, generation: Long) {
+        synchronized(sessionWriteLock) {
+            if (sessionGeneration.get() != generation) return
+            storage.put(REFRESH_TOKEN, session.refreshToken)
+            storage.put(REFRESH_EXPIRES_AT, session.refreshExpiresAt.toString())
+        }
     }
 
     private fun sha256UrlSafe(value: String): String {
@@ -79,6 +127,9 @@ class NativeAuthRepository(
     }
 
     private companion object {
+        val refreshLock = Any()
+        val sessionWriteLock = Any()
+        val sessionGeneration = AtomicLong()
         const val CONNECT_URL = "https://www.buddieai.com/mobile/connect"
         const val REFRESH_TOKEN = "native_refresh_token"
         const val REFRESH_EXPIRES_AT = "native_refresh_expires_at"

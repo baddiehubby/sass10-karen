@@ -31,6 +31,9 @@ model User {
   consents  UserConsent[]
   buddyBond BuddyBond?
   subscriptions Subscription[]
+  mobileDevices            MobileDevice[]
+  mobileAuthorizationCodes MobileAuthorizationCode[]
+  mobileRefreshTokens      MobileRefreshToken[]
 }
 
 model License {
@@ -78,6 +81,8 @@ model License {
   collaborativeRoom CollaborativeRoom?
   presence      CompanionPresence?
   pushSubscriptions PushSubscription[]
+  mobileAuthorizationCodes MobileAuthorizationCode[]
+  mobileRefreshTokens      MobileRefreshToken[]
 }
 
 /// Cross-device Shadow Companion mood state (license-key anchor).
@@ -344,4 +349,88 @@ model DailyRitual {
 
   @@unique([userId, ritualDate, ritualType])
   @@index([userId, ritualDate])
+}
+
+/// Registered native signing key; no invasive hardware identifier is stored.
+model MobileDevice {
+  id            String    @id @default(cuid())
+  userId        String
+  keyThumbprint String    @unique
+  publicKeySpki String
+  revokedAt     DateTime?
+  lastSeenAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authorizationCodes MobileAuthorizationCode[]
+  refreshTokens      MobileRefreshToken[]
+  proofNonces        MobileProofNonce[]
+
+  @@index([userId, revokedAt])
+}
+
+/// Hash-addressed, short-lived JWE handoff consumed exactly once.
+model MobileAuthorizationCode {
+  id         String    @id @default(cuid())
+  jti        String    @unique
+  codeHash   String    @unique
+  userId     String
+  licenseId  String
+  deviceId   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  license License      @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  device  MobileDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, expiresAt])
+  @@index([userId, consumedAt])
+}
+
+/// Only the SHA-256 hash of the encrypted refresh credential is retained.
+model MobileRefreshToken {
+  id                String    @id @default(cuid())
+  jti               String    @unique
+  tokenHash         String    @unique
+  familyId          String
+  userId            String
+  licenseId         String
+  deviceId          String
+  credentialVersion String
+  expiresAt         DateTime
+  lastUsedAt        DateTime?
+  rotatedAt         DateTime?
+  replacedByTokenId String?   @unique
+  revokedAt         DateTime?
+  createdAt         DateTime  @default(now())
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  license    License              @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  device     MobileDevice         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  replacedBy MobileRefreshToken?  @relation("MobileRefreshRotation", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
+  replaces   MobileRefreshToken[] @relation("MobileRefreshRotation")
+
+  @@index([familyId, revokedAt])
+  @@index([deviceId, revokedAt])
+  @@index([userId, revokedAt])
+}
+
+/// A signed proof nonce is unique for its device and operation purpose.
+model MobileProofNonce {
+  id         String   @id @default(cuid())
+  deviceId   String
+  purpose    String
+  nonceHash  String
+  proofTime  DateTime
+  expiresAt  DateTime
+  consumedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  device MobileDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, purpose, nonceHash])
+  @@index([expiresAt])
 }

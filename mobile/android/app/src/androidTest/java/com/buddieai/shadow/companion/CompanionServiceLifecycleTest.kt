@@ -18,10 +18,13 @@ class CompanionServiceLifecycleTest {
         preferences.state = CompanionState.STARTING
 
         CompanionService.start(context)
+        CompanionService.start(context)
         Thread.sleep(750)
 
         assertFalse(preferences.enabled)
         assertEquals(CompanionState.OFF, preferences.state)
+        assertFalse(CompanionService.isRunning)
+        CompanionService.stop(context)
         CompanionService.stop(context)
     }
 }

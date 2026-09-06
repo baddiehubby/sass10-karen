@@ -23,6 +23,8 @@ import com.buddieai.shadow.security.DeviceKeyManager
 import com.buddieai.shadow.security.KeystoreSecureStorage
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 class CompanionService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -32,9 +34,11 @@ class CompanionService : Service() {
     private lateinit var auth: NativeAuthRepository
     private var intentionalStop = false
     private var refreshScheduled = false
+    private val lifecycleGeneration = AtomicLong()
 
     override fun onCreate() {
         super.onCreate()
+        startRequested.set(true)
         preferences = CompanionPreferences(this)
         overlay = OverlayController(this, preferences)
         val deviceKeys = DeviceKeyManager()
@@ -49,6 +53,8 @@ class CompanionService : Service() {
         }
 
         startVisibleForeground()
+        running.set(true)
+        val generation = lifecycleGeneration.get()
         if (!preferences.enabled || !auth.hasSession()) {
             preferences.clearCompanion()
             intentionalStop = true
@@ -62,26 +68,23 @@ class CompanionService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        if (refreshScheduled) return START_NOT_STICKY
 
-        val recentlyConfirmed =
-            System.currentTimeMillis() - preferences.entitlementConfirmedAt <= RECENT_CONFIRMATION_MS
-        if (recentlyConfirmed && overlay.show(::disableAndStop)) {
-            preferences.transition(CompanionEvent.ServiceStarted)
-        } else {
-            preferences.state = CompanionState.STARTING
-        }
+        // A persisted entitlement timestamp is UX state, not authority. Every
+        // service start verifies the server before recreating the overlay.
+        preferences.state = CompanionState.STARTING
 
         if (!refreshScheduled) {
             refreshScheduled = true
-            scheduler.execute(::refreshEntitlement)
+            scheduler.execute { refreshEntitlement(generation) }
             scheduler.scheduleWithFixedDelay(
-                ::refreshEntitlement,
+                { refreshEntitlement(generation) },
                 REFRESH_INTERVAL_MINUTES,
                 REFRESH_INTERVAL_MINUTES,
                 TimeUnit.MINUTES,
             )
             scheduler.scheduleWithFixedDelay(
-                ::verifyOverlayPermission,
+                { verifyOverlayPermission(generation) },
                 PERMISSION_CHECK_SECONDS,
                 PERMISSION_CHECK_SECONDS,
                 TimeUnit.SECONDS,
@@ -93,17 +96,24 @@ class CompanionService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        invalidateLifecycle()
         overlay.remove()
         scheduler.shutdownNow()
-        if (!intentionalStop && preferences.enabled) {
+        if (!intentionalStop &&
+            preferences.enabled &&
+            preferences.state != CompanionState.PERMISSION_REQUIRED &&
+            preferences.state != CompanionState.ENTITLEMENT_REQUIRED
+        ) {
             preferences.state = CompanionState.PAUSED
         }
         super.onDestroy()
     }
 
-    private fun refreshEntitlement() {
+    private fun refreshEntitlement(generation: Long) {
+        if (!isGenerationActive(generation)) return
         try {
             val session = auth.refresh()
+            if (!isGenerationActive(generation)) return
             if (!session.entitlement.hasPaidAccess) {
                 preferences.entitlementConfirmedAt = 0L
                 preferences.enabled = false
@@ -118,7 +128,8 @@ class CompanionService : Service() {
                 return
             }
             mainHandler.post {
-                if (overlay.show(::disableAndStop)) {
+                if (!isGenerationActive(generation)) return@post
+                if (overlay.show { disableAndStop(generation) }) {
                     preferences.transition(CompanionEvent.ServiceStarted)
                 } else {
                     preferences.transition(CompanionEvent.Failed)
@@ -126,10 +137,20 @@ class CompanionService : Service() {
                 }
             }
         } catch (error: MobileApiException) {
+            if (!isGenerationActive(generation)) return
             when (error.kind) {
                 MobileApiError.OFFLINE -> {
                     preferences.transition(CompanionEvent.NetworkLost)
-                    if (!overlay.isShowing) stopFromWorker()
+                    val confirmationAge =
+                        System.currentTimeMillis() - preferences.entitlementConfirmedAt
+                    val withinOfflineGrace =
+                        preferences.entitlementConfirmedAt > 0L &&
+                            confirmationAge in 0L..OFFLINE_GRACE_MS
+                    if (!overlay.isShowing || !withinOfflineGrace) {
+                        preferences.enabled = false
+                        overlay.remove()
+                        stopFromWorker()
+                    }
                 }
                 MobileApiError.ENTITLEMENT -> {
                     preferences.enabled = false
@@ -145,34 +166,53 @@ class CompanionService : Service() {
                 }
             }
         } catch (_: Exception) {
+            if (!isGenerationActive(generation)) return
             preferences.enabled = false
             preferences.transition(CompanionEvent.Failed)
             stopFromWorker()
         }
     }
 
-    private fun verifyOverlayPermission() {
+    private fun verifyOverlayPermission(generation: Long) {
+        if (!isGenerationActive(generation)) return
         if (!Settings.canDrawOverlays(this)) {
             preferences.transition(CompanionEvent.PermissionRevoked)
             stopFromWorker()
         }
     }
 
-    private fun disableAndStop() {
+    private fun disableAndStop(expectedGeneration: Long? = null) {
+        if (expectedGeneration != null && !isGenerationActive(expectedGeneration)) return
         preferences.clearCompanion()
         intentionalStop = true
+        invalidateLifecycle()
         overlay.remove()
         stopSelf()
     }
 
     private fun stopFromWorker() {
-        mainHandler.post(::stopFromMain)
+        val generation = lifecycleGeneration.get()
+        mainHandler.post {
+            if (isGenerationActive(generation)) stopFromMain()
+        }
     }
 
     private fun stopFromMain() {
         intentionalStop = true
+        invalidateLifecycle()
         overlay.remove()
         stopSelf()
+    }
+
+    private fun isGenerationActive(generation: Long): Boolean {
+        return running.get() && lifecycleGeneration.get() == generation
+    }
+
+    private fun invalidateLifecycle() {
+        lifecycleGeneration.incrementAndGet()
+        running.set(false)
+        startRequested.set(false)
+        mainHandler.removeCallbacksAndMessages(null)
     }
 
     private fun startVisibleForeground() {
@@ -246,14 +286,28 @@ class CompanionService : Service() {
         const val NOTIFICATION_ID = 4102
         const val REFRESH_INTERVAL_MINUTES = 15L
         const val PERMISSION_CHECK_SECONDS = 30L
-        const val RECENT_CONFIRMATION_MS = 2 * 60 * 1000L
+        const val OFFLINE_GRACE_MS = 24L * 60 * 60 * 1000
+
+        private val running = AtomicBoolean(false)
+        private val startRequested = AtomicBoolean(false)
+
+        val isRunning: Boolean
+            get() = running.get()
 
         fun start(context: Context) {
+            if (!startRequested.compareAndSet(false, true)) return
             val intent = Intent(context, CompanionService::class.java).setAction(ACTION_START)
-            context.startForegroundService(intent)
+            try {
+                context.startForegroundService(intent)
+            } catch (error: Exception) {
+                startRequested.set(false)
+                throw error
+            }
         }
 
         fun stop(context: Context) {
+            startRequested.set(false)
+            running.set(false)
             context.stopService(Intent(context, CompanionService::class.java))
         }
     }

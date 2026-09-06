@@ -80,4 +80,22 @@ class CompanionStateMachineTest {
             CompanionStateMachine.reduce(CompanionState.ERROR, CompanionEvent.Disable),
         )
     }
+
+    @Test
+    fun `stale service callbacks cannot overwrite required states`() {
+        assertEquals(
+            CompanionState.PERMISSION_REQUIRED,
+            CompanionStateMachine.reduce(
+                CompanionState.PERMISSION_REQUIRED,
+                CompanionEvent.ServiceStarted,
+            ),
+        )
+        assertEquals(
+            CompanionState.ENTITLEMENT_REQUIRED,
+            CompanionStateMachine.reduce(
+                CompanionState.ENTITLEMENT_REQUIRED,
+                CompanionEvent.ServiceStarted,
+            ),
+        )
+    }
 }

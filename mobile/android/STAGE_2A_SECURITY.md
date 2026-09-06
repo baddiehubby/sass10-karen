@@ -12,25 +12,29 @@
 
 1. Android creates a non-exportable P-256 signing key and PKCE verifier.
 2. The signed-in web page requests a two-minute A256GCM-encrypted handoff code containing
-   user/license IDs, PKCE challenge, state hash, and public-key binding.
+   user/license IDs, PKCE challenge, state hash, and public-key binding. Its
+   `jti` is persisted and can be consumed exactly once.
 3. `/api/licenses/widget-credential/mobile` verifies the code, PKCE, state,
-   timestamp, nonce, and ECDSA device proof.
+   timestamp, one-time device-bound nonce, and ECDSA device proof.
 4. The server returns a 14-day refresh credential bound to the public key and a
-   credential version derived from the user's password hash.
+   credential version derived from the user's password hash. Only a SHA-256
+   hash of the high-entropy JWE is persisted.
 5. Every refresh requires a fresh timestamp, random nonce, and ECDSA proof.
-6. Logout stops the service, clears AES-GCM ciphertext, and destroys the AES
-   and signing keys.
+   Rotation atomically invalidates the old token; reuse revokes its family and
+   device.
+6. Logout requests server-side device revocation, stops the service, clears
+   AES-GCM ciphertext, and destroys the AES and signing keys. Local cleanup is
+   fail-closed when the network is unavailable.
 
 Handoff and refresh JWE keys are domain-separated HMAC derivations from the
 server-only NextAuth secret. Tokens use direct A256GCM encryption with fixed
 issuer, audience, algorithm, type, and expiry checks. Actual credentials must
 never be copied into bug reports.
 
-The no-Prisma bridge is stateless. It cannot mark a code/token as consumed or
-revoke one device server-side. Hardware proof prevents a stolen credential
-from being used without the device key; timestamps limit proof replay. Password
-changes and account deletion invalidate refresh. Strict single-use/per-device
-revocation requires an approved durable datastore.
+The bridge uses additive PostgreSQL lifecycle state for one-time handoffs,
+device registration/revocation, refresh families, and proof-nonce consumption.
+No raw refresh credential or device fingerprint is stored. Password changes
+and account deletion continue to provide global invalidation.
 
 ## Endpoint review
 
@@ -41,6 +45,8 @@ revocation requires an approved durable datastore.
   unless cryptographic handoff/refresh validation succeeds.
 - Responses use `Cache-Control: no-store`.
 - Errors are generic and contain no credential material.
+- Authentication, active-device validation, and paid entitlement are required
+  before a companion credential or presence check-in is issued.
 
 ## Android review
 
@@ -63,5 +69,9 @@ revocation requires an approved durable datastore.
 - Complete the physical Pixel, Samsung, and Xiaomi/Redmi checklist.
 - Review Google Play `specialUse` foreground-service and overlay declarations.
 - Configure release signing outside Git.
+- Apply `prisma/proposed-migrations/add_mobile_auth_lifecycle.sql` through the
+  reviewed production database process before deploying the backend. The
+  repository has no Prisma Migrate baseline, so do not treat this file as an
+  automatically deployable migration.
 - Confirm `/pwa` still mounts one Buddie and all protected web systems remain
   unchanged.

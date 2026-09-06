@@ -14,24 +14,29 @@ WebView.
    password is returned to Android.
 3. The browser returns a two-minute encrypted authorization code in the
    `buddieai://auth` fragment. The code is bound to PKCE, state, and the Android
-   Keystore public key.
+   Keystore public key, persisted server-side, and atomically consumed once.
 4. Android proves possession of the non-exportable private key and exchanges
-   the code for a 14-day device-bound refresh credential.
+   the code for a 14-day device-bound refresh credential. Only its SHA-256 hash
+   is stored server-side.
 5. Exchange and refresh responses call the canonical entitlement and companion
-   services. Android never computes paid access locally.
+   services. Android never computes paid access locally. Each successful
+   refresh atomically invalidates the previous credential; reuse revokes that
+   refresh family and device.
 6. An entitled user enables the companion, grants notification and
    `SYSTEM_ALERT_WINDOW` permission, and starts the foreground service.
 
 The refresh credential is AES-GCM encrypted under an Android Keystore key and
 stored in `noBackupFilesDir`. Logout stops the service, removes the overlay,
-deletes encrypted values, and destroys both Keystore keys.
+requests server-side device revocation, deletes encrypted values, and destroys
+both Keystore keys. Local cleanup is unconditional if the network is
+unavailable; the destroyed device key makes the retained server credential
+unusable, and its normal expiry still applies.
 
-The bridge is stateless. PKCE, a two-minute handoff lifetime, TLS, timestamped
-proofs, and hardware-key binding make intercepted codes unusable without the
-device key. Strict server-side single-use tracking and per-device revocation
-are not available without an approved datastore. Password changes/account
-deletion invalidate refresh credentials; local logout destroys the binding
-key.
+PostgreSQL stores the minimum durable lifecycle state: device public-key
+bindings, one-time handoff consumption, hashed refresh-token families, and
+consumed proof nonces. It stores no raw refresh credential or invasive device
+identifier. Password changes/account deletion preserve global invalidation,
+while one device can be revoked without affecting another.
 
 ## Companion architecture
 
@@ -53,7 +58,10 @@ key.
 If permission is revoked, the app removes/stops the overlay and enters
 `PERMISSION_REQUIRED`. If entitlement is revoked, the service removes the orb
 and enters `ENTITLEMENT_REQUIRED`. Network loss while already active keeps the
-orb available and displays `OFFLINE`; a fresh unverified start fails closed.
+orb available and displays `OFFLINE` for at most 24 hours from the last
+successful entitlement confirmation. After that explicit grace period the orb
+stops until the app can revalidate access. A fresh unverified start fails
+closed.
 
 ## Permissions and Play policy
 
@@ -69,7 +77,8 @@ required before store submission. Stage 2A does not implement an Android
 upgrade/checkout flow.
 
 Persistent/best-effort companion availability is subject to Android and device
-restrictions. Android 15/API 36 and OEM battery managers may terminate the
+restrictions. Android 15 is API 35; this app targets Android 16/API 36. Android
+and OEM battery managers may terminate the
 service. Overlay permission does not guarantee indefinite survival.
 
 ## Toolchain and dependencies
@@ -99,7 +108,14 @@ Run instrumentation tests on an emulator/device:
 ```
 
 The backend bridge must be deployed before end-to-end sign-in can succeed.
-Release signing material remains external and gitignored.
+Apply the reviewed additive mobile-auth SQL before deploying backend code that
+uses it. This repository has no Prisma migration baseline; do not run
+`prisma migrate deploy` or `prisma db push` against production for this change.
+
+Release signing material remains external and gitignored. A production build
+may read `BUDDIE_ANDROID_KEYSTORE_PATH`,
+`BUDDIE_ANDROID_KEYSTORE_PASSWORD`, `BUDDIE_ANDROID_KEY_ALIAS`, and
+`BUDDIE_ANDROID_KEY_PASSWORD`; never commit their values or a keystore.
 
 ## Physical-device acceptance checklist
 

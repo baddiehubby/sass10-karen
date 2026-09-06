@@ -51,6 +51,7 @@ class MainActivity : Activity() {
         auth = NativeAuthRepository(KeystoreSecureStorage(this), deviceKeys)
         companion = CompanionPreferences(this)
         setContentView(buildContent())
+        reconcileCompanionState()
         handleDeepLink(intent)
         if (auth.hasSession() && intent.data?.host != "auth") {
             verifySession(forEnable = false)
@@ -67,6 +68,9 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (::companion.isInitialized && ::auth.isInitialized) {
+            reconcileCompanionState()
+        }
         if (::companion.isInitialized && companion.enabled && !Settings.canDrawOverlays(this)) {
             CompanionService.stop(this)
             companion.transition(CompanionEvent.PermissionRevoked)
@@ -305,6 +309,7 @@ class MainActivity : Activity() {
             }
         } else {
             companion.entitlementConfirmedAt = 0L
+            companion.enabled = false
             companion.transition(CompanionEvent.EntitlementChanged(false))
             CompanionService.stop(this)
         }
@@ -318,7 +323,10 @@ class MainActivity : Activity() {
         }
         if (error is MobileApiException && error.kind == MobileApiError.ENTITLEMENT) {
             entitled = false
+            companion.enabled = false
+            companion.entitlementConfirmedAt = 0L
             companion.transition(CompanionEvent.EntitlementChanged(false))
+            CompanionService.stop(this)
             render(getString(R.string.entitlement_required))
             return
         }
@@ -384,10 +392,47 @@ class MainActivity : Activity() {
 
     private fun logout() {
         disableCompanion()
-        auth.clearSession()
         entitled = false
         companion.transition(CompanionEvent.Logout)
-        render()
+        setBusy(true)
+        executor.execute {
+            runCatching { auth.logout() }
+            runOnUiThread {
+                setBusy(false)
+                render()
+            }
+        }
+    }
+
+    private fun reconcileCompanionState() {
+        if (!auth.hasSession()) {
+            if (companion.enabled || companion.state != CompanionState.OFF) {
+                CompanionService.stop(this)
+                companion.clearCompanion()
+            }
+            return
+        }
+        if (companion.state == CompanionState.PERMISSION_REQUIRED ||
+            companion.state == CompanionState.ENTITLEMENT_REQUIRED
+        ) {
+            return
+        }
+        if (!companion.enabled) {
+            if (companion.state == CompanionState.ACTIVE) companion.state = CompanionState.OFF
+            return
+        }
+        if (!Settings.canDrawOverlays(this)) {
+            CompanionService.stop(this)
+            companion.transition(CompanionEvent.PermissionRevoked)
+            return
+        }
+
+        if (companion.state == CompanionState.ACTIVE && !CompanionService.isRunning) {
+            // ACTIVE is a runtime fact, never a durable entitlement assertion.
+            // The normal verifySession path must revalidate the server before
+            // startCompanion recreates the service and overlay.
+            companion.state = CompanionState.PAUSED
+        }
     }
 
     private fun setBusy(value: Boolean) {

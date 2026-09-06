@@ -55,9 +55,11 @@ never put in a URL.
 The bridge reuses `/api/companion/sync` and
 `/api/licenses/widget-credential` namespaces so protected middleware and auth
 core remain unchanged. It calls the existing entitlement, companion, and
-presence services server-side. No Prisma field or second account system is
-introduced. Strict per-device server revocation remains gated on approval for
-persistent server-side state.
+presence services server-side. Additive PostgreSQL tables hold only the
+security lifecycle state required for one-time handoffs, device public-key
+bindings, hashed rotating refresh credentials, nonce replay prevention, and
+per-device revocation. They do not duplicate accounts, subscriptions, or
+entitlement.
 
 ## Store billing gate
 

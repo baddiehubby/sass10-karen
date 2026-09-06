@@ -2,15 +2,23 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { parseJsonBody } from "@/lib/api-json";
+import { getUserEntitlement } from "@/lib/billing/entitlement";
 import { buildCompanionSyncPayload } from "@/lib/companion-sync";
 import {
+  base64UrlSha256,
   issueMobileHandoff,
   validateBridgeState,
   validateCodeChallenge,
   validateDevicePublicKey,
+  validateRequestOrigin,
 } from "@/lib/mobile-auth";
+import {
+  persistMobileAuthorizationCode,
+  registerMobileDevice,
+} from "@/lib/mobile-auth-store";
 import { prisma } from "@/lib/prisma";
 import { sessionUserId } from "@/lib/session-user";
+import { getCanonicalSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +42,13 @@ const requestSchema = z
   });
 
 export async function POST(req: Request) {
+  // This session-authenticated endpoint is called only by our connect page.
+  // Requiring the canonical Origin prevents cross-site form/fetch issuance.
+  const origin = req.headers.get("origin");
+  if (!validateRequestOrigin(origin, getCanonicalSiteUrl())) {
+    return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
+  }
+
   const userId = await sessionUserId();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -41,6 +56,11 @@ export async function POST(req: Request) {
 
   const parsed = await parseJsonBody(req, requestSchema);
   if (!parsed.ok) return parsed.response;
+
+  const entitlement = await getUserEntitlement(userId);
+  if (!entitlement.hasPaidAccess) {
+    return NextResponse.json({ error: "Paid companion access is required" }, { status: 403 });
+  }
 
   const companion = await buildCompanionSyncPayload(userId);
   if (!companion) {
@@ -55,16 +75,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No active companion license" }, { status: 403 });
   }
 
-  const code = await issueMobileHandoff({
+  const keyThumbprint = base64UrlSha256(
+    Buffer.from(parsed.data.devicePublicKey, "base64url"),
+  );
+  const device = await registerMobileDevice({
+    id: crypto.randomUUID(),
+    userId,
+    keyThumbprint,
+    publicKeySpki: parsed.data.devicePublicKey,
+  });
+  if (!device) {
+    return NextResponse.json({ error: "Native device is unavailable" }, { status: 403 });
+  }
+
+  const issued = await issueMobileHandoff({
     userId,
     licenseId: license.id,
+    deviceId: device.id,
     codeChallenge: parsed.data.codeChallenge,
     state: parsed.data.state,
     devicePublicKey: parsed.data.devicePublicKey,
   });
+  await persistMobileAuthorizationCode({
+    issued,
+    userId,
+    licenseId: license.id,
+  });
 
   return NextResponse.json(
-    { code, expiresIn: 120 },
+    { code: issued.token, expiresIn: 120 },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

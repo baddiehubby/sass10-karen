@@ -7,8 +7,8 @@ import { authOptions } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Connect Buddie for Android",
-  description: "Securely connect the Buddie Android companion.",
+  title: "Connect Buddie",
+  description: "Securely connect the Buddie mobile companion.",
 };
 
 type MobileConnectPageProps = {
@@ -16,6 +16,9 @@ type MobileConnectPageProps = {
     code_challenge?: string;
     state?: string;
     device_key?: string;
+    platform?: string;
+    device_name?: string;
+    app_version?: string;
   };
 };
 
@@ -24,6 +27,9 @@ export default async function MobileConnectPage({ searchParams }: MobileConnectP
     code_challenge: searchParams?.code_challenge || "",
     state: searchParams?.state || "",
     device_key: searchParams?.device_key || "",
+    platform: searchParams?.platform || "",
+    device_name: searchParams?.device_name || "",
+    app_version: searchParams?.app_version || "",
   }).toString()}`;
 
   const session = await getServerSession(authOptions);
@@ -36,6 +42,9 @@ export default async function MobileConnectPage({ searchParams }: MobileConnectP
       codeChallenge={searchParams?.code_challenge || ""}
       state={searchParams?.state || ""}
       devicePublicKey={searchParams?.device_key || ""}
+      platform={searchParams?.platform === "android" || searchParams?.platform === "ios" ? searchParams.platform : undefined}
+      deviceName={searchParams?.device_name?.trim().slice(0, 64) || undefined}
+      appVersion={searchParams?.app_version?.trim().slice(0, 32) || undefined}
     />
   );
 }

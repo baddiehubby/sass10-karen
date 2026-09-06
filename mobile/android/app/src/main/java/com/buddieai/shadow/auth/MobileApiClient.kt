@@ -5,12 +5,15 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
-import java.util.Base64
 
 interface MobileSessionApi {
     fun exchange(code: String, verifier: String, state: String): NativeSession
     fun refresh(refreshToken: String): NativeSession
+    fun context(
+        refreshToken: String,
+        explicitMood: String? = null,
+        sharedMedia: SharedMedia? = null,
+    ): ContextResponse
     fun logout(refreshToken: String)
 }
 
@@ -40,6 +43,41 @@ class MobileApiClient(
         )
     }
 
+    override fun context(
+        refreshToken: String,
+        explicitMood: String?,
+        sharedMedia: SharedMedia?,
+    ): ContextResponse {
+        require((explicitMood != null) xor (sharedMedia != null)) {
+            "Exactly one context source is required"
+        }
+        val payload = JSONObject()
+            .put("action", "context")
+            .put("refreshToken", refreshToken)
+        explicitMood?.let {
+            payload.put(
+                "context",
+                JSONObject()
+                    .put("source", "explicit_mood")
+                    .put("mood", it),
+            )
+        }
+        sharedMedia?.let {
+            payload.put(
+                "context",
+                JSONObject().apply {
+                    put("source", "media")
+                    it.title?.let { title -> put("title", title) }
+                    it.text?.let { text -> put("text", text) }
+                },
+            )
+        }
+        val root = execute("context", refreshToken, payload)
+        return ContextResponse(
+            reaction = parseReaction(root.getJSONObject("reaction")),
+        )
+    }
+
     override fun logout(refreshToken: String) {
         execute(
             action = "logout",
@@ -59,13 +97,12 @@ class MobileApiClient(
     private fun execute(action: String, credential: String, payload: JSONObject): JSONObject {
         val timestamp = System.currentTimeMillis()
         val nonce = deviceKeys.randomUrlSafe(24)
-        val proofMessage = listOf(
-            "buddie-mobile-proof-v1",
-            action,
-            sha256UrlSafe(credential),
-            timestamp.toString(),
+        val proofMessage = MobileDeviceProof.message(
+            MobileProofPurpose.fromWireValue(action),
+            credential,
+            timestamp,
             nonce,
-        ).joinToString("\n")
+        )
 
         payload
             .put("timestamp", timestamp)
@@ -111,7 +148,7 @@ class MobileApiClient(
         }
     }
 
-    private fun parseSession(root: JSONObject): NativeSession {
+    internal fun parseSession(root: JSONObject): NativeSession {
         val entitlement = root.getJSONObject("entitlement")
         val companion = root.getJSONObject("companion")
         return NativeSession(
@@ -124,13 +161,22 @@ class MobileApiClient(
             ),
             companionName = companion.optString("companionName", "Buddie"),
             personality = companion.optString("personality", "calm"),
+            presenceMood = root.optJSONObject("presence")
+                ?.optString("currentMood")
+                ?.takeIf { it.isNotBlank() },
         )
     }
 
-    private fun sha256UrlSafe(value: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(value.toByteArray(Charsets.UTF_8))
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
+    internal fun parseReaction(reaction: JSONObject): ContextReaction {
+        return ContextReaction(
+            text = reaction.getString("text"),
+            orbCue = reaction.getString("orbCue"),
+            mood = reaction.getString("mood"),
+            confidence = reaction.getDouble("confidence"),
+            confidenceBand = reaction.getString("confidenceBand"),
+            basis = reaction.getString("basis"),
+            disclaimer = reaction.getString("disclaimer"),
+        )
     }
 
     private companion object {

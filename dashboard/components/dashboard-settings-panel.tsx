@@ -10,6 +10,7 @@ import { ComplianceActions } from "@/components/compliance-actions";
 import { CompanionVibeSettings } from "@/components/companion-vibe-settings";
 import { ConsentManagementPanel } from "@/components/consent-management-panel";
 import { displayPlanName } from "@/lib/free-license";
+import { MobileDevicesPanel } from "@/components/mobile-devices-panel";
 
 const personalities = [
   { id: "cheerful", title: "Cheerful", desc: "Bright and upbeat — great for creators." },
@@ -168,6 +169,8 @@ export function DashboardSettingsPanel({
       </section>
 
       <CompanionVibeSettings />
+
+      <MobileDevicesPanel />
 
       <ConsentManagementPanel />
 

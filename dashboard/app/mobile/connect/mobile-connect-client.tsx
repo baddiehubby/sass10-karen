@@ -6,12 +6,18 @@ type MobileConnectClientProps = {
   codeChallenge: string;
   state: string;
   devicePublicKey: string;
+  platform?: "android" | "ios";
+  deviceName?: string;
+  appVersion?: string;
 };
 
 export function MobileConnectClient({
   codeChallenge,
   state,
   devicePublicKey,
+  platform,
+  deviceName,
+  appVersion,
 }: MobileConnectClientProps) {
   const [status, setStatus] = useState<"idle" | "connecting" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -34,7 +40,14 @@ export function MobileConnectClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ codeChallenge, state, devicePublicKey }),
+        body: JSON.stringify({
+          codeChallenge,
+          state,
+          devicePublicKey,
+          platform,
+          deviceName,
+          appVersion,
+        }),
       });
       const data = (await response.json().catch(() => null)) as
         | { code?: string; error?: string }
@@ -56,10 +69,10 @@ export function MobileConnectClient({
 
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-lg flex-col items-center justify-center px-6 text-center">
-      <p className="text-xs uppercase tracking-[0.22em] text-violet-200/70">Buddie Android</p>
+      <p className="text-xs uppercase tracking-[0.22em] text-violet-200/70">Buddie Mobile</p>
       <h1 className="mt-4 text-3xl font-semibold text-white">Bring Buddie with you</h1>
       <p className="mt-4 text-sm leading-6 text-white/60">
-        Continue to securely connect this signed-in Buddie account to your Android device.
+        Continue to securely connect this signed-in Buddie account to your mobile device.
         No password or browser cookie is shared with the app.
       </p>
 

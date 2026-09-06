@@ -2,6 +2,7 @@ package com.buddieai.shadow
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -21,6 +22,7 @@ import com.buddieai.shadow.auth.MobileApiError
 import com.buddieai.shadow.auth.MobileApiException
 import com.buddieai.shadow.auth.NativeAuthRepository
 import com.buddieai.shadow.auth.NativeSession
+import com.buddieai.shadow.auth.SharedMedia
 import com.buddieai.shadow.companion.CompanionEvent
 import com.buddieai.shadow.companion.CompanionPreferences
 import com.buddieai.shadow.companion.CompanionService
@@ -28,6 +30,7 @@ import com.buddieai.shadow.companion.CompanionState
 import com.buddieai.shadow.deeplink.DeepLinkRouter
 import com.buddieai.shadow.security.DeviceKeyManager
 import com.buddieai.shadow.security.KeystoreSecureStorage
+import java.util.Locale
 import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
@@ -38,6 +41,10 @@ class MainActivity : Activity() {
     private lateinit var disableButton: Button
     private lateinit var permissionButton: Button
     private lateinit var logoutButton: Button
+    private lateinit var pauseButton: Button
+    private lateinit var resumeButton: Button
+    private lateinit var muteButton: Button
+    private lateinit var moodButton: Button
     private lateinit var auth: NativeAuthRepository
     private lateinit var companion: CompanionPreferences
     private val executor = Executors.newSingleThreadExecutor()
@@ -48,14 +55,22 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val deviceKeys = DeviceKeyManager()
-        auth = NativeAuthRepository(KeystoreSecureStorage(this), deviceKeys)
+        val appVersion = runCatching {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        }.getOrNull() ?: "unknown"
+        auth = NativeAuthRepository(
+            KeystoreSecureStorage(this),
+            deviceKeys,
+            appVersion = appVersion,
+        )
         companion = CompanionPreferences(this)
         setContentView(buildContent())
         reconcileCompanionState()
         handleDeepLink(intent)
-        if (auth.hasSession() && intent.data?.host != "auth") {
+        val handledShare = handleSharedContext(intent)
+        if (!handledShare && auth.hasSession() && intent.data?.host != "auth") {
             verifySession(forEnable = false)
-        } else {
+        } else if (!handledShare) {
             render()
         }
     }
@@ -64,6 +79,7 @@ class MainActivity : Activity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleDeepLink(intent)
+        handleSharedContext(intent)
     }
 
     override fun onResume() {
@@ -162,6 +178,22 @@ class MainActivity : Activity() {
         disableButton = actionButton(R.string.disable_companion, ::disableCompanion)
         content.addView(disableButton, matchWidth(bottomMargin = dp(12)))
 
+        pauseButton = actionButton(R.string.pause_companion, ::pauseCompanion)
+        content.addView(pauseButton, matchWidth(bottomMargin = dp(12)))
+
+        resumeButton = actionButton(R.string.resume_companion, ::resumeCompanion)
+        content.addView(resumeButton, matchWidth(bottomMargin = dp(12)))
+
+        muteButton = actionButton(R.string.mute_companion, ::toggleMute)
+        content.addView(muteButton, matchWidth(bottomMargin = dp(12)))
+
+        moodButton = actionButton(R.string.share_mood, ::chooseMood)
+        content.addView(moodButton, matchWidth(bottomMargin = dp(12)))
+
+        content.addView(actionButton(R.string.companion_settings) {
+            openDestination(DeepLinkRouter.Destination.SETTINGS)
+        }, matchWidth(bottomMargin = dp(12)))
+
         logoutButton = actionButton(R.string.logout, ::logout)
         content.addView(logoutButton, matchWidth(bottomMargin = dp(24)))
 
@@ -175,6 +207,20 @@ class MainActivity : Activity() {
 
         content.addView(TextView(this).apply {
             text = getString(R.string.companion_not_enabled)
+            textSize = 13f
+            setTextColor(getColor(R.color.buddie_text_secondary))
+            gravity = Gravity.CENTER
+        }, matchWidth(bottomMargin = dp(16)))
+
+        content.addView(TextView(this).apply {
+            text = getString(R.string.privacy_context_copy)
+            textSize = 13f
+            setTextColor(getColor(R.color.buddie_text_secondary))
+            gravity = Gravity.CENTER
+        }, matchWidth(bottomMargin = dp(8)))
+
+        content.addView(TextView(this).apply {
+            text = getString(R.string.accessibility_controls_copy)
             textSize = 13f
             setTextColor(getColor(R.color.buddie_text_secondary))
             gravity = Gravity.CENTER
@@ -219,7 +265,35 @@ class MainActivity : Activity() {
             statusText.text = getString(R.string.invalid_link)
             return
         }
+        if (destination == DeepLinkRouter.Destination.COMPANION) {
+            render(getString(R.string.companion_controls_description))
+            return
+        }
         openDestination(destination)
+    }
+
+    private fun handleSharedContext(sourceIntent: Intent): Boolean {
+        if (sourceIntent.action != Intent.ACTION_SEND || sourceIntent.type != "text/plain") {
+            return false
+        }
+        val text = sourceIntent.getCharSequenceExtra(Intent.EXTRA_TEXT)
+            ?.toString()
+            ?.trim()
+            ?.take(MAX_SHARED_TEXT_LENGTH)
+            ?.takeIf { it.isNotBlank() }
+        val title = sourceIntent.getStringExtra(Intent.EXTRA_SUBJECT)
+            ?.trim()
+            ?.take(MAX_SHARED_TITLE_LENGTH)
+            ?.takeIf { it.isNotBlank() }
+        setIntent(Intent(this, MainActivity::class.java))
+        if (text == null && title == null) {
+            render(getString(R.string.shared_context_empty))
+        } else if (!auth.hasSession()) {
+            render(getString(R.string.share_sign_in_required))
+        } else {
+            sendContext(sharedMedia = SharedMedia(title = title, text = text))
+        }
+        return true
     }
 
     private fun beginSignIn() {
@@ -277,6 +351,7 @@ class MainActivity : Activity() {
                                 CompanionState.PAUSED,
                                 CompanionState.STARTING,
                             ) &&
+                            !companion.userPaused &&
                             Settings.canDrawOverlays(this)
                         ) {
                             startCompanion()
@@ -374,6 +449,7 @@ class MainActivity : Activity() {
     }
 
     private fun startCompanion() {
+        companion.userPaused = false
         companion.enabled = true
         companion.transition(CompanionEvent.Enable(entitled, permissionGranted = true))
         runCatching { CompanionService.start(this) }
@@ -382,6 +458,93 @@ class MainActivity : Activity() {
                 companion.transition(CompanionEvent.Failed)
             }
         render()
+    }
+
+    private fun pauseCompanion() {
+        companion.userPaused = true
+        companion.transition(CompanionEvent.Pause)
+        CompanionService.pause(this)
+        render(getString(R.string.companion_paused))
+    }
+
+    private fun resumeCompanion() {
+        companion.userPaused = false
+        companion.transition(
+            CompanionEvent.Resume(
+                entitled = entitled,
+                permissionGranted = Settings.canDrawOverlays(this),
+            ),
+        )
+        CompanionService.resume(this)
+        render(getString(R.string.checking_access))
+    }
+
+    private fun toggleMute() {
+        companion.muted = !companion.muted
+        render(
+            getString(
+                if (companion.muted) R.string.companion_muted else R.string.companion_unmuted,
+            ),
+        )
+    }
+
+    private fun chooseMood() {
+        val moods = resources.getStringArray(R.array.explicit_moods)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.share_mood)
+            .setItems(moods) { _, which ->
+                sendContext(explicitMood = moods[which].lowercase(Locale.ROOT))
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun sendContext(
+        explicitMood: String? = null,
+        sharedMedia: SharedMedia? = null,
+    ) {
+        if (busy) return
+        setBusy(true)
+        executor.execute {
+            runCatching { auth.sendContext(explicitMood, sharedMedia) }
+                .onSuccess { response ->
+                    runOnUiThread {
+                        CompanionService.react(
+                            this,
+                            response.reaction.orbCue,
+                            response.reaction.mood,
+                        )
+                        setBusy(false)
+                        render(
+                            listOf(response.reaction.text, response.reaction.disclaimer)
+                                .filter { it.isNotBlank() }
+                                .joinToString("\n"),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    runOnUiThread {
+                        setBusy(false)
+                        if (error is MobileApiException &&
+                            error.kind in setOf(MobileApiError.UNAUTHORIZED, MobileApiError.ENTITLEMENT)
+                        ) {
+                            handleSessionFailure(error)
+                        } else {
+                            render(
+                                getString(
+                                    if (error is MobileApiException &&
+                                        error.kind == MobileApiError.OFFLINE
+                                    ) {
+                                        R.string.offline
+                                    } else {
+                                        R.string.context_failed
+                                    },
+                                ),
+                            )
+                        }
+                    }
+                }
+        }
     }
 
     private fun disableCompanion() {
@@ -455,8 +618,26 @@ class MainActivity : Activity() {
         permissionButton.visibility =
             if (companion.state == CompanionState.PERMISSION_REQUIRED) View.VISIBLE else View.GONE
         disableButton.visibility = if (companion.enabled) View.VISIBLE else View.GONE
+        pauseButton.visibility =
+            if (companion.enabled && !companion.userPaused) View.VISIBLE else View.GONE
+        resumeButton.visibility =
+            if (companion.enabled && companion.userPaused) View.VISIBLE else View.GONE
+        muteButton.visibility = if (companion.enabled) View.VISIBLE else View.GONE
+        muteButton.text =
+            getString(if (companion.muted) R.string.unmute_companion else R.string.mute_companion)
+        moodButton.visibility = if (hasSession) View.VISIBLE else View.GONE
         logoutButton.visibility = if (hasSession) View.VISIBLE else View.GONE
-        listOf(signInButton, enableButton, permissionButton, disableButton, logoutButton)
+        listOf(
+            signInButton,
+            enableButton,
+            permissionButton,
+            disableButton,
+            pauseButton,
+            resumeButton,
+            muteButton,
+            moodButton,
+            logoutButton,
+        )
             .forEach { it.isEnabled = !busy }
     }
 
@@ -489,5 +670,7 @@ class MainActivity : Activity() {
 
     private companion object {
         const val NOTIFICATION_PERMISSION_REQUEST = 4103
+        const val MAX_SHARED_TEXT_LENGTH = 4_000
+        const val MAX_SHARED_TITLE_LENGTH = 200
     }
 }

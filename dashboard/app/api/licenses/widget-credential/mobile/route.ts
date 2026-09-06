@@ -4,6 +4,12 @@ import { z } from "zod";
 import { parseJsonBody } from "@/lib/api-json";
 import { getUserEntitlement } from "@/lib/billing/entitlement";
 import { buildCompanionSyncPayload } from "@/lib/companion-sync";
+import {
+  buildCompanionReaction,
+  hasPaidCompanionReactionAccess,
+  presenceMoodFromReaction,
+} from "@/lib/companion-reaction.server";
+import { BUDDY_MOODS } from "@/lib/companion-mood";
 import { isLicenseActive } from "@/lib/free-license";
 import {
   base64UrlSha256,
@@ -16,10 +22,15 @@ import {
 } from "@/lib/mobile-auth";
 import {
   exchangeAuthorizationCode,
+  consumeMobileContextProof,
   logoutMobileDevice,
   rotateMobileRefreshToken,
 } from "@/lib/mobile-auth-store";
-import { getPresenceForLicense, upsertPresenceState } from "@/lib/presence-service";
+import {
+  getPresenceForLicense,
+  patchPresenceMood,
+  upsertPresenceState,
+} from "@/lib/presence-service";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +40,20 @@ const proofFields = {
   nonce: z.string().min(16).max(128).regex(/^[A-Za-z0-9_-]+$/),
   proof: z.string().min(32).max(256).regex(/^[A-Za-z0-9_-]+$/),
 };
+
+const contextSchema = z.union([
+  z.object({
+    source: z.literal("explicit_mood"),
+    mood: z.enum(BUDDY_MOODS),
+  }).strict(),
+  z.object({
+    source: z.literal("media"),
+    text: z.string().max(280).optional(),
+    title: z.string().max(280).optional(),
+  }).strict().refine((value) => Boolean(value.text?.trim() || value.title?.trim()), {
+    message: "Shared media context is required",
+  }),
+]);
 
 const requestSchema = z.discriminatedUnion("action", [
   z
@@ -51,6 +76,14 @@ const requestSchema = z.discriminatedUnion("action", [
     .object({
       action: z.literal("logout"),
       refreshToken: z.string().min(80).max(4096),
+      ...proofFields,
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("context"),
+      refreshToken: z.string().min(80).max(4096),
+      context: contextSchema,
       ...proofFields,
     })
     .strict(),
@@ -93,7 +126,7 @@ async function loadSessionContext(input: {
     buildCompanionSyncPayload(user.id),
   ]);
   if (
-    !entitlement.hasPaidAccess ||
+    !hasPaidCompanionReactionAccess(entitlement) ||
     !companion ||
     companion.licenseKey !== license.key
   ) {
@@ -209,7 +242,11 @@ export async function POST(req: Request) {
   }
 
   const refreshClaims = await verifyMobileRefresh(body.refreshToken);
-  const proofPurpose = body.action === "logout" ? "logout" : "refresh";
+  const proofPurpose = body.action === "logout"
+    ? "logout"
+    : body.action === "context"
+      ? "context"
+      : "refresh";
   if (
     !refreshClaims ||
     !verifyDeviceProof({
@@ -259,6 +296,33 @@ export async function POST(req: Request) {
   }
   if (mobileCredentialVersion(context.user.password) !== refreshClaims.cv) {
     return noStoreJson({ error: "Native session expired" }, 401);
+  }
+
+  if (body.action === "context") {
+    const consumed = await consumeMobileContextProof({
+      token: body.refreshToken,
+      refresh: refreshBinding,
+      proof: {
+        purpose: "context",
+        nonce: body.nonce,
+        timestamp: body.timestamp,
+      },
+    });
+    if (!consumed) {
+      return noStoreJson({ error: "Native session expired" }, 401);
+    }
+
+    const reaction = buildCompanionReaction(body.context, {
+      companionName: context.companion.companionName,
+      seed: `mobile-reaction:${context.user.id}:${body.context.source}`,
+    });
+    if (body.context.source === "explicit_mood") {
+      await patchPresenceMood(
+        context.companion.licenseKey,
+        presenceMoodFromReaction(body.context.mood),
+      );
+    }
+    return noStoreJson({ reaction });
   }
 
   const nextRefresh = await issueMobileRefresh({

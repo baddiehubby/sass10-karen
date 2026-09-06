@@ -24,7 +24,7 @@ type BoundCredential = {
 };
 
 type ProofNonce = {
-  purpose: "exchange" | "refresh" | "logout";
+  purpose: "exchange" | "refresh" | "logout" | "context";
   nonce: string;
   timestamp: number;
 };
@@ -72,6 +72,9 @@ export async function registerMobileDevice(input: {
   userId: string;
   keyThumbprint: string;
   publicKeySpki: string;
+  platform?: "android" | "ios";
+  displayName?: string;
+  appVersion?: string;
   now?: Date;
 }, database: typeof prisma = prisma): Promise<{ id: string } | null> {
   const now = input.now ?? new Date();
@@ -82,9 +85,17 @@ export async function registerMobileDevice(input: {
       userId: input.userId,
       keyThumbprint: input.keyThumbprint,
       publicKeySpki: input.publicKeySpki,
+      platform: input.platform,
+      displayName: input.displayName,
+      appVersion: input.appVersion,
       lastSeenAt: now,
     },
-    update: { lastSeenAt: now },
+    update: {
+      lastSeenAt: now,
+      ...(input.platform ? { platform: input.platform } : {}),
+      ...(input.displayName ? { displayName: input.displayName } : {}),
+      ...(input.appVersion ? { appVersion: input.appVersion } : {}),
+    },
   });
   if (
     device.revokedAt ||
@@ -293,6 +304,97 @@ export async function revokeMobileDevice(
       data: { revokedAt: at },
     });
   });
+}
+
+export async function listOwnedMobileDevices(
+  userId: string,
+  database: typeof prisma = prisma,
+) {
+  return database.mobileDevice.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      platform: true,
+      displayName: true,
+      appVersion: true,
+      revokedAt: true,
+      lastSeenAt: true,
+      createdAt: true,
+    },
+  });
+}
+
+export async function revokeOwnedMobileDevice(
+  input: { userId: string; deviceId: string; now?: Date },
+  database: typeof prisma = prisma,
+): Promise<boolean> {
+  const now = input.now ?? new Date();
+  return database.$transaction(async (tx) => {
+    const owned = await tx.mobileDevice.updateMany({
+      where: { id: input.deviceId, userId: input.userId, revokedAt: null },
+      data: { revokedAt: now },
+    });
+    if (owned.count !== 1) return false;
+    await tx.mobileRefreshToken.updateMany({
+      where: { deviceId: input.deviceId, userId: input.userId, revokedAt: null },
+      data: { revokedAt: now },
+    });
+    return true;
+  });
+}
+
+export async function consumeMobileContextProof(input: {
+  token: string;
+  refresh: BoundCredential & { familyId: string; credentialVersion: string };
+  proof: ProofNonce;
+  now?: Date;
+}, database: typeof prisma = prisma): Promise<boolean> {
+  const now = input.now ?? new Date();
+  try {
+    return await database.$transaction(async (tx) => {
+      const stored = await tx.mobileRefreshToken.findUnique({
+        where: { tokenHash: hashMobileCredential(input.token) },
+      });
+      if (
+        !stored ||
+        !refreshMatches(stored, input.refresh) ||
+        stored.expiresAt <= now ||
+        stored.rotatedAt ||
+        stored.revokedAt
+      ) return false;
+
+      const activeDevice = await tx.mobileDevice.updateMany({
+        where: {
+          id: stored.deviceId,
+          userId: stored.userId,
+          revokedAt: null,
+          keyThumbprint: input.refresh.deviceThumbprint,
+          publicKeySpki: input.refresh.devicePublicKey,
+        },
+        data: { lastSeenAt: now },
+      });
+      if (activeDevice.count !== 1) return false;
+
+      const activeToken = await tx.mobileRefreshToken.updateMany({
+        where: {
+          id: stored.id,
+          rotatedAt: null,
+          revokedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: { lastUsedAt: now },
+      });
+      if (activeToken.count !== 1) return false;
+      await tx.mobileProofNonce.create({
+        data: nonceData(stored.deviceId, input.proof),
+      });
+      return true;
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) return false;
+    throw error;
+  }
 }
 
 export async function revokeAllMobileDevices(

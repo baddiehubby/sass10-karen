@@ -18,7 +18,9 @@ import {
 } from "../../lib/mobile-auth";
 import {
   exchangeAuthorizationCode,
+  consumeMobileContextProof,
   hashMobileCredential,
+  revokeOwnedMobileDevice,
   revokeMobileDevice,
   rotateMobileRefreshToken,
 } from "../../lib/mobile-auth-store";
@@ -725,6 +727,86 @@ test("revoking Device A leaves Device B and its token active", async () => {
   assert.equal(db.state.devices.find((row) => row.id === "device-b")?.revokedAt, null);
   assert.ok(db.state.refreshTokens.find((row) => row.id === "token-a")?.revokedAt);
   assert.equal(db.state.refreshTokens.find((row) => row.id === "token-b")?.revokedAt, null);
+});
+
+test("owner-scoped revocation cannot revoke another user's device", async () => {
+  const db = new SerializedMobileAuthDb();
+  seedDevice(db, "device-a");
+  seedRefresh(db, {
+    id: "token-a",
+    raw: "raw-token-a",
+    deviceId: "device-a",
+    familyId: "family-a",
+  });
+
+  const revoked = await revokeOwnedMobileDevice(
+    { userId: "different-user", deviceId: "device-a", now: STORE_NOW },
+    db as unknown as InjectedDatabase,
+  );
+  assert.equal(revoked, false);
+  assert.equal(db.state.devices[0].revokedAt, null);
+  assert.equal(db.state.refreshTokens[0].revokedAt, null);
+});
+
+test("context proof is one-time and does not rotate its refresh token", async () => {
+  const db = new SerializedMobileAuthDb();
+  seedDevice(db, "device-a");
+  seedRefresh(db, {
+    id: "T1",
+    raw: "raw-T1",
+    deviceId: "device-a",
+    familyId: "family-a",
+  });
+  const database = db as unknown as InjectedDatabase;
+  const input = {
+    token: "raw-T1",
+    refresh: refreshBinding("T1", "device-a", "family-a"),
+    proof: {
+      purpose: "context" as const,
+      nonce: "context-proof-nonce",
+      timestamp: STORE_NOW.getTime(),
+    },
+    now: STORE_NOW,
+  };
+
+  assert.equal(await consumeMobileContextProof(input, database), true);
+  assert.equal(await consumeMobileContextProof(input, database), false);
+  assert.equal(db.state.refreshTokens[0].rotatedAt, null);
+  assert.equal(db.state.refreshTokens[0].replacedByTokenId, null);
+  assert.equal(db.state.nonces.length, 1);
+});
+
+test("context rejects revoked and rotated refresh tokens", async () => {
+  for (const state of ["revoked", "rotated"] as const) {
+    const db = new SerializedMobileAuthDb();
+    seedDevice(db, "device-a");
+    seedRefresh(db, {
+      id: "T1",
+      raw: "raw-T1",
+      deviceId: "device-a",
+      familyId: "family-a",
+    });
+    if (state === "revoked") db.state.refreshTokens[0].revokedAt = STORE_NOW;
+    else db.state.refreshTokens[0].rotatedAt = STORE_NOW;
+
+    assert.equal(
+      await consumeMobileContextProof(
+        {
+          token: "raw-T1",
+          refresh: refreshBinding("T1", "device-a", "family-a"),
+          proof: {
+            purpose: "context",
+            nonce: `context-${state}-nonce`,
+            timestamp: STORE_NOW.getTime(),
+          },
+          now: STORE_NOW,
+        },
+        db as unknown as InjectedDatabase,
+      ),
+      false,
+    );
+    assert.equal(db.state.nonces.length, 0);
+  }
 });
 
 test("nonce replay is rejected and rolls back the second exchange", async () => {

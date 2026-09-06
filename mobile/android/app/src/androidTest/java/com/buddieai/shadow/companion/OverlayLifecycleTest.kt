@@ -19,6 +19,7 @@ class OverlayLifecycleTest {
         val orb = FloatingOrbView(
             context,
             onTap = { taps += 1 },
+            onLongPress = {},
             onClose = { closes += 1 },
             onDrag = { _, _, _ -> },
         )

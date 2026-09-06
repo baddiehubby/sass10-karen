@@ -98,4 +98,21 @@ class CompanionStateMachineTest {
             ),
         )
     }
+
+    @Test
+    fun `user pause remains paused until explicit resume`() {
+        val paused = CompanionStateMachine.reduce(CompanionState.ACTIVE, CompanionEvent.Pause)
+        assertEquals(CompanionState.PAUSED, paused)
+        assertEquals(
+            CompanionState.PAUSED,
+            CompanionStateMachine.reduce(paused, CompanionEvent.ServiceStarted),
+        )
+        assertEquals(
+            CompanionState.STARTING,
+            CompanionStateMachine.reduce(
+                paused,
+                CompanionEvent.Resume(entitled = true, permissionGranted = true),
+            ),
+        )
+    }
 }

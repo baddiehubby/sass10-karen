@@ -31,8 +31,14 @@ class OverlayController(
     val isShowing: Boolean
         get() = orb != null
 
-    fun show(onClose: () -> Unit): Boolean {
-        if (orb != null) return true
+    fun show(
+        visualState: OrbVisualState = OrbVisualState.IDLE,
+        onClose: () -> Unit,
+    ): Boolean {
+        orb?.let {
+            it.setVisualState(visualState)
+            return true
+        }
         if (!Settings.canDrawOverlays(context)) return false
 
         val orbSize = dp(96)
@@ -53,6 +59,7 @@ class OverlayController(
         val view = FloatingOrbView(
             context = context,
             onTap = ::openOracle,
+            onLongPress = ::openCompanionControls,
             onClose = onClose,
             onDrag = { deltaX, deltaY, finished ->
                 val position = clamp(params.x + deltaX, params.y + deltaY, orbSize)
@@ -66,7 +73,7 @@ class OverlayController(
                     preferences.orbY = params.y
                 }
             },
-        )
+        ).apply { setVisualState(visualState) }
 
         return runCatching {
             windowManager.addView(view, params)
@@ -91,6 +98,10 @@ class OverlayController(
         layoutParams = null
     }
 
+    fun updateVisualState(state: OrbVisualState) {
+        orb?.setVisualState(state)
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         reclamp()
     }
@@ -113,6 +124,15 @@ class OverlayController(
         val intent = Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             data = Uri.parse("buddieai://oracle")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        runCatching { context.startActivity(intent) }
+    }
+
+    private fun openCompanionControls() {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            data = Uri.parse("buddieai://companion")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
         runCatching { context.startActivity(intent) }

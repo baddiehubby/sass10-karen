@@ -39,6 +39,18 @@ class CompanionPreferences(context: Context) {
             preferences.edit().putLong(KEY_ENTITLEMENT_CONFIRMED_AT, value).apply()
         }
 
+    var userPaused: Boolean
+        get() = preferences.getBoolean(KEY_USER_PAUSED, false)
+        set(value) {
+            preferences.edit().putBoolean(KEY_USER_PAUSED, value).apply()
+        }
+
+    var muted: Boolean
+        get() = preferences.getBoolean(KEY_MUTED, false)
+        set(value) {
+            preferences.edit().putBoolean(KEY_MUTED, value).apply()
+        }
+
     fun transition(event: CompanionEvent): CompanionState {
         return CompanionStateMachine.reduce(state, event).also { state = it }
     }
@@ -46,6 +58,7 @@ class CompanionPreferences(context: Context) {
     fun clearCompanion() {
         preferences.edit()
             .putBoolean(KEY_ENABLED, false)
+            .putBoolean(KEY_USER_PAUSED, false)
             .putString(KEY_STATE, CompanionState.OFF.name)
             .putLong(KEY_ENTITLEMENT_CONFIRMED_AT, 0L)
             .apply()
@@ -55,6 +68,8 @@ class CompanionPreferences(context: Context) {
         const val FILE_NAME = "buddie_companion_state"
         const val KEY_STATE = "state"
         const val KEY_ENABLED = "enabled"
+        const val KEY_USER_PAUSED = "user_paused"
+        const val KEY_MUTED = "muted"
         const val KEY_ORB_X = "orb_x"
         const val KEY_ORB_Y = "orb_y"
         const val KEY_ENTITLEMENT_CONFIRMED_AT = "entitlement_confirmed_at"

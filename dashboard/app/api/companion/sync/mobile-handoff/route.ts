@@ -27,6 +27,9 @@ const requestSchema = z
     codeChallenge: z.string().min(43).max(43),
     state: z.string().min(32).max(128),
     devicePublicKey: z.string().min(80).max(256),
+    platform: z.enum(["android", "ios"]).optional(),
+    deviceName: z.string().trim().min(1).max(64).optional(),
+    appVersion: z.string().trim().min(1).max(32).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -83,6 +86,9 @@ export async function POST(req: Request) {
     userId,
     keyThumbprint,
     publicKeySpki: parsed.data.devicePublicKey,
+    platform: parsed.data.platform,
+    displayName: parsed.data.deviceName,
+    appVersion: parsed.data.appVersion,
   });
   if (!device) {
     return NextResponse.json({ error: "Native device is unavailable" }, { status: 403 });

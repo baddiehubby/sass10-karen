@@ -1,0 +1,91 @@
+name: Buddie
+options:
+  minimumXcodeGenVersion: 2.40.0
+  deploymentTarget:
+    iOS: "16.1"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 1.0
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    TARGETED_DEVICE_FAMILY: "1,2"
+    SUPPORTS_MACCATALYST: NO
+    GENERATE_INFOPLIST_FILE: NO
+configs:
+  Debug: debug
+  Release: release
+targets:
+  Buddie:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.1"
+    sources:
+      - path: App
+      - path: Shared
+    resources:
+      - path: Resources/Assets.xcassets
+    info:
+      path: Config/App-Info.plist
+    entitlements:
+      path: Config/Buddie.entitlements
+    dependencies:
+      - target: BuddieWidgets
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.buddieai.shadow
+        PRODUCT_NAME: Buddie
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+  BuddieWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.1"
+    sources:
+      - path: WidgetExtension
+      - path: BuddyLiveActivity/BuddyLiveActivity.swift
+      - path: Shared/CompanionSnapshot.swift
+      - path: Shared/BuddyMoodAttributes.swift
+    info:
+      path: Config/Widget-Info.plist
+    entitlements:
+      path: Config/BuddieWidgets.entitlements
+    dependencies:
+      - sdk: SwiftUI.framework
+      - sdk: WidgetKit.framework
+      - sdk: ActivityKit.framework
+      - sdk: AppIntents.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.buddieai.shadow.widgets
+        PRODUCT_NAME: BuddieWidgets
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+  BuddieTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "16.1"
+    sources:
+      - path: Tests
+    info:
+      path: Config/Tests-Info.plist
+    dependencies:
+      - target: Buddie
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.buddieai.shadow.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Buddie.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Buddie"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+schemes:
+  Buddie:
+    build:
+      targets:
+        Buddie: all
+        BuddieWidgets: all
+        BuddieTests: [test]
+    test:
+      targets:
+        - BuddieTests

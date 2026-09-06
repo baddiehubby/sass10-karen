@@ -1,6 +1,7 @@
 package com.buddieai.shadow.auth
 
 import android.net.Uri
+import android.os.Build
 import com.buddieai.shadow.security.DeviceKeyManager
 import com.buddieai.shadow.security.SecureStorage
 import java.security.MessageDigest
@@ -11,6 +12,7 @@ class NativeAuthRepository(
     private val storage: SecureStorage,
     private val deviceKeys: DeviceKeyManager,
     private val api: MobileSessionApi = MobileApiClient(deviceKeys),
+    private val appVersion: String = "unknown",
 ) {
     fun createSignInUri(): Uri {
         val verifier = deviceKeys.randomUrlSafe(64)
@@ -22,6 +24,9 @@ class NativeAuthRepository(
             .appendQueryParameter("code_challenge", sha256UrlSafe(verifier))
             .appendQueryParameter("state", state)
             .appendQueryParameter("device_key", deviceKeys.publicKeySpki())
+            .appendQueryParameter("platform", "android")
+            .appendQueryParameter("device_name", DeviceNameSanitizer.sanitize(Build.MODEL))
+            .appendQueryParameter("app_version", appVersion)
             .build()
     }
 
@@ -86,6 +91,21 @@ class NativeAuthRepository(
         }
     }
 
+    fun sendContext(
+        explicitMood: String? = null,
+        sharedMedia: SharedMedia? = null,
+    ): ContextResponse {
+        return synchronized(refreshLock) {
+            val token = requireUsableRefreshToken()
+            try {
+                api.context(token, explicitMood, sharedMedia)
+            } catch (error: MobileApiException) {
+                if (error.kind == MobileApiError.UNAUTHORIZED) clearSession()
+                throw error
+            }
+        }
+    }
+
     fun hasSession(): Boolean {
         val expiresAt = storage.get(REFRESH_EXPIRES_AT)?.toLongOrNull() ?: return false
         return storage.get(REFRESH_TOKEN) != null && expiresAt > System.currentTimeMillis()
@@ -118,6 +138,17 @@ class NativeAuthRepository(
             storage.put(REFRESH_TOKEN, session.refreshToken)
             storage.put(REFRESH_EXPIRES_AT, session.refreshExpiresAt.toString())
         }
+    }
+
+    private fun requireUsableRefreshToken(): String {
+        val token = storage.get(REFRESH_TOKEN)
+            ?: throw MobileApiException(MobileApiError.UNAUTHORIZED, "No native session")
+        val expiresAt = storage.get(REFRESH_EXPIRES_AT)?.toLongOrNull() ?: 0L
+        if (expiresAt <= System.currentTimeMillis()) {
+            clearSession()
+            throw MobileApiException(MobileApiError.UNAUTHORIZED, "Native session expired")
+        }
+        return token
     }
 
     private fun sha256UrlSafe(value: String): String {

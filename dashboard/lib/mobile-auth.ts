@@ -15,7 +15,7 @@ const REFRESH_TTL_SECONDS = 14 * 24 * 60 * 60;
 const CLOCK_SKEW_MS = 60_000;
 const BASE64URL_RE = /^[A-Za-z0-9_-]+$/;
 
-export type MobileProofPurpose = "exchange" | "refresh" | "logout";
+export type MobileProofPurpose = "exchange" | "refresh" | "logout" | "context";
 
 export type HandoffClaims = JWTPayload & {
   typ: "buddie_mobile_handoff";

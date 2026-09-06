@@ -12,4 +12,24 @@ data class NativeSession(
     val entitlement: NativeEntitlement,
     val companionName: String,
     val personality: String,
+    val presenceMood: String? = null,
+)
+
+data class SharedMedia(
+    val title: String? = null,
+    val text: String? = null,
+)
+
+data class ContextReaction(
+    val text: String,
+    val orbCue: String,
+    val mood: String,
+    val confidence: Double,
+    val confidenceBand: String,
+    val basis: String,
+    val disclaimer: String,
+)
+
+data class ContextResponse(
+    val reaction: ContextReaction,
 )

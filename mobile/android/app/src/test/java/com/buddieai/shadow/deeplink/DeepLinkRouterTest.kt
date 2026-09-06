@@ -11,6 +11,7 @@ class DeepLinkRouterTest {
         assertEquals(DeepLinkRouter.Destination.ORACLE, DeepLinkRouter.parse("buddieai://oracle"))
         assertEquals(DeepLinkRouter.Destination.SETTINGS, DeepLinkRouter.parse("buddieai://settings"))
         assertEquals(DeepLinkRouter.Destination.COMPANION, DeepLinkRouter.parse("buddieai://companion"))
+        assertEquals(DeepLinkRouter.Destination.COMPANION, DeepLinkRouter.parse("BUDDIEAI://COMPANION"))
     }
 
     @Test

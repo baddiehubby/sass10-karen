@@ -24,4 +24,28 @@
     <string name="companion_notification_text">Your Buddie is active. Tap to open Buddie.</string>
     <string name="companion_notification_channel">Active companion</string>
     <string name="companion_notification_channel_description">Visible status while the Buddie companion orb is active.</string>
+    <string name="pause_companion">Pause Companion</string>
+    <string name="resume_companion">Resume Companion</string>
+    <string name="mute_companion">Mute reactions</string>
+    <string name="unmute_companion">Unmute reactions</string>
+    <string name="companion_muted">Buddie reactions are muted.</string>
+    <string name="companion_unmuted">Buddie reactions are unmuted.</string>
+    <string name="companion_paused">Buddie is paused until you resume it.</string>
+    <string name="companion_settings">Companion settings</string>
+    <string name="share_mood">Tell Buddie how I feel</string>
+    <string name="shared_context_empty">Nothing was shared with Buddie.</string>
+    <string name="share_sign_in_required">Sign in before sharing with Buddie.</string>
+    <string name="context_failed">Buddie could not respond to what you shared. Please try again.</string>
+    <string name="companion_controls_description">Companion controls. Pausing is always respected until you resume.</string>
+    <string name="orb_state_description">Buddie orb: %1$s. Tap to open Oracle, drag to move, or long press for controls.</string>
+    <string name="privacy_context_copy">Buddie only receives text you explicitly share or a mood you choose. It does not read notifications, record audio, use Accessibility, or scrape content from other apps.</string>
+    <string name="accessibility_controls_copy">All companion controls have spoken labels and remain available from this screen.</string>
+    <string-array name="explicit_moods">
+        <item>Happy</item>
+        <item>Calm</item>
+        <item>Excited</item>
+        <item>Thoughtful</item>
+        <item>Sad</item>
+        <item>Playful</item>
+    </string-array>
 </resources>

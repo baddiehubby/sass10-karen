@@ -357,6 +357,9 @@ model MobileDevice {
   userId        String
   keyThumbprint String    @unique
   publicKeySpki String
+  platform      String?
+  displayName   String?
+  appVersion    String?
   revokedAt     DateTime?
   lastSeenAt    DateTime?
   createdAt     DateTime  @default(now())

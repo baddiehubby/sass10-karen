@@ -140,6 +140,12 @@ class NativeAuthLogoutTest {
             return onRefresh?.invoke() ?: error("Not used")
         }
 
+        override fun context(
+            refreshToken: String,
+            explicitMood: String?,
+            sharedMedia: SharedMedia?,
+        ): ContextResponse = error("Not used")
+
         override fun logout(refreshToken: String) {
             logoutError?.let { throw it }
         }

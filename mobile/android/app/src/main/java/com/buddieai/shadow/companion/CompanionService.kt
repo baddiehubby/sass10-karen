@@ -68,7 +68,36 @@ class CompanionService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (refreshScheduled) return START_NOT_STICKY
+        when (intent?.action) {
+            ACTION_PAUSE -> {
+                preferences.userPaused = true
+                preferences.transition(CompanionEvent.Pause)
+                overlay.remove()
+                return START_NOT_STICKY
+            }
+            ACTION_MUTE -> {
+                preferences.muted = !preferences.muted
+                return START_NOT_STICKY
+            }
+            ACTION_REACTION -> {
+                if (!preferences.muted) {
+                    overlay.updateVisualState(
+                        OrbVisualStateMapper.fromCue(
+                            intent.getStringExtra(EXTRA_ORB_CUE),
+                            intent.getStringExtra(EXTRA_MOOD),
+                        ),
+                    )
+                }
+                return START_NOT_STICKY
+            }
+            ACTION_RESUME -> preferences.userPaused = false
+        }
+        if (refreshScheduled) {
+            if (intent?.action == ACTION_RESUME) {
+                scheduler.execute { refreshEntitlement(generation) }
+            }
+            return START_NOT_STICKY
+        }
 
         // A persisted entitlement timestamp is UX state, not authority. Every
         // service start verifies the server before recreating the overlay.
@@ -129,7 +158,13 @@ class CompanionService : Service() {
             }
             mainHandler.post {
                 if (!isGenerationActive(generation)) return@post
-                if (overlay.show { disableAndStop(generation) }) {
+                if (preferences.userPaused) {
+                    overlay.remove()
+                    preferences.state = CompanionState.PAUSED
+                    return@post
+                }
+                val visualState = OrbVisualStateMapper.fromMood(session.presenceMood)
+                if (overlay.show(visualState) { disableAndStop(generation) }) {
                     preferences.transition(CompanionEvent.ServiceStarted)
                 } else {
                     preferences.transition(CompanionEvent.Failed)
@@ -146,7 +181,7 @@ class CompanionService : Service() {
                     val withinOfflineGrace =
                         preferences.entitlementConfirmedAt > 0L &&
                             confirmationAge in 0L..OFFLINE_GRACE_MS
-                    if (!overlay.isShowing || !withinOfflineGrace) {
+                    if ((!overlay.isShowing && !preferences.userPaused) || !withinOfflineGrace) {
                         preferences.enabled = false
                         overlay.remove()
                         stopFromWorker()
@@ -282,6 +317,12 @@ class CompanionService : Service() {
     companion object {
         const val ACTION_START = "com.buddieai.shadow.companion.START"
         const val ACTION_STOP = "com.buddieai.shadow.companion.STOP"
+        const val ACTION_PAUSE = "com.buddieai.shadow.companion.PAUSE"
+        const val ACTION_RESUME = "com.buddieai.shadow.companion.RESUME"
+        const val ACTION_MUTE = "com.buddieai.shadow.companion.MUTE"
+        const val ACTION_REACTION = "com.buddieai.shadow.companion.REACTION"
+        const val EXTRA_ORB_CUE = "orb_cue"
+        const val EXTRA_MOOD = "mood"
         const val CHANNEL_ID = "buddie_companion_active"
         const val NOTIFICATION_ID = 4102
         const val REFRESH_INTERVAL_MINUTES = 15L
@@ -309,6 +350,30 @@ class CompanionService : Service() {
             startRequested.set(false)
             running.set(false)
             context.stopService(Intent(context, CompanionService::class.java))
+        }
+
+        fun pause(context: Context) {
+            context.startService(Intent(context, CompanionService::class.java).setAction(ACTION_PAUSE))
+        }
+
+        fun resume(context: Context) {
+            context.startForegroundService(
+                Intent(context, CompanionService::class.java).setAction(ACTION_RESUME),
+            )
+        }
+
+        fun toggleMute(context: Context) {
+            context.startService(Intent(context, CompanionService::class.java).setAction(ACTION_MUTE))
+        }
+
+        fun react(context: Context, orbCue: String, mood: String) {
+            if (!isRunning) return
+            context.startService(
+                Intent(context, CompanionService::class.java)
+                    .setAction(ACTION_REACTION)
+                    .putExtra(EXTRA_ORB_CUE, orbCue)
+                    .putExtra(EXTRA_MOOD, mood),
+            )
         }
     }
 }

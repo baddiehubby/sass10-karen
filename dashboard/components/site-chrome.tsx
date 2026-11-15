@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/site-header";
 import { CookieBanner } from "@/components/CookieBanner";
 import { brandingFromHostname } from "@/lib/tenant-brand";
 
-const IMMERSIVE_PREFIXES = ["/dashboard"];
+const IMMERSIVE_PREFIXES = ["/dashboard", "/karen"];
 const IMMERSIVE_EXACT = new Set(["/", "/login", "/pwa"]);
 
 function isImmersiveRoute(pathname: string) {
@@ -25,7 +25,11 @@ export function SiteChrome({ children, widgetScriptUrl, apiBase }: SiteChromePro
   const pathname = usePathname() ?? "/";
   const branding = brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : "");
   const immersive = isImmersiveRoute(pathname);
-  const showWidget = pathname !== "/" && !pathname.startsWith("/dashboard") && pathname !== "/pwa";
+  const showWidget =
+    pathname !== "/" &&
+    !pathname.startsWith("/dashboard") &&
+    !pathname.startsWith("/karen") &&
+    pathname !== "/pwa";
 
   return (
     <>

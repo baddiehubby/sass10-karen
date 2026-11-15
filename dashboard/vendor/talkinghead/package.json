@@ -1,0 +1,23 @@
+{
+  "name": "@met4citizen/talkinghead",
+  "version": "1.8.2",
+  "description": "TalkingHead (3D) — vendored from Desktop/GLB/TalkingHead-main for Karen SaaS.",
+  "type": "module",
+  "main": "modules/talkinghead.mjs",
+  "module": "modules/talkinghead.mjs",
+  "exports": {
+    ".": "./modules/talkinghead.mjs",
+    "./modules/*": "./modules/*",
+    "./playback-worklet": "./modules/playback-worklet.js"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "modules"
+  ],
+  "dependencies": {
+    "three": "^0.186"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/met4citizen/TalkingHead#readme"
+}

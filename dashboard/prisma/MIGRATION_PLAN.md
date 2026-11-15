@@ -46,3 +46,15 @@ Until A+B are applied, the Soul Engine APIs return `{ available: false }` and th
 - `DailyRitual` (`ritualDate` is `@db.Date` so uniqueness is per calendar day)
 
 No drops. No column removals. `bondDepth` is internal and must never be rendered.
+
+## Karen interviewer persistence (Stage 6B-1 / 6B-1.1) — proposed
+
+Additive only. Separate from Buddy Soul tables.
+
+- Review SQL: `prisma/proposed-migrations/add_karen_interview_persistence.sql`
+- Models: `KarenInterview`, `KarenProcessedAnswer`
+- Docs: `lib/karen/interview/PERSISTENCE.md`, `lib/karen/interview/DATA_DELETION.md`, `lib/karen/interview/STAGE_6B_1_1_AUDIT.md`
+- PG tests (gated): `lib/karen/interview/prisma-store.pg.test.ts` + optional `docker-compose.karen-test.yml`
+
+Do not apply on production until explicitly approved for that environment.
+Stage 6B-1.1 verified SQL/schema parity and transaction/auth contracts; live PG must still pass with `KAREN_TEST_DATABASE_URL` before production go.

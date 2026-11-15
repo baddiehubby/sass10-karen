@@ -96,6 +96,7 @@ const PUBLIC_API_PREFIXES = [
   "/api/consent/status",
   "/api/security/tamper-attempt",
   "/api/lemonsqueezy/webhook",
+  "/api/webhooks/lemonsqueezy",
   "/api/challenge/report",
   "/api/dev/widget",
   "/api/extensions/stats",
@@ -175,7 +176,9 @@ export async function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/api/")) {
     // Lemon webhooks: do not IP-rate-limit before signature verify (retries must land).
-    const isLemonWebhook = pathname.startsWith("/api/lemonsqueezy/webhook");
+    const isLemonWebhook =
+      pathname.startsWith("/api/lemonsqueezy/webhook") ||
+      pathname.startsWith("/api/webhooks/lemonsqueezy");
 
     if (!isLemonWebhook) {
       const rateKey = pathname.startsWith("/api/auth/")

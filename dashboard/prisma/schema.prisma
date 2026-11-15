@@ -20,6 +20,16 @@ model User {
   eidataConsentCompleted Boolean @default(false)
   /// Optional external customer identifier for migration compatibility.
   stripeCustomerId String? @unique
+  /// Karen VIP ($19/mo) — set by Lemon Squeezy webhooks only (`subscription_created` / cancelled).
+  isPremium Boolean @default(false)
+  /// Lemon Squeezy customer id for Karen VIP (webhook / portal).
+  lemonSqueezyCustomerId String? @unique
+  /// Free-tier Karen messages used on `karenChatDay` (UTC). Resets when the day changes. Cap: 3/day.
+  karenChatCount Int @default(0)
+  /// UTC day key (`YYYY-MM-DD`) for the free daily quota counter.
+  karenChatDay String?
+  /// Lemon customer portal URL from Karen VIP subscription webhooks.
+  karenCustomerPortalUrl String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -34,6 +44,8 @@ model User {
   mobileDevices            MobileDevice[]
   mobileAuthorizationCodes MobileAuthorizationCode[]
   mobileRefreshTokens      MobileRefreshToken[]
+  /// Karen premium interviewer state (separate from Buddy MemoryFragment).
+  karenInterview           KarenInterview?
 }
 
 model License {
@@ -436,4 +448,36 @@ model MobileProofNonce {
 
   @@unique([deviceId, purpose, nonceHash])
   @@index([expiresAt])
+}
+
+/// Karen interviewer — one active interview payload per user (not Buddy memory).
+/// payload holds the full KarenInterviewState JSON (facts, probes, turns, ladder, mood).
+model KarenInterview {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  /// Optimistic concurrency token for transactional writes.
+  version   Int      @default(0)
+  /// Full KarenInterviewState (schemaVersion 1). Never mix with Buddy MemoryFragment.
+  payload   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  processedAnswers KarenProcessedAnswer[]
+
+  @@index([updatedAt])
+}
+
+/// Cross-restart idempotency for answer fingerprints (questionId:rung:normalizedAnswer).
+model KarenProcessedAnswer {
+  id          String   @id @default(cuid())
+  userId      String
+  interviewId String
+  fingerprint String
+  createdAt   DateTime @default(now())
+
+  interview KarenInterview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
+  @@index([userId, createdAt])
 }

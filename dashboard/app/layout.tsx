@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { AppSessionProvider } from "@/components/session-provider";
+import { KarenAlarmWatcher } from "@/components/karen/karen-alarm-watcher";
 import { SiteChrome } from "@/components/site-chrome";
 import { Toaster } from "react-hot-toast";
 import { getAppBaseUrl } from "@/lib/site-url";
@@ -84,6 +85,7 @@ export default function RootLayout({
             </div>
           </div>
           <Toaster position="top-right" />
+          <KarenAlarmWatcher />
           <noscript>
             <div className="mx-auto max-w-lg px-6 py-16 text-center text-sm text-slate-200">
               Buddie needs JavaScript for the companion orb and check-ins. Please enable it to continue.

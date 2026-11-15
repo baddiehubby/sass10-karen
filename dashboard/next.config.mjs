@@ -15,10 +15,29 @@ const withPWA = withPWAInit({
   },
 });
 
+/**
+ * Capacitor / Play Store note:
+ * Do NOT set `output: 'export'` on this app. Static export cannot include
+ * `/api/*` routes, middleware, Server Actions, or Prisma — all required by Karen.
+ * The Android shell loads the hosted Next.js app via `capacitor.config.ts` → `server.url`.
+ * Run `npm run cap:prepare` to generate the Capacitor `out/` bootstrap folder.
+ */
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
+  // Vendored TalkingHead (Desktop/GLB/TalkingHead-main) — transpile for App Router.
+  transpilePackages: ["@met4citizen/talkinghead"],
+  webpack: (config) => {
+    // Ensure .mjs lipsync / retargeter modules resolve from the vendored package.
+    config.module.rules.push({
+      test: /vendor[\\/]talkinghead[\\/]modules[\\/].*\.mjs$/,
+      type: "javascript/auto",
+      resolve: { fullySpecified: false },
+    });
+    return config;
+  },
+  // images.unoptimized is only needed for a true static export; keep default for Vercel.
   async redirects() {
     return [
       {
@@ -47,7 +66,8 @@ const nextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
+            // microphone=(self) required for Karen hold-to-talk STT
+            value: "camera=(), microphone=(self), geolocation=()",
           },
         ],
       },

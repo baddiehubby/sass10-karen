@@ -9,6 +9,7 @@ const PRIMARY = [
   { href: "/dashboard/garden", label: "Garden", match: (p: string) => p.startsWith("/dashboard/garden") || p.startsWith("/dashboard/mood") || p.startsWith("/dashboard/oracle") },
   { href: "/dashboard/rituals", label: "Rituals", match: (p: string) => p.startsWith("/dashboard/rituals") },
   { href: "/dashboard/moments", label: "Moments", match: (p: string) => p.startsWith("/dashboard/moments") || p.startsWith("/dashboard/memories") || p.startsWith("/dashboard/timeline") },
+  { href: "/karen", label: "Karen", match: (p: string) => p === "/karen" || p.startsWith("/karen/") },
   { href: "/dashboard/account", label: "You", match: (p: string) => p.startsWith("/dashboard/account") || p.startsWith("/dashboard/settings") },
 ] as const;
 

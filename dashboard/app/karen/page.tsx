@@ -6,7 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { sessionUserId } from "@/lib/session-user";
 
 export const metadata: Metadata = {
-  title: "Karen VIP | Accountability Coach",
+  title: {
+    absolute: "Karen VIP | Accountability Coach",
+  },
   description: "Level 10 Sass AI accountability coach — $19/mo premium experience.",
   robots: { index: false, follow: false },
 };
@@ -14,8 +16,9 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 /**
- * Premium mobile-first Karen shell.
- * Server-reads `user.isPremium` for the $19 Lemon Squeezy paywall gate.
+ * Premium mobile-first Karen stage.
+ * Layout (`app/karen/layout.tsx`) owns the full-screen black shell —
+ * this page only mounts the chat/avatar experience.
  */
 export default async function KarenPage() {
   const userId = await sessionUserId();
@@ -36,10 +39,11 @@ export default async function KarenPage() {
   }
 
   return (
-    <div className="relative h-[100dvh] w-screen overflow-hidden bg-black text-white">
+    <div className="relative h-full min-h-[100dvh] w-full overflow-hidden bg-black text-white">
       <KarenChatShell
         initialIsPremium={initialIsPremium}
         initialChatCount={initialChatCount}
+        isSignedIn={Boolean(userId)}
       />
     </div>
   );

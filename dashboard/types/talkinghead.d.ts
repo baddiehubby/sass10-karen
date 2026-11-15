@@ -29,6 +29,12 @@ declare module "@met4citizen/talkinghead" {
   };
 
   export class TalkingHead {
+    audioCtx: AudioContext;
+    lipsync: Record<string, unknown>;
+    renderer?: import("three").WebGLRenderer;
+    camera?: import("three").PerspectiveCamera;
+    nodeAvatar?: HTMLElement;
+    onResize?: () => void;
     constructor(node: HTMLElement, opt?: TalkingHeadOptions | null);
     showAvatar(
       avatar: TalkingHeadAvatar,
@@ -61,8 +67,22 @@ declare module "@met4citizen/talkinghead" {
       opt?: Record<string, unknown> | null,
       onsubtitles?: ((node: unknown) => void) | null,
     ): void;
+    /** Turn head/eyes toward viewport coords (ms blend). */
+    lookAt(x: number | null, y: number | null, t?: number): void;
+    lookAtCamera(t?: number): void;
     start(): void;
     stop(): void;
+  }
+}
+
+declare module "@met4citizen/talkinghead/modules/lipsync-en.mjs" {
+  export class LipsyncEn {
+    preProcessText(s: string): string;
+    wordsToVisemes(word: string): {
+      visemes: string[];
+      times: number[];
+      durations: number[];
+    };
   }
 }
 

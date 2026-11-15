@@ -16,14 +16,25 @@ const withPWA = withPWAInit({
 });
 
 /**
- * Capacitor / Play Store note:
- * Do NOT set `output: 'export'` on this app. Static export cannot include
- * `/api/*` routes, middleware, Server Actions, or Prisma — all required by Karen.
- * The Android shell loads the hosted Next.js app via `capacitor.config.ts` → `server.url`.
- * Run `npm run cap:prepare` to generate the Capacitor `out/` bootstrap folder.
+ * Capacitor / Play Store:
+ * - Default (Vercel): keep API routes, middleware, Server Actions, Prisma.
+ * - Do NOT set permanent `output: 'export'` — that breaks production APIs.
+ * - Android WebView loads the hosted app via capacitor.config.ts → `server.url`.
+ * - Optional offline shell only: `CAPACITOR_STATIC_EXPORT=1 npm run build`
+ *   (then APIs must use NEXT_PUBLIC_API_URL absolute URLs).
+ * - Bootstrap `out/`: `npm run cap:prepare` → `npx cap sync`.
  */
+const isCapacitorStaticExport = process.env.CAPACITOR_STATIC_EXPORT === "1";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  ...(isCapacitorStaticExport
+    ? {
+        output: "export",
+        // Static export cannot use Next image optimizer.
+      }
+    : {}),
+  images: { unoptimized: true },
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
   // Vendored TalkingHead (Desktop/GLB/TalkingHead-main) — transpile for App Router.
@@ -37,7 +48,6 @@ const nextConfig = {
     });
     return config;
   },
-  // images.unoptimized is only needed for a true static export; keep default for Vercel.
   async redirects() {
     return [
       {

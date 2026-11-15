@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   cancelKarenNativeAlarm,
   isKarenNativePlatform,
-  scheduleKarenNativeAlarm,
+  scheduleKarenAlarm,
 } from "@/lib/karen/native-alarm";
 import { readKarenAlarmTime } from "@/lib/karen/alarm-storage";
 
@@ -44,7 +44,7 @@ export function useNativeAlarm(initialTime = "07:00"): UseNativeAlarmResult {
   const schedule = useCallback(async () => {
     setScheduling(true);
     try {
-      const result = await scheduleKarenNativeAlarm(time);
+      const result = await scheduleKarenAlarm(time);
       setLastDetail(result.detail);
       return result.ok;
     } finally {

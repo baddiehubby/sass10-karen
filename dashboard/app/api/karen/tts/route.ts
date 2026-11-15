@@ -27,12 +27,17 @@ function toArrayBuffer(buf: ArrayBuffer | Buffer | Uint8Array): ArrayBuffer {
   return view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength) as ArrayBuffer;
 }
 
-function audioResponse(buf: ArrayBuffer | Buffer | Uint8Array, contentType: string) {
+function audioResponse(
+  buf: ArrayBuffer | Buffer | Uint8Array,
+  contentType: string,
+  extraHeaders?: Record<string, string>,
+) {
   return new NextResponse(toArrayBuffer(buf), {
     status: 200,
     headers: {
       "Content-Type": contentType,
       "Cache-Control": "no-store",
+      ...extraHeaders,
     },
   });
 }
@@ -153,6 +158,40 @@ async function synthesizeTranslateFallback(text: string): Promise<Response | nul
   return audioResponse(new Uint8Array(Buffer.concat(parts)), "audio/mpeg");
 }
 
+/** Minimal mono PCM WAV with a speech-like amplitude envelope (lip-sync proxy). */
+function buildLipSyncProxyWav(text: string): Buffer {
+  const sampleRate = 22050;
+  const wordCount = Math.max(1, text.trim().split(/\s+/).length);
+  const durationSec = Math.min(18, Math.max(0.7, wordCount * 0.32));
+  const numSamples = Math.floor(sampleRate * durationSec);
+  const dataSize = numSamples * 2;
+  const buf = Buffer.alloc(44 + dataSize);
+
+  buf.write("RIFF", 0);
+  buf.writeUInt32LE(36 + dataSize, 4);
+  buf.write("WAVE", 8);
+  buf.write("fmt ", 12);
+  buf.writeUInt32LE(16, 16);
+  buf.writeUInt16LE(1, 20); // PCM
+  buf.writeUInt16LE(1, 22); // mono
+  buf.writeUInt32LE(sampleRate, 24);
+  buf.writeUInt32LE(sampleRate * 2, 28);
+  buf.writeUInt16LE(2, 32);
+  buf.writeUInt16LE(16, 34);
+  buf.write("data", 36);
+  buf.writeUInt32LE(dataSize, 40);
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    const syllable = 0.5 + 0.5 * Math.sin(t * Math.PI * 4.2);
+    // Near-silent — client layers speechSynthesis; TalkingHead needs a real buffer.
+    const sample = Math.max(-1, Math.min(1, 0.012 * syllable * Math.sin(2 * Math.PI * 180 * t)));
+    buf.writeInt16LE((sample * 0x7fff) | 0, 44 + i * 2);
+  }
+
+  return buf;
+}
+
 export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, bodySchema);
   if (!parsed.ok) return parsed.response;
@@ -169,14 +208,12 @@ export async function POST(req: Request) {
     const fallback = await synthesizeTranslateFallback(text);
     if (fallback) return fallback;
 
-    return noStoreJson(
-      {
-        error:
-          "No TTS provider configured. Set OPENAI_API_KEY (or KAREN_TTS_API_KEY) or GOOGLE_TTS_API_KEY.",
-        code: "TTS_UNAVAILABLE",
-      },
-      503,
-    );
+    // Last resort: speech-shaped WAV so clients can always decode → speakAudio.
+    // Client may still layer speechSynthesis on top when peak is near-silent.
+    console.warn("[karen/tts] no provider — returning lip-sync proxy WAV");
+    return audioResponse(buildLipSyncProxyWav(text), "audio/wav", {
+      "X-Karen-TTS": "proxy",
+    });
   } catch (err) {
     console.error("[karen/tts]", err);
     return noStoreJson({ error: "TTS synthesis failed" }, 500);

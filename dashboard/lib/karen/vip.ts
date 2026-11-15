@@ -4,13 +4,12 @@ export const KAREN_VIP_PRICE_LABEL = "$19/month";
 
 /**
  * HTTP 402 / Upgrade modal body — savage paywall line.
- * (UI headline can still say “Unlock Savage Karen for $19/month.”)
  */
 export const KAREN_VIP_UPGRADE_MESSAGE =
-  "You want the real me? The savage version? It costs $19. Pay up or get out.";
+  "You want more of me? Obviously. Unlock Savage Karen for $19/month.";
 
 /** Short glassmorphic modal headline. */
-export const KAREN_VIP_MODAL_TITLE = "Unlock Savage Karen for $19/month.";
+export const KAREN_VIP_MODAL_TITLE = "You want more of me? Obviously.";
 
 /** Free users get 3 messages per UTC day, then hard paywall. */
 export const KAREN_FREE_MESSAGE_LIMIT = 3;

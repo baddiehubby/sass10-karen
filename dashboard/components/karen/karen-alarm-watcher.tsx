@@ -1,31 +1,36 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useKarenVoice } from "@/hooks/useKarenVoice";
 import {
   KAREN_ALARM_LAST_FIRED_KEY,
   KAREN_ALARM_WAKE_LINE,
   currentLocalHHmm,
   readKarenAlarmTime,
 } from "@/lib/karen/alarm-storage";
-import { attachKarenNativeAlarmListener } from "@/lib/karen/native-alarm";
+import {
+  attachKarenNativeAlarmListener,
+  KAREN_WAKE_SPEECH,
+} from "@/lib/karen/native-alarm";
+import { speakWithKaren, stopKarenSpeech, unlockKarenAudio } from "@/lib/karen/voice";
 
 /**
  * Mounted in root layout.
  * - Web: checks every minute against localStorage alarm time.
- * - Native Capacitor: also listens for local-notification fire/tap → TTS.
+ * - Native Capacitor: local-notification fire/tap → speakWithKaren("WAKE UP!").
  */
 export function KarenAlarmWatcher() {
-  const { speak, stop } = useKarenVoice();
   const [open, setOpen] = useState(false);
   const speakingRef = useRef(false);
 
   function fireAlarm() {
     setOpen(true);
-    if (!speakingRef.current) {
-      speakingRef.current = true;
-      speak(KAREN_ALARM_WAKE_LINE);
-    }
+    if (speakingRef.current) return;
+    speakingRef.current = true;
+    void (async () => {
+      await unlockKarenAudio();
+      // Exact wake line for native notification tap / delivery.
+      await speakWithKaren(KAREN_WAKE_SPEECH, "ANGRY");
+    })();
   }
 
   useEffect(() => {
@@ -58,8 +63,7 @@ export function KarenAlarmWatcher() {
     return () => {
       window.clearInterval(id);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- speak identity is stable enough for interval
-  }, [speak]);
+  }, []);
 
   useEffect(() => {
     let handle: { remove: () => Promise<void> } | null = null;
@@ -80,11 +84,10 @@ export function KarenAlarmWatcher() {
       cancelled = true;
       void handle?.remove();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speak]);
+  }, []);
 
   function dismiss() {
-    stop();
+    stopKarenSpeech();
     speakingRef.current = false;
     setOpen(false);
   }

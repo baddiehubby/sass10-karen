@@ -6,11 +6,14 @@
 export {
   chunkSpeechText,
   generateAudioBuffer,
+  getAudioBuffer,
   getKarenAudioContext,
   getRegisteredKarenTalkingHead,
   registerKarenTalkingHead,
   speakWithKaren,
   stopKarenSpeech,
+  synthesizeLipSyncProxyBuffer,
+  unlockKarenAudio,
   type GenerateAudioBufferOptions,
   type SpeakWithKarenOptions,
 } from "@/lib/karen/voice";

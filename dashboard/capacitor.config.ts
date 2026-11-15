@@ -1,16 +1,18 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * Karen Android shell (Capacitor).
+ * Karen Android shell (Capacitor) — Google Play Store.
  *
- * This Next.js app uses API routes, middleware, Server Actions, and Prisma —
- * so a full `output: 'export'` static build is NOT viable for production.
+ * Production path (recommended):
+ *   WebView loads hosted Next.js via `server.url` (APIs/auth/Prisma stay on Vercel).
+ *   `webDir: 'out'` = bootstrap splash from `npm run cap:prepare`.
  *
- * The native WebView loads the hosted Next.js app via `server.url`.
- * `webDir: 'out'` still holds a bootstrap page for offline/first paint.
+ * Do NOT enable permanent `output: 'export'` in next.config — it breaks Vercel APIs.
+ * Optional offline static shell only: CAPACITOR_STATIC_EXPORT=1 (then set NEXT_PUBLIC_API_URL).
  *
- * Override at build time:
+ * Override:
  *   CAPACITOR_SERVER_URL=https://www.buddieai.com
+ *   NEXT_PUBLIC_API_URL=https://www.buddieai.com
  */
 const serverUrl =
   process.env.CAPACITOR_SERVER_URL?.trim() ||

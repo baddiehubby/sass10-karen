@@ -18,11 +18,11 @@ function assertAllInRange(shapes: ArkitBlendshapes) {
 }
 
 describe("getBlendshapes — re-export bridge", () => {
-  it("ANGRY scream face", () => {
+  it("ANGRY rage brows without locking jaw", () => {
     const s = getBlendshapes("ANGRY", false, 0);
     assertAllInRange(s);
     assert.equal(s.browDownLeft, 1);
-    assert.ok(s.jawOpen >= 0.8);
+    assert.equal(s.jawOpen, 0);
     assert.ok(s.eyeWideLeft >= 0.85);
   });
 

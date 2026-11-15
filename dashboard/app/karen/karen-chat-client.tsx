@@ -18,12 +18,14 @@ const Karen3D = dynamic(() => import("@/components/Karen3D"), {
 import { VipUpgradeModal } from "@/components/karen/vip-upgrade-modal";
 import { KarenPaywallOverlay } from "@/components/karen/karen-paywall-overlay";
 import { useKarenVoice } from "@/hooks/useKarenVoice";
+import { apiUrl } from "@/lib/api-url";
 import {
   normalizeMood,
   parseMoodTag,
   stripMoodTags,
 } from "@/lib/karen/expression-bridge";
 import { dispatchKarenExpression } from "@/lib/karen/talkinghead-bus";
+import { unlockKarenAudio } from "@/lib/karen/voice";
 import {
   KAREN_FREE_MESSAGE_LIMIT,
   KAREN_VIP_UPGRADE_MESSAGE,
@@ -48,11 +50,55 @@ function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
 export type KarenChatClientProps = {
   initialIsPremium?: boolean;
   initialChatCount?: number;
+  isSignedIn?: boolean;
 };
+
+/** Full-bleed cinematic gate — Karen behind a dark veil, neon CTA in front. */
+function KarenLoginGate() {
+  return (
+    <div className="relative flex h-[100dvh] min-h-[100vh] w-screen flex-col items-center justify-center overflow-hidden bg-black px-6 text-center">
+      <div className="absolute inset-0 z-0 h-full min-h-[100vh] w-full">
+        <Karen3D mood="SARCASTIC" isSpeaking={false} className="absolute inset-0" />
+      </div>
+      {/* Dark cinematic overlay over Karen's face */}
+      <div
+        className="pointer-events-none absolute inset-0 z-[1] bg-black/75"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_50%_35%,rgba(244,63,94,0.18)_0%,transparent_55%),linear-gradient(180deg,rgba(0,0,0,0.35)_0%,rgba(0,0,0,0.55)_45%,rgba(0,0,0,0.88)_100%)]"
+        aria-hidden
+      />
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="relative z-10 flex max-w-lg flex-col items-center gap-7"
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-[0.42em] text-rose-400/90">
+          Karen · Sass 10
+        </p>
+        <p className="max-w-md text-xl font-medium leading-relaxed text-white/95 sm:text-2xl">
+          WARNING: Karen has zero tolerance for excuses. She will roast you. Proceed?
+        </p>
+        <Link
+          href="/login?callbackUrl=/karen"
+          onClick={() => {
+            void unlockKarenAudio();
+          }}
+          className="mt-1 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#ff2d55] via-[#ff4d6d] to-[#ff2d85] px-12 py-4 text-sm font-black uppercase tracking-[0.22em] text-white shadow-[0_0_28px_rgba(255,45,85,0.75),0_0_64px_rgba(255,45,133,0.45)] transition hover:scale-[1.04] hover:shadow-[0_0_40px_rgba(255,45,85,0.95),0_0_80px_rgba(255,45,133,0.55)] active:scale-[0.98]"
+        >
+          Enter the Roast
+        </Link>
+      </motion.div>
+    </div>
+  );
+}
 
 export function KarenChatClient({
   initialIsPremium = false,
   initialChatCount = 0,
+  isSignedIn = false,
 }: KarenChatClientProps = {}) {
   const { isSpeaking } = useKarenVoice();
   const [messages, setMessages] = useState<ChatBubble[]>([
@@ -68,6 +114,13 @@ export function KarenChatClient({
   const [typing, setTyping] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsAuth, setNeedsAuth] = useState(() => {
+    if (typeof window !== "undefined") {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get("preview") === "1") return false;
+    }
+    return !isSignedIn;
+  });
   const [vipOpen, setVipOpen] = useState(false);
   const [vipMessage, setVipMessage] = useState(KAREN_VIP_UPGRADE_MESSAGE);
   const [isPremium, setIsPremium] = useState<boolean | null>(initialIsPremium);
@@ -85,6 +138,7 @@ export function KarenChatClient({
   const prevMoodRef = useRef(mood);
   const screenShake = useAnimationControls();
   const isFurious = mood === "ANGRY" || mood === "FURIOUS";
+  const isSarcastic = mood === "SARCASTIC";
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -138,6 +192,9 @@ export function KarenChatClient({
         }
       }
 
+      // Unlock Web Audio inside the user gesture (Send / Hold-to-talk).
+      await unlockKarenAudio();
+
       setError(null);
       setInput("");
       const userMsg: ChatBubble = {
@@ -159,10 +216,11 @@ export function KarenChatClient({
         }));
 
       try {
-        const res = await fetch("/api/karen/chat", {
+        const res = await fetch(apiUrl("/api/karen/chat"), {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
           body: JSON.stringify({ message: text, history }),
+          credentials: "include",
         });
 
         const contentType = res.headers.get("content-type") || "";
@@ -182,7 +240,8 @@ export function KarenChatClient({
             return;
           }
           if (res.status === 401) {
-            setError("Sign in to talk to Karen.");
+            setNeedsAuth(true);
+            setError(null);
             return;
           }
           throw new Error(data.error || "Karen couldn't answer. Is Ollama running?");
@@ -337,6 +396,7 @@ export function KarenChatClient({
       return;
     }
 
+    void unlockKarenAudio();
     setError(null);
     transcriptRef.current = "";
 
@@ -396,25 +456,40 @@ export function KarenChatClient({
     };
   }, []);
 
-  // [ANGRY] / [FURIOUS]: violent full-screen shake for ~0.2s
+  // [ANGRY] / [FURIOUS]: violent full-screen rage shake
   useEffect(() => {
     const prev = prevMoodRef.current;
     prevMoodRef.current = mood;
     if (mood !== "ANGRY" && mood !== "FURIOUS") return;
     if (prev === mood) return;
     void screenShake.start({
-      x: [0, -14, 16, -12, 10, -6, 3, 0],
-      y: [0, 10, -8, 9, -6, 4, -2, 0],
-      rotate: [0, -1.2, 1.4, -1, 0.6, 0],
-      transition: { duration: 0.2, ease: "easeOut" },
+      x: [0, -14, 14, -12, 12, -8, 8, 0],
+      y: [0, 8, -8, 7, -6, 4, -3, 0],
+      rotate: [0, -1.2, 1.4, -1.1, 0.9, -0.6, 0.4, 0],
+      transition: { duration: 0.45, ease: "easeInOut" },
     });
   }, [mood, screenShake]);
 
+  if (needsAuth) {
+    return <KarenLoginGate />;
+  }
+
   return (
+    /* [SARCASTIC] smirk: entire UI (canvas + chat) tilts 2° */
     <motion.div
-      animate={screenShake}
-      className="relative h-[100dvh] w-screen overflow-hidden bg-black text-white"
+      animate={{ rotateZ: isSarcastic ? 2 : 0 }}
+      transition={{ type: "spring", stiffness: 140, damping: 18, mass: 0.85 }}
+      className="relative h-[100dvh] min-h-[100vh] w-screen origin-center overflow-hidden bg-[#0a0608] text-white"
+      style={
+        isFurious
+          ? { boxShadow: "inset 0 0 50px rgba(255,0,0,0.5)" }
+          : undefined
+      }
     >
+      <motion.div
+        animate={screenShake}
+        className="relative h-full min-h-[100vh] w-full"
+      >
       <VipUpgradeModal
         open={vipOpen}
         message={vipMessage}
@@ -424,38 +499,51 @@ export function KarenChatClient({
         }}
       />
 
-      {/* Full-viewport TalkingHead stage */}
-      <div className="absolute inset-0 z-0 h-screen w-screen">
+      {/* Avatar layer — full screen, z-0 */}
+      <div className="absolute inset-0 z-0 h-full min-h-[100vh] w-full">
         <div
-          className={`absolute inset-0 h-full w-full transition-[filter,transform] duration-300 ${
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_55%_35%,#3a1524_0%,#12080c_50%,#050305_100%)]"
+          aria-hidden
+        />
+        <div
+          className={`absolute inset-0 h-full w-full transition-[filter,transform] duration-500 ${
             paywalled || avatarFrozen
-              ? "pointer-events-none blur-md brightness-75 saturate-50 scale-[1.02]"
+              ? "pointer-events-none scale-[1.03] blur-3xl brightness-50 saturate-40"
               : ""
           }`}
         >
           <Karen3D
             mood={paywalled || avatarFrozen ? "ANGRY" : mood}
             isSpeaking={paywalled || avatarFrozen ? false : isSpeaking}
-            className="h-full w-full"
+            className="absolute inset-0 h-full w-full"
           />
         </div>
-        {/* Readability veil over red shirt / lower body */}
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[55%] bg-gradient-to-t from-black/80 via-black/40 to-transparent"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[50%] bg-gradient-to-t from-black/70 via-black/25 to-transparent"
           aria-hidden
         />
-        {/* Furious screen glow border */}
-        {isFurious ? (
-          <div
-            className="pointer-events-none absolute inset-0 z-[2] border-[3px] border-red-500 shadow-[inset_0_0_60px_rgba(239,68,68,0.55),0_0_40px_rgba(239,68,68,0.45)] animate-pulse"
-            aria-hidden
-          />
-        ) : null}
+        <AnimatePresence>
+          {isFurious ? (
+            <motion.div
+              key="rage-glow"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.7, 1, 0.7] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+              className="pointer-events-none absolute inset-0 z-[2] border-[3px] border-red-500"
+              style={{
+                boxShadow:
+                  "inset 0 0 50px rgba(255,0,0,0.5), 0 0 40px rgba(255,0,0,0.35)",
+              }}
+              aria-hidden
+            />
+          ) : null}
+        </AnimatePresence>
         <KarenPaywallOverlay active={paywalled} />
       </div>
 
       {/* Floating glass header */}
-      <header className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-30 mx-auto flex max-w-lg items-center justify-between rounded-3xl border border-white/20 bg-white/10 px-4 py-3 shadow-lg shadow-black/30 backdrop-blur-md sm:max-w-xl">
+      <header className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-20 mx-auto flex max-w-lg items-center justify-between rounded-3xl border border-white/10 bg-black/30 px-4 py-3 shadow-lg shadow-black/40 backdrop-blur-xl sm:max-w-xl">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-rose-300">
             Karen · SASS10
@@ -479,75 +567,108 @@ export function KarenChatClient({
         )}
       </header>
 
-      {/* Glassmorphic chat floating over avatar */}
-      <div className="absolute inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 px-3">
-        <section className="mx-auto flex max-h-[38dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-white/20 bg-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.45)] backdrop-blur-md sm:max-w-xl">
-          <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-3 sm:px-4">
+      {/* iOS glassmorphism chat — bottom overlay z-10 */}
+      <div className="absolute bottom-0 z-10 w-full pb-[calc(3.75rem+env(safe-area-inset-bottom))]">
+        <section
+          className={`relative mx-auto flex max-h-[42dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[2rem] border-t border-white/20 bg-black/60 p-4 shadow-2xl backdrop-blur-2xl sm:max-w-xl ${
+            isFurious
+              ? "shadow-[0_-24px_64px_rgba(255,0,0,0.45),0_0_40px_rgba(255,45,85,0.25)]"
+              : ""
+          }`}
+        >
+          {/* Subtle glowing red aura when [ANGRY] */}
+          <AnimatePresence>
+            {isFurious ? (
+              <motion.div
+                key="chat-rage-aura"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0.55, 1, 0.55] }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+                className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-16 rounded-t-[2rem]"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at 50% 0%, rgba(255,45,85,0.55) 0%, transparent 70%)",
+                  boxShadow: "0 -8px 32px rgba(255,0,0,0.35)",
+                }}
+                aria-hidden
+              />
+            ) : null}
+          </AnimatePresence>
+
+          <div className="relative z-[2] min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <AnimatePresence initial={false}>
-              {messages.map((m) => (
-                <motion.div
-                  key={m.id}
-                  initial={{ opacity: 0, x: m.role === "user" ? 48 : -48, y: 12 }}
-                  animate={{ opacity: 1, x: 0, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  transition={{ type: "spring", stiffness: 420, damping: 28, mass: 0.7 }}
-                  className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={
-                      m.role === "user"
-                        ? "max-w-[85%] rounded-2xl rounded-br-md bg-zinc-800 px-3.5 py-2.5 text-sm leading-relaxed text-zinc-100 shadow-lg shadow-black/30"
-                        : "max-w-[85%] rounded-2xl rounded-bl-md border border-red-500/50 bg-red-500/20 px-3.5 py-2.5 text-sm leading-relaxed text-rose-50 shadow-[0_0_24px_rgba(244,63,94,0.28)]"
-                    }
+              {messages.map((m) => {
+                const displayText =
+                  m.role === "karen" ? stripMoodTags(m.text) || m.text : m.text;
+                return (
+                  <motion.div
+                    key={m.id}
+                    initial={{ opacity: 0, x: m.role === "user" ? 48 : -48, y: 12 }}
+                    animate={{ opacity: 1, x: 0, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 28, mass: 0.7 }}
+                    className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    {m.role === "karen" && m.mood ? (
-                      <span className="mb-1 block text-[10px] font-semibold tracking-wider text-rose-300/90">
-                        [{m.mood}]
-                      </span>
-                    ) : null}
-                    {m.text}
-                  </div>
-                </motion.div>
-              ))}
+                    <div
+                      className={
+                        m.role === "user"
+                          ? "max-w-[82%] rounded-[1.15rem] rounded-br-md bg-[#ff2d55] px-3.5 py-2.5 text-[15px] leading-snug text-white shadow-[0_0_20px_rgba(255,45,85,0.35)]"
+                          : "max-w-[82%] rounded-[1.15rem] rounded-bl-md border border-rose-500/40 bg-zinc-900/90 px-3.5 py-2.5 text-[15px] leading-snug text-rose-50 shadow-[0_0_24px_rgba(244,63,94,0.22)]"
+                      }
+                    >
+                      {displayText}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
 
-            {typing ? (
-              <motion.div
-                initial={{ opacity: 0, x: -24 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex justify-start"
-              >
-                <div className="rounded-2xl border border-red-500/40 bg-red-500/20 px-3.5 py-2.5 text-sm text-rose-100 backdrop-blur-md">
-                  <span className="inline-flex items-center gap-2 font-medium">
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
+            <AnimatePresence>
+              {typing ? (
+                <motion.div
+                  key="judging"
+                  initial={{ opacity: 0, x: -28, y: 8 }}
+                  animate={{ opacity: 1, x: 0, y: 0 }}
+                  exit={{ opacity: 0, x: -12, scale: 0.96 }}
+                  transition={{ type: "spring", stiffness: 380, damping: 26 }}
+                  className="flex justify-start"
+                  aria-live="polite"
+                >
+                  <div className="rounded-[1.15rem] rounded-bl-md border border-rose-500/45 bg-zinc-900/95 px-3.5 py-2.5 text-sm text-rose-100 shadow-[0_0_20px_rgba(244,63,94,0.2)]">
+                    <span className="inline-flex items-center gap-2.5 font-medium">
+                      <span className="inline-flex items-center gap-1" aria-hidden>
+                        {[0, 1, 2].map((i) => (
+                          <motion.span
+                            key={i}
+                            className="inline-block h-1.5 w-1.5 rounded-full bg-rose-400"
+                            animate={{ opacity: [0.25, 1, 0.25], scale: [0.85, 1.15, 0.85] }}
+                            transition={{
+                              duration: 0.85,
+                              repeat: Infinity,
+                              delay: i * 0.16,
+                              ease: "easeInOut",
+                            }}
+                          />
+                        ))}
+                      </span>
+                      <span className="text-rose-50/95">Karen is judging you...</span>
                     </span>
-                    Sarcasm 10
-                    <motion.span
-                      animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 1.1, repeat: Infinity }}
-                    >
-                      …
-                    </motion.span>
-                  </span>
-                </div>
-              </motion.div>
-            ) : null}
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
 
             <div ref={bottomRef} />
           </div>
 
           {error ? (
-            <p className="border-t border-red-500/25 bg-red-950/50 px-3 py-2 text-xs text-red-300">
+            <p className="relative z-[2] mt-2 rounded-xl border border-red-500/25 bg-red-950/50 px-3 py-2 text-xs text-red-300">
               {error}
             </p>
           ) : null}
 
-          <form
-            onSubmit={onSubmit}
-            className="flex gap-2 border-t border-white/15 bg-black/25 p-3"
-          >
+          <form onSubmit={onSubmit} className="relative z-[2] mt-3 flex gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -559,7 +680,7 @@ export function KarenChatClient({
                     : "Confess the excuse…"
               }
               disabled={typing || listening || paywalled}
-              className="min-w-0 flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm text-white placeholder:text-zinc-400 outline-none ring-rose-500/40 backdrop-blur-md focus:ring-2 disabled:opacity-60"
+              className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 outline-none ring-rose-500/40 backdrop-blur-md focus:ring-2 disabled:opacity-60"
               autoComplete="off"
               maxLength={2000}
             />
@@ -582,19 +703,19 @@ export function KarenChatClient({
               }}
               onPointerCancel={() => stopListening()}
               onContextMenu={(e) => e.preventDefault()}
-              className={`inline-flex shrink-0 touch-none select-none items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold text-white ${
+              className={`inline-flex shrink-0 touch-none select-none items-center gap-1.5 rounded-2xl px-3 py-2.5 text-xs font-semibold text-white ${
                 listening
                   ? "bg-rose-600 shadow-[0_0_24px_rgba(244,63,94,0.7)]"
-                  : "border border-white/20 bg-white/10 backdrop-blur-md"
+                  : "border border-white/10 bg-white/5 backdrop-blur-md"
               } disabled:opacity-40`}
             >
               <Mic className="h-4 w-4" />
-              {listening ? "Listening…" : "Hold"}
+              {listening ? "…" : "Hold"}
             </button>
             <button
               type="submit"
               disabled={typing || listening || paywalled || !input.trim()}
-              className="shrink-0 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(244,63,94,0.35)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="shrink-0 rounded-2xl bg-gradient-to-r from-rose-600 to-pink-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(244,63,94,0.35)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Send
             </button>
@@ -602,9 +723,9 @@ export function KarenChatClient({
         </section>
       </div>
 
-      {/* Bottom nav — glass over avatar */}
+      {/* Bottom nav */}
       <nav
-        className="absolute bottom-0 left-0 right-0 z-40 border-t border-white/15 bg-black/50 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md"
+        className="absolute bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-black/50 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl"
         aria-label="Karen navigation"
       >
         <div className="mx-auto grid max-w-lg grid-cols-3 gap-1 sm:max-w-xl">
@@ -648,6 +769,7 @@ export function KarenChatClient({
           </button>
         </div>
       </nav>
+      </motion.div>
     </motion.div>
   );
 }

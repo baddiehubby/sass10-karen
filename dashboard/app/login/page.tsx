@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/login" },
 };
 
+/** Uses headers()/cookies() via getTenantFromRequest — must not statically prerender. */
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
   const nextAuthUrl = getCanonicalSiteUrl();
   const tenant = getTenantFromRequest();

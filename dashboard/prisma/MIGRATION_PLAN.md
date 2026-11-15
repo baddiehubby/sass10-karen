@@ -1,15 +1,30 @@
 # Buddy Soul Engine — database migration plan
 
-This file is a **plan**. It is not an applied Prisma migration.
+This file is a **plan**. It is not an applied Prisma migration for Soul Engine tables.
 
-Do **not** run `prisma db push`, `prisma migrate dev`, or `prisma migrate deploy` until this plan is reviewed.
+## Karen VIP (ready for production)
 
-## Why migrate deploy cannot be step 0 today
+Additive migration (does **not** recreate the whole schema):
 
-- `dashboard/prisma/migrations/` **does not exist**.
+```bash
+# From dashboard/ with production Neon URL:
+$env:DATABASE_URL="postgresql://…neon…/neondb?sslmode=require"
+npx prisma migrate deploy
+```
+
+Migration folder: `prisma/migrations/20261115120000_add_karen_vip/`
+
+If `_prisma_migrations` history conflicts with a long-lived `db push` database, fall back to:
+
+```bash
+npx prisma db execute --file prisma/proposed-migrations/add_karen_vip_is_premium.sql --schema prisma/schema.prisma
+```
+
+## Why a full-schema migrate deploy was blocked
+
 - Production was evolved with `prisma db push` (see `package.json` script `db:push`).
-- `npx prisma migrate deploy` with an empty migrations folder will not add `User.eidataConsentCompleted`.
 - Making `add_buddy_soul_engine` the **first** migration would emit `CREATE TABLE` for the entire app schema and **fail** on production (tables already exist).
+- Karen VIP migration is **ALTER TABLE only** and is safe to apply first.
 
 ## Production auth issue (separate from Soul Engine)
 

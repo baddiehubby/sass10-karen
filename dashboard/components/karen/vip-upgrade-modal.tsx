@@ -55,7 +55,7 @@ export function VipUpgradeModal({ open, message, onClose }: VipUpgradeModalProps
       aria-modal="true"
       aria-labelledby="karen-vip-title"
     >
-      <div className="w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-6 shadow-[0_0_80px_rgba(244,63,94,0.35)] backdrop-blur-md">
+      <div className="w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-6 shadow-[0_0_80px_rgba(244,63,94,0.4)] backdrop-blur-3xl">
         <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-500/25 text-rose-200 ring-1 ring-rose-400/40">
           <Crown className="h-5 w-5" />
         </div>
@@ -66,7 +66,9 @@ export function VipUpgradeModal({ open, message, onClose }: VipUpgradeModalProps
           {KAREN_VIP_MODAL_TITLE}
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-rose-50/90">
-          {message || KAREN_VIP_UPGRADE_MESSAGE}
+          {message && message !== KAREN_VIP_UPGRADE_MESSAGE
+            ? message
+            : "Unlock Savage Karen for $19/month."}
         </p>
         <ul className="mt-4 space-y-1.5 text-xs text-zinc-300">
           <li>· Unlimited messages</li>
@@ -82,9 +84,9 @@ export function VipUpgradeModal({ open, message, onClose }: VipUpgradeModalProps
             type="button"
             disabled={pending}
             onClick={subscribe}
-            className="rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 px-4 py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-[0_0_28px_rgba(244,63,94,0.45)] disabled:opacity-50"
+            className="rounded-xl bg-gradient-to-r from-[#ff2d55] via-rose-600 to-pink-600 px-4 py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-[0_0_32px_rgba(255,45,85,0.55)] disabled:opacity-50"
           >
-            {pending ? "Opening Lemon Squeezy…" : "Subscribe — $19/mo"}
+            {pending ? "Opening Lemon Squeezy…" : "Unlock Savage Karen — $19/mo"}
           </button>
           <button
             type="button"

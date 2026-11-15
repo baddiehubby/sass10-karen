@@ -1,13 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import { AppSessionProvider } from "@/components/session-provider";
-import { KarenAlarmWatcher } from "@/components/karen/karen-alarm-watcher";
 import { SiteChrome } from "@/components/site-chrome";
 import { Toaster } from "react-hot-toast";
 import { getAppBaseUrl } from "@/lib/site-url";
 import { getWidgetScriptUrl } from "@/lib/widget-cdn";
 import "./globals.css";
+
+/** Capacitor + Karen voice — client-only so SSR/prerender never pulls native/TTS chunks. */
+const KarenAlarmWatcher = dynamic(
+  () =>
+    import("@/components/karen/karen-alarm-watcher").then((m) => m.KarenAlarmWatcher),
+  { ssr: false },
+);
 
 const sans = Inter({
   variable: "--font-geist-sans",

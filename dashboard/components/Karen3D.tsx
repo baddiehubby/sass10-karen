@@ -13,7 +13,13 @@ import {
   speakWithKaren,
   stopKarenSpeech,
 } from "@/lib/karen/voice";
-import { createKarenTalkingHead } from "@/lib/karen/talkinghead-factory";
+import {
+  attachKarenRendererResize,
+  createKarenTalkingHead,
+  KAREN_CAMERA_OPTS,
+  KAREN_CAMERA_VIEW,
+  trackPointerGaze,
+} from "@/lib/karen/talkinghead-factory";
 import {
   subscribeKarenAvatar,
   subscribeKarenSpeaking,
@@ -38,10 +44,7 @@ function applyShoutCamera(head: TalkingHead, angry: boolean) {
         cameraY: 0.08,
       });
     } else {
-      head.setView("upper", {
-        cameraDistance: 0,
-        cameraY: 0,
-      });
+      head.setView(KAREN_CAMERA_VIEW, { ...KAREN_CAMERA_OPTS });
     }
   } catch (err) {
     console.warn("[Karen3D] setView failed", err);
@@ -49,7 +52,8 @@ function applyShoutCamera(head: TalkingHead, angry: boolean) {
 }
 
 /**
- * Karen 3D avatar — vendored TalkingHead + speakAudio lip-sync + Sass-10 shake.
+ * Karen 3D avatar — full-viewport TalkingHead canvas (z-0 layer).
+ * Mounts strictly via useEffect so the canvas exists after client hydration.
  */
 export function Karen3D({ mood, isSpeaking = false, className = "" }: Karen3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,15 +62,22 @@ export function Karen3D({ mood, isSpeaking = false, className = "" }: Karen3DPro
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [audioSpeaking, setAudioSpeaking] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const speaking = isSpeaking || audioSpeaking;
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     const node = containerRef.current;
     if (!node || typeof window === "undefined") return;
 
     let cancelled = false;
     let head: TalkingHead | null = null;
+    let detachResize: (() => void) | null = null;
 
     const onVisibility = () => {
       if (!head) return;
@@ -79,7 +90,7 @@ export function Karen3D({ mood, isSpeaking = false, className = "" }: Karen3DPro
         head = await createKarenTalkingHead({
           container: node,
           mood,
-          cameraView: "upper",
+          cameraView: KAREN_CAMERA_VIEW,
           onProgress: setProgress,
         });
         if (cancelled) {
@@ -89,6 +100,10 @@ export function Karen3D({ mood, isSpeaking = false, className = "" }: Karen3DPro
         headRef.current = head;
         registerKarenTalkingHead(head);
         applyExpressionToTalkingHead(head, normalizeMood(mood), { isSpeaking: false });
+        detachResize = attachKarenRendererResize(head);
+        if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+          (window as unknown as { __karenHead?: TalkingHead }).__karenHead = head;
+        }
         document.addEventListener("visibilitychange", onVisibility);
         setStatus("ready");
       } catch (err) {
@@ -102,6 +117,8 @@ export function Karen3D({ mood, isSpeaking = false, className = "" }: Karen3DPro
 
     return () => {
       cancelled = true;
+      detachResize?.();
+      detachResize = null;
       document.removeEventListener("visibilitychange", onVisibility);
       stopKarenSpeech();
       registerKarenTalkingHead(null);
@@ -114,7 +131,7 @@ export function Karen3D({ mood, isSpeaking = false, className = "" }: Karen3DPro
       if (node) node.replaceChildren();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mounted]);
 
   useEffect(() => {
     return subscribeKarenAvatar((evt) => {
@@ -122,11 +139,9 @@ export function Karen3D({ mood, isSpeaking = false, className = "" }: Karen3DPro
       if (!head || status !== "ready") return;
       const next = normalizeMood(evt.mood) as KarenExpressionMood;
       applyShoutCamera(head, next === "ANGRY" || next === "FURIOUS");
-      applyExpressionToTalkingHead(head, next, {
-        isSpeaking: Boolean(evt.isSpeaking),
-      });
+      // Mood only — mouth is driven by ElevenLabs AudioBuffer via speakAudio.
+      applyExpressionToTalkingHead(head, next, { isSpeaking: false });
       if (evt.lipSync && evt.text) {
-        // text → AudioBuffer → speakAudio (+ sentence chunking for early lip motion)
         void speakWithKaren(evt.text, next, head);
       }
     });
@@ -141,21 +156,61 @@ export function Karen3D({ mood, isSpeaking = false, className = "" }: Karen3DPro
     if (!head || status !== "ready") return;
     const next = normalizeMood(mood);
     applyShoutCamera(head, next === "ANGRY" || next === "FURIOUS");
-    applyExpressionToTalkingHead(head, next, { isSpeaking: speaking });
+    // Never fake jawOpen while speaking — TalkingHead owns lips from real audio.
+    applyExpressionToTalkingHead(head, next, { isSpeaking: false });
   }, [mood, speaking, status]);
 
+  // Soft gaze: Karen tracks the pointer so she looks at the user.
+  useEffect(() => {
+    if (status !== "ready") return;
+    let raf = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let dirty = false;
+
+    const flush = () => {
+      raf = 0;
+      if (!dirty) return;
+      dirty = false;
+      trackPointerGaze(headRef.current, lastX, lastY, 1100);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      lastX = e.clientX;
+      lastY = e.clientY;
+      dirty = true;
+      if (!raf) raf = window.requestAnimationFrame(flush);
+    };
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    try {
+      headRef.current?.lookAtCamera?.(1200);
+    } catch {
+      /* optional */
+    }
+
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [status]);
+
   return (
-    <div className={`relative h-full min-h-0 w-full ${className}`}>
-      {/* Full-bleed TalkingHead canvas (parent is w-screen h-screen) */}
+    <div
+      className={`absolute inset-0 z-0 h-full min-h-[100vh] w-full ${className}`}
+      style={{ minHeight: "100vh" }}
+    >
+      {/* Full-bleed TalkingHead canvas — absolute inset-0 fills the stage */}
       <div
         ref={containerRef}
-        className="absolute inset-0 h-full w-full overflow-hidden [&_canvas]:h-full [&_canvas]:w-full"
+        className="absolute inset-0 z-0 h-full min-h-[100vh] w-full overflow-hidden [&_canvas]:absolute [&_canvas]:inset-0 [&_canvas]:h-full [&_canvas]:w-full [&_canvas]:!max-h-none [&_canvas]:!max-w-none"
+        style={{ minHeight: "100vh" }}
         aria-label="Karen 3D avatar"
       />
 
       {status === "loading" && (
         <div
-          className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950/50"
+          className="pointer-events-none absolute inset-0 z-[1] flex flex-col items-center justify-center gap-3 bg-black/40"
           aria-busy="true"
         >
           <div className="h-36 w-36 animate-pulse rounded-full bg-rose-500/20 ring-2 ring-rose-400/30" />
@@ -166,7 +221,7 @@ export function Karen3D({ mood, isSpeaking = false, className = "" }: Karen3DPro
       )}
 
       {status === "error" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-950/70 px-4 text-center">
+        <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 bg-zinc-950/70 px-4 text-center">
           <p className="text-sm font-semibold text-rose-300">Avatar failed to load</p>
           <p className="max-w-xs text-xs text-zinc-400">{errorMsg}</p>
         </div>

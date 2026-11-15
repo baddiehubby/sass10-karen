@@ -55,7 +55,9 @@ export type TalkingHeadLike = {
   setMood?: (mood: string) => void;
   setBaselineValue?: (mt: string, val: number | null) => void;
   setFixedValue?: (mt: string, val: number | null, ms?: number | null) => void;
-  /** Reserved for the lip-sync / speakAudio pipeline (next prompt). */
+  /** TalkingHead's own Web Audio graph — decode/unlock against this when present. */
+  audioCtx?: AudioContext;
+  lipsync?: Record<string, unknown>;
   speakText?: (
     text: string,
     opt?: Record<string, unknown> | null,
@@ -142,9 +144,13 @@ export function parseMoodTag(text: string | null | undefined): KarenExpressionMo
   return normalizeMood(m[1]);
 }
 
-/** Strip mood tags so TTS / UI show clean copy. */
+/** Strip mood tags so TTS / UI show clean copy (tags still drive expressions via parseMoodTag). */
 export function stripMoodTags(text: string): string {
-  return text.replace(/\[(ANGRY|FURIOUS|SARCASTIC|PROUD|SWEET|ANNOYED)\]/gi, "").replace(/\s{2,}/g, " ").trim();
+  return text
+    .replace(/\[(ANGRY|FURIOUS|SARCASTIC|PROUD|SWEET|ANNOYED)\]/gi, "")
+    .replace(/\[([A-Z]{3,20})\]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 /** Map Karen chat moods → TalkingHead `setMood` names. */
@@ -165,7 +171,8 @@ export function mapChatMoodToTalkingHead(mood: unknown): TalkingHeadMoodName {
 }
 
 /**
- * Speaking jaw oscillation (injectable clock for tests).
+ * @deprecated Fake jaw pulse — unused now that ElevenLabs audio drives lips via speakAudio.
+ * Kept for tests / any legacy callers.
  */
 export function speakingJawOpen(nowMs: number = Date.now()): number {
   return clamp01(0.25 + 0.45 * Math.abs(Math.sin(nowMs / 120)));
@@ -183,12 +190,12 @@ function moodBase(mood: KarenExpressionMood): ArkitBlendshapes {
 
     case "SARCASTIC":
       // Asymmetric smirk + slight head tilt.
-      out.mouthSmileLeft = 0.7;
-      out.mouthSmileRight = 0.12;
-      out.mouthDimpleLeft = 0.4;
-      out.browOuterUpLeft = 0.65;
+      out.mouthSmileLeft = 0.8;
+      out.mouthSmileRight = 0.1;
+      out.mouthDimpleLeft = 0.45;
+      out.browOuterUpLeft = 0.7;
       out.browOuterUpRight = 0.05;
-      out.bodyRotateZ = 0.12;
+      out.bodyRotateZ = 0.14;
       break;
 
     case "ANNOYED":
@@ -204,16 +211,15 @@ function moodBase(mood: KarenExpressionMood): ArkitBlendshapes {
 
     case "ANGRY":
     case "FURIOUS":
-      // High-intensity scream face.
+      // Rage in brows/eyes only — jaw/mouth left free for speakAudio lip-sync.
       out.browDownLeft = 1.0;
       out.browDownRight = 1.0;
-      out.jawOpen = 0.85;
       out.eyeWideLeft = 0.9;
       out.eyeWideRight = 0.9;
       out.noseSneerLeft = 0.45;
       out.noseSneerRight = 0.45;
-      out.mouthFrownLeft = 0.55;
-      out.mouthFrownRight = 0.55;
+      out.mouthFrownLeft = 0.35;
+      out.mouthFrownRight = 0.35;
       break;
 
     case "PROUD":
@@ -235,28 +241,20 @@ function moodBase(mood: KarenExpressionMood): ArkitBlendshapes {
 }
 
 /**
- * Map Karen mood + speaking flag → ARKit blendshape weights (0–1).
+ * Map Karen mood → ARKit blendshape weights (0–1).
+ * `isSpeaking` is ignored: mouth motion comes from TalkingHead.speakAudio + real TTS.
  */
 export function getBlendshapes(
   mood: KarenExpressionMood | string,
-  isSpeaking: boolean,
-  nowMs?: number,
+  _isSpeaking?: boolean,
+  _nowMs?: number,
 ): ArkitBlendshapes {
   const safeMood = normalizeMood(mood);
   const out = moodBase(safeMood);
 
-  if (isSpeaking) {
-    const jaw = speakingJawOpen(nowMs ?? Date.now());
-    // Angry scream keeps a high jaw floor while still pulsing.
-    out.jawOpen =
-      safeMood === "ANGRY" || safeMood === "FURIOUS"
-        ? clamp01(Math.max(out.jawOpen, jaw))
-        : jaw;
-    out.mouthClose = clamp01((1 - out.jawOpen) * 0.12);
-  } else if (safeMood !== "ANGRY" && safeMood !== "FURIOUS") {
-    out.jawOpen = 0;
-    out.mouthClose = 0;
-  }
+  // Never bake a fake jaw into baseline — lipsync owns jawOpen/mouthClose.
+  out.jawOpen = 0;
+  out.mouthClose = 0;
 
   if (safeMood === "ANGRY" || safeMood === "FURIOUS") {
     out.browDownLeft = 1.0;

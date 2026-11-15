@@ -15,6 +15,10 @@ function isImmersiveRoute(pathname: string) {
   return IMMERSIVE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+function isKarenRoute(pathname: string) {
+  return pathname === "/karen" || pathname.startsWith("/karen/");
+}
+
 type SiteChromeProps = {
   children: React.ReactNode;
   widgetScriptUrl: string;
@@ -24,12 +28,18 @@ type SiteChromeProps = {
 export function SiteChrome({ children, widgetScriptUrl, apiBase }: SiteChromeProps) {
   const pathname = usePathname() ?? "/";
   const branding = brandingFromHostname(typeof window !== "undefined" ? window.location.hostname : "");
-  const immersive = isImmersiveRoute(pathname);
+  const karen = isKarenRoute(pathname);
+  const immersive = karen || isImmersiveRoute(pathname);
   const showWidget =
     pathname !== "/" &&
     !pathname.startsWith("/dashboard") &&
-    !pathname.startsWith("/karen") &&
+    !karen &&
     pathname !== "/pwa";
+
+  // Karen VIP owns its own full-screen layout — no Buddie header/footer/widget.
+  if (karen) {
+    return <>{children}</>;
+  }
 
   return (
     <>

@@ -29,12 +29,12 @@ describe("expression-bridge — TalkingHead mood map", () => {
     assert.equal(stripMoodTags("[PROUD] You did it."), "You did it.");
   });
 
-  it("ANGRY sets browDown, jawOpen scream, eyeWide", () => {
+  it("ANGRY sets browDown + eyeWide without locking jaw (lipsync owns mouth)", () => {
     const s = getBlendshapes("ANGRY", false, 0);
     assertAllInRange(s);
     assert.equal(s.browDownLeft, 1);
     assert.equal(s.browDownRight, 1);
-    assert.ok(s.jawOpen >= 0.8);
+    assert.equal(s.jawOpen, 0);
     assert.ok(s.eyeWideLeft >= 0.85);
     assert.ok(s.eyeWideRight >= 0.85);
   });
@@ -42,6 +42,7 @@ describe("expression-bridge — TalkingHead mood map", () => {
   it("SARCASTIC smirk + head tilt", () => {
     const s = getBlendshapes("SARCASTIC", false, 0);
     assertAllInRange(s);
+    assert.equal(s.mouthSmileLeft, 0.8);
     assert.ok(s.mouthSmileLeft > s.mouthSmileRight);
     assert.ok(s.bodyRotateZ > 0);
   });
@@ -68,15 +69,16 @@ describe("expression-bridge — TalkingHead mood map", () => {
     applyExpressionToTalkingHead(head, "ANGRY");
     assert.equal(mood, "angry");
     assert.ok(calls.some(([n, v]) => n === "browDownLeft" && v === 1));
-    assert.ok(calls.some(([n, v]) => n === "jawOpen" && typeof v === "number" && v >= 0.8));
+    assert.ok(calls.some(([n, v]) => n === "jawOpen" && v === 0));
     assert.ok(calls.some(([n]) => n === "eyeWideLeft"));
   });
 
-  it("speaking jaw oscillates", () => {
+  it("isSpeaking no longer fakes jaw (ElevenLabs audio drives mouth)", () => {
     const a = getBlendshapes("SWEET", true, 0);
     const b = getBlendshapes("SWEET", true, 180);
-    assert.notEqual(a.jawOpen, b.jawOpen);
-    assert.ok(speakingJawOpen(0) > 0);
+    assert.equal(a.jawOpen, 0);
+    assert.equal(b.jawOpen, 0);
+    assert.ok(speakingJawOpen(0) > 0); // helper retained for legacy
   });
 
   it("invalid mood falls back safely", () => {

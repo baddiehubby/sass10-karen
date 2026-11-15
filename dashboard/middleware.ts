@@ -65,8 +65,10 @@ function applySecurityHeaders(res: NextResponse, opts?: { document?: boolean }) 
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob: https:",
+        "media-src 'self' blob: data:",
+        "worker-src 'self' blob:",
         "font-src 'self' data:",
-        "connect-src 'self' https://www.buddieai.com https://*.lemonsqueezy.com https://*.sentry.io https://*.ingest.sentry.io",
+        "connect-src 'self' blob: https://www.buddieai.com https://*.lemonsqueezy.com https://*.sentry.io https://*.ingest.sentry.io",
         "frame-src 'self' https://*.lemonsqueezy.com",
         "frame-ancestors 'none'",
         "base-uri 'self'",
@@ -255,6 +257,15 @@ export async function middleware(req: NextRequest) {
       applySecurityHeaders(res, { document: true });
       return stamp(res);
     }
+  }
+
+  // Karen VIP is a standalone full-screen experience — never force to
+  // dashboard/home. Auth for chat/TTS is enforced inside API routes.
+  if (pathname === "/karen" || pathname.startsWith("/karen/")) {
+    const res = nextWithTenant(req, requestId);
+    applySecurityHeaders(res, { document: true });
+    res.headers.set("Cache-Control", "private, no-store");
+    return stamp(res);
   }
 
   if (pathname === "/debiopwr" || pathname.startsWith("/debiopwr/")) {

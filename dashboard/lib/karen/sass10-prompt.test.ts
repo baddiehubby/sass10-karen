@@ -11,12 +11,13 @@ describe("Karen prompts — Sweet free vs Sarcasm 10 VIP", () => {
   it("free prompt is sweet / low sarcasm", () => {
     const p = karenSystemPrompt(false);
     assert.match(p, /sweet|demo|low sarcasm/i);
-    assert.doesNotMatch(p, /Level 10 Sarcasm/);
+    assert.doesNotMatch(p, /Level 10 Sass/);
   });
 
-  it("premium prompt is Sarcasm 10", () => {
+  it("premium prompt is Sass 10", () => {
     const p = karenSystemPrompt(true);
-    assert.match(p, /Level 10 Sarcasm/);
+    assert.match(p, /Level 10 Sass/);
+    assert.match(p, /DO NOT apologize/i);
   });
 
   it("free parses SWEET and collapses SARCASTIC", () => {

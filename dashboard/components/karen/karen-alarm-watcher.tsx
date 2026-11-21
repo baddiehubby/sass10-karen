@@ -1,52 +1,105 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+/**
+ * Root-layout alarm poller + full-screen dismissal modal.
+ *
+ * Web: every 10s, compare local clock to localStorage alarm time.
+ * Native Android: `@capacitor/local-notifications` fires even when the app is
+ * closed → listener / pending session flag opens this challenge with looping
+ * Kokoro WAV + 3D Karen (no snooze — yell I'M AWAKE or solve math).
+ */
+
+import { useCallback, useEffect, useState } from "react";
+
+import { KarenAlarmDismissal } from "@/components/karen/karen-alarm-dismissal";
 import {
   KAREN_ALARM_LAST_FIRED_KEY,
   KAREN_ALARM_WAKE_LINE,
+  KAREN_WAKE_QUERY,
+  consumeKarenAlarmPendingWake,
   currentLocalHHmm,
+  karenAlarmFireStamp,
+  readKarenAlarmEnabled,
+  readKarenAlarmRage,
   readKarenAlarmTime,
+  type KarenAlarmRage,
 } from "@/lib/karen/alarm-storage";
+import {
+  MORNING_ROAST_LINE,
+  markMorningRoastPendingSpeech,
+} from "@/lib/karen/morning-roast";
 import {
   attachKarenNativeAlarmListener,
   KAREN_WAKE_SPEECH,
 } from "@/lib/karen/native-alarm";
-import { speakWithKaren, stopKarenSpeech, unlockKarenAudio } from "@/lib/karen/voice";
+import { stopKarenSpeech, unlockKarenAudio } from "@/lib/karen/voice";
 
-/**
- * Mounted in root layout.
- * - Web: checks every minute against localStorage alarm time.
- * - Native Capacitor: local-notification fire/tap → speakWithKaren("WAKE UP!").
- */
+/** Poll cadence — catch the alarm minute quickly without burning battery. */
+const ALARM_POLL_MS = 10_000;
+
 export function KarenAlarmWatcher() {
   const [open, setOpen] = useState(false);
-  const speakingRef = useRef(false);
+  const [line, setLine] = useState(KAREN_ALARM_WAKE_LINE);
+  const [rage, setRage] = useState<KarenAlarmRage>("furious");
 
-  function fireAlarm() {
-    setOpen(true);
-    if (speakingRef.current) return;
-    speakingRef.current = true;
-    void (async () => {
-      await unlockKarenAudio();
-      // Exact wake line for native notification tap / delivery.
-      await speakWithKaren(KAREN_WAKE_SPEECH, "ANGRY");
-    })();
-  }
+  const fireAlarm = useCallback(
+    (opts?: { morningRoast?: boolean; wakeSpeech?: string; rage?: KarenAlarmRage }) => {
+      const morning = Boolean(opts?.morningRoast);
+      setLine(
+        opts?.wakeSpeech?.trim() ||
+          (morning ? MORNING_ROAST_LINE : KAREN_ALARM_WAKE_LINE),
+      );
+      setRage(opts?.rage ?? readKarenAlarmRage());
+      setOpen(true);
+      if (morning) markMorningRoastPendingSpeech();
+      void unlockKarenAudio();
+    },
+    [],
+  );
 
+  // Cold start / deep-link: pending Capacitor wake or ?karenWake=1
+  useEffect(() => {
+    const pending = consumeKarenAlarmPendingWake();
+    if (pending) {
+      fireAlarm({
+        morningRoast: pending.morningRoast,
+        wakeSpeech: pending.wakeSpeech,
+        rage: pending.rage,
+      });
+      return;
+    }
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get(KAREN_WAKE_QUERY) === "1") {
+        params.delete(KAREN_WAKE_QUERY);
+        const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", next || window.location.pathname);
+        fireAlarm({
+          wakeSpeech: KAREN_WAKE_SPEECH,
+          rage: readKarenAlarmRage(),
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [fireAlarm]);
+
+  // In-app poll — every 10 seconds (tab / WebView must be alive).
   useEffect(() => {
     const tick = () => {
+      if (!readKarenAlarmEnabled()) return;
       const alarm = readKarenAlarmTime();
       if (!alarm) return;
       const now = currentLocalHHmm();
       if (now !== alarm) return;
 
+      const stamp = karenAlarmFireStamp(now);
       let lastFired: string | null = null;
       try {
         lastFired = window.localStorage.getItem(KAREN_ALARM_LAST_FIRED_KEY);
       } catch {
         /* ignore */
       }
-      const stamp = `${new Date().toDateString()} ${now}`;
       if (lastFired === stamp) return;
 
       try {
@@ -55,23 +108,31 @@ export function KarenAlarmWatcher() {
         /* ignore */
       }
 
-      fireAlarm();
+      fireAlarm({
+        morningRoast: false,
+        wakeSpeech: KAREN_ALARM_WAKE_LINE,
+        rage: readKarenAlarmRage(),
+      });
     };
 
     tick();
-    const id = window.setInterval(tick, 60_000);
-    return () => {
-      window.clearInterval(id);
-    };
-  }, []);
+    const id = window.setInterval(tick, ALARM_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [fireAlarm]);
 
+  // Capacitor: notification delivered / tapped while app closed → same modal.
   useEffect(() => {
     let handle: { remove: () => Promise<void> } | null = null;
     let cancelled = false;
 
     void (async () => {
-      const h = await attachKarenNativeAlarmListener(() => {
-        if (!cancelled) fireAlarm();
+      const h = await attachKarenNativeAlarmListener((payload) => {
+        if (cancelled) return;
+        fireAlarm({
+          morningRoast: payload.morningRoast,
+          wakeSpeech: payload.wakeSpeech,
+          rage: readKarenAlarmRage(),
+        });
       });
       if (cancelled) {
         await h?.remove();
@@ -84,44 +145,19 @@ export function KarenAlarmWatcher() {
       cancelled = true;
       void handle?.remove();
     };
+  }, [fireAlarm]);
+
+  const onDismissed = useCallback(() => {
+    stopKarenSpeech();
+    setOpen(false);
   }, []);
 
-  function dismiss() {
-    stopKarenSpeech();
-    speakingRef.current = false;
-    setOpen(false);
-  }
-
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 p-6"
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="karen-alarm-title"
-    >
-      <div className="w-full max-w-md rounded-3xl border border-rose-500/40 bg-gradient-to-b from-rose-950 to-black p-8 text-center shadow-[0_0_80px_rgba(244,63,94,0.45)]">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-rose-400">
-          Karen alarm
-        </p>
-        <h2
-          id="karen-alarm-title"
-          className="mt-4 text-3xl font-black uppercase leading-tight tracking-tight text-white sm:text-4xl"
-        >
-          Wake up!
-        </h2>
-        <p className="mt-4 text-base font-medium leading-relaxed text-rose-100/90">
-          {KAREN_ALARM_WAKE_LINE}
-        </p>
-        <button
-          type="button"
-          onClick={dismiss}
-          className="mt-8 w-full rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white"
-        >
-          I&apos;m up — shut up
-        </button>
-      </div>
-    </div>
+    <KarenAlarmDismissal
+      open={open}
+      rage={rage}
+      line={line}
+      onDismissed={onDismissed}
+    />
   );
 }

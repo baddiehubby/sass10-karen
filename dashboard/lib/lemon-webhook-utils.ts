@@ -22,6 +22,15 @@ export function asString(input: unknown): string {
 }
 
 /**
+ * Lemon Squeezy sends numeric ids (variant_id, product_id, customer_id, …) as JSON
+ * NUMBERS, not strings. `asString` drops those, so use this for any Lemon id.
+ */
+export function asIdString(input: unknown): string {
+  if (typeof input === "number") return Number.isSafeInteger(input) ? String(input) : "";
+  return asString(input);
+}
+
+/**
  * Resolve paid plan from Lemon variant id only.
  * Custom metadata tier is advisory and must never upgrade above the variant.
  */

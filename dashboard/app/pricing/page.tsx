@@ -50,20 +50,6 @@ function PricingContent() {
           body: JSON.stringify({ tier, trial: false }),
         });
         const data = (await res.json()) as { url?: string; error?: string };
-        // #region agent log
-        fetch("http://127.0.0.1:7611/ingest/87ee683e-41c7-4485-9b1b-9c00188d4aac", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f590a1" },
-          body: JSON.stringify({
-            sessionId: "f590a1",
-            hypothesisId: "E",
-            location: "pricing/page.tsx:checkout",
-            message: "checkout API response",
-            data: { tier, ok: res.ok, status: res.status, hasUrl: Boolean(data.url), error: data.error ?? null },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         if (!res.ok || !data.url) {
           setError(data.error || "Could not start Lemon Squeezy checkout");
           return;

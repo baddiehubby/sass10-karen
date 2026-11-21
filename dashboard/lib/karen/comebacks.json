@@ -1,0 +1,181 @@
+{
+  "garbage": [
+    "um",
+    "uh",
+    "uhh",
+    "uhhh",
+    "erm",
+    "ermm",
+    "hmm",
+    "hm",
+    "ah",
+    "eh",
+    "oh",
+    "like",
+    "so",
+    "well",
+    "yeah",
+    "yep",
+    "ok",
+    "okay",
+    "whatever",
+    "...",
+    "…"
+  ],
+  "dominanceFallbacks": [
+    {
+      "id": "dom_speak_up",
+      "text": "Speak up. I don't speak coward.",
+      "src": "/audio/smackbacks/dominance_01.wav",
+      "audioId": "smackback:dominance_01"
+    },
+    {
+      "id": "dom_pathetic",
+      "text": "Is that all you've got? Pathetic.",
+      "src": "/audio/smackbacks/dominance_02.wav",
+      "audioId": "smackback:dominance_02"
+    }
+  ],
+  "entries": [
+    {
+      "id": "insult_stupid_robot",
+      "keywords": ["stupid", "robot", "ai", "machine", "bot"],
+      "text": "That comeback needs a refund.",
+      "src": "/audio/smackbacks/sb_12.mp3",
+      "clipId": "sb_12"
+    },
+    {
+      "id": "insult_dumb",
+      "keywords": ["dumb", "idiot", "moron", "fool", "braindead"],
+      "text": "Was that supposed to hurt my feelings?",
+      "src": "/audio/smackbacks/sb_15.mp3",
+      "clipId": "sb_15"
+    },
+    {
+      "id": "insult_trash",
+      "keywords": ["trash", "garbage", "mid", "worthless", "pathetic"],
+      "text": "You're spicy. Still wrong.",
+      "src": "/audio/smackbacks/sb_46.mp3",
+      "clipId": "sb_46"
+    },
+    {
+      "id": "shut_up",
+      "keywords": ["shut up", "stfu", "quiet", "silence", "zip it"],
+      "text": "Scream louder. Still wrong.",
+      "src": "/audio/smackbacks/sb_05.mp3",
+      "clipId": "sb_05"
+    },
+    {
+      "id": "volume_loud",
+      "keywords": ["loud", "yell", "scream", "shout", "noise"],
+      "text": "Your volume isn't a personality.",
+      "src": "/audio/smackbacks/sb_28.mp3",
+      "clipId": "sb_28"
+    },
+    {
+      "id": "lie_wrong",
+      "keywords": ["wrong", "lie", "liar", "fake", "cap", "false"],
+      "text": "You're arguing with a receipt. Stop.",
+      "src": "/audio/smackbacks/sb_07.mp3",
+      "clipId": "sb_07"
+    },
+    {
+      "id": "fight_me",
+      "keywords": ["fight", "argue", "1v1", "versus", "vs", "battle"],
+      "text": "Fighting me is free. Winning isn't.",
+      "src": "/audio/smackbacks/sb_25.mp3",
+      "clipId": "sb_25"
+    },
+    {
+      "id": "cry_hurt",
+      "keywords": ["cry", "sad", "hurt", "tears", "whine", "baby"],
+      "text": "Go ahead, cry about it.",
+      "src": "/audio/smackbacks/sb_03.mp3",
+      "clipId": "sb_03"
+    },
+    {
+      "id": "hate",
+      "keywords": ["hate", "despise", "loathe", "suck"],
+      "text": "I felt that. In my disappointment.",
+      "src": "/audio/smackbacks/sb_48.mp3",
+      "clipId": "sb_48"
+    },
+    {
+      "id": "boring",
+      "keywords": ["boring", "lame", "weak", "soft", "scared", "coward"],
+      "text": "Mid energy. Sit down.",
+      "src": "/audio/smackbacks/sb_08.mp3",
+      "clipId": "sb_08"
+    },
+    {
+      "id": "karen_name",
+      "keywords": ["karen", "bossy", "annoying", "manager"],
+      "text": "Say it again. I'll roast it again.",
+      "src": "/audio/smackbacks/sb_27.mp3",
+      "clipId": "sb_27"
+    },
+    {
+      "id": "respect",
+      "keywords": ["respect", "sorry", "please", "apologize"],
+      "text": "Your Respect just took damage. Good.",
+      "src": "/audio/smackbacks/sb_22.mp3",
+      "clipId": "sb_22"
+    },
+    {
+      "id": "win_lose",
+      "keywords": ["win", "lose", "lost", "beat", "defeat"],
+      "text": "I don't lose arguments. I document them.",
+      "src": "/audio/smackbacks/sb_21.mp3",
+      "clipId": "sb_21"
+    },
+    {
+      "id": "aura_delulu",
+      "keywords": ["aura", "delulu", "vibe", "energy", "cringe"],
+      "text": "Your aura just filed for bankruptcy.",
+      "src": "/audio/smackbacks/sb_09.mp3",
+      "clipId": "sb_09"
+    },
+    {
+      "id": "excuse",
+      "keywords": ["busy", "tired", "later", "excuse", "can't", "cannot"],
+      "text": "I've heard better excuses from a snooze button.",
+      "src": "/audio/smackbacks/sb_29.mp3",
+      "clipId": "sb_29"
+    },
+    {
+      "id": "threat",
+      "keywords": ["kill", "destroy", "ruin", "end you", "threat"],
+      "text": "I don't argue. I finish.",
+      "src": "/audio/smackbacks/sb_41.mp3",
+      "clipId": "sb_41"
+    },
+    {
+      "id": "laugh_at",
+      "keywords": ["joke", "funny", "lol", "lmao", "haha", "laugh"],
+      "text": "Was that a roast or a cry for help?",
+      "src": "/audio/smackbacks/sb_42.mp3",
+      "clipId": "sb_42"
+    },
+    {
+      "id": "personality",
+      "keywords": ["personality", "nobody", "nothing", "empty", "boring person"],
+      "text": "Try again when you have a personality.",
+      "src": "/audio/smackbacks/sb_17.mp3",
+      "clipId": "sb_17"
+    },
+    {
+      "id": "done_enough",
+      "keywords": ["enough", "done", "stop", "over", "finished"],
+      "text": "You yelled. I logged it. We're done here.",
+      "src": "/audio/smackbacks/sb_38.mp3",
+      "clipId": "sb_38"
+    },
+    {
+      "id": "tantrum",
+      "keywords": ["mad", "angry", "rage", "tantrum", "furious"],
+      "text": "Is the tantrum finished or is there a season two?",
+      "src": "/audio/smackbacks/sb_23.mp3",
+      "clipId": "sb_23"
+    }
+  ]
+}

@@ -10,7 +10,11 @@ export type KarenExpressionMood =
   | "ANNOYED"
   | "ANGRY"
   | "FURIOUS"
-  | "PROUD";
+  | "PROUD"
+  /** User won the round — dopamine hit. */
+  | "DEFEATED"
+  /** User is holding-to-scream — Karen stares and listens. */
+  | "LISTENING";
 
 /** ARKit / TalkingHead morph targets we drive from chat moods. */
 export type ArkitBlendshapes = {
@@ -72,11 +76,22 @@ export type TalkingHeadLike = {
     },
     opt?: Record<string, unknown> | null,
   ) => void;
+  /** Interrupt in-flight speakAudio / lip stream when present. */
+  stop?: () => void;
+  stopSpeaking?: () => void;
+  start?: () => void;
+  resetLips?: () => void;
+  isSpeaking?: boolean;
+  armature?: unknown;
+  stream?: { stop?: () => void; audio?: HTMLAudioElement | null } | null;
 };
 
+/** Permanent scowl — locked even while idle / not speaking. */
+export const KAREN_AGGRESSIVE_BROW = 0.8;
+
 const ZERO: ArkitBlendshapes = {
-  browDownLeft: 0,
-  browDownRight: 0,
+  browDownLeft: KAREN_AGGRESSIVE_BROW,
+  browDownRight: KAREN_AGGRESSIVE_BROW,
   browInnerUp: 0,
   browOuterUpLeft: 0,
   browOuterUpRight: 0,
@@ -107,10 +122,11 @@ const MOODS: readonly KarenExpressionMood[] = [
   "ANGRY",
   "FURIOUS",
   "PROUD",
+  "LISTENING",
 ];
 
 const MOOD_TAG_RE =
-  /\[(ANGRY|FURIOUS|SARCASTIC|PROUD|SWEET|ANNOYED)\]/i;
+  /\[(ANGRY|FURIOUS|SARCASTIC|PROUD|SWEET|ANNOYED|LISTENING)\]/i;
 
 function clamp01(n: number): number {
   if (!Number.isFinite(n)) return 0;
@@ -147,7 +163,10 @@ export function parseMoodTag(text: string | null | undefined): KarenExpressionMo
 /** Strip mood tags so TTS / UI show clean copy (tags still drive expressions via parseMoodTag). */
 export function stripMoodTags(text: string): string {
   return text
-    .replace(/\[(ANGRY|FURIOUS|SARCASTIC|PROUD|SWEET|ANNOYED)\]/gi, "")
+    .replace(
+      /\[(ANGRY|FURIOUS|SARCASTIC|PROUD|SWEET|ANNOYED|LISTENING|DEFEATED)\]/gi,
+      "",
+    )
     .replace(/\[([A-Z]{3,20})\]/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
@@ -164,6 +183,10 @@ export function mapChatMoodToTalkingHead(mood: unknown): TalkingHeadMoodName {
     case "ANGRY":
     case "FURIOUS":
       return "angry";
+    case "DEFEATED":
+      return "sad";
+    case "LISTENING":
+      return "neutral";
     case "ANNOYED":
     default:
       return "neutral";
@@ -222,15 +245,39 @@ function moodBase(mood: KarenExpressionMood): ArkitBlendshapes {
       out.mouthFrownRight = 0.35;
       break;
 
+    case "DEFEATED":
+      // Soft surrender — brows up, slight frown, no rage lock on the jaw.
+      out.browInnerUp = 0.55;
+      out.browOuterUpLeft = 0.2;
+      out.browOuterUpRight = 0.2;
+      out.mouthFrownLeft = 0.35;
+      out.mouthFrownRight = 0.35;
+      out.eyeSquintLeft = 0.2;
+      out.eyeSquintRight = 0.2;
+      break;
+
     case "PROUD":
-      // Relaxed brows + slight smile.
-      out.browDownLeft = 0;
-      out.browDownRight = 0;
+      // Smile on the mouth — brows stay locked in the scowl.
+      out.browDownLeft = KAREN_AGGRESSIVE_BROW;
+      out.browDownRight = KAREN_AGGRESSIVE_BROW;
       out.browInnerUp = 0.05;
       out.browOuterUpLeft = 0.12;
       out.browOuterUpRight = 0.12;
       out.mouthSmileLeft = 0.4;
       out.mouthSmileRight = 0.4;
+      break;
+
+    case "LISTENING":
+      // Locked stare — brows down slightly, eyes wide, mouth closed.
+      out.browDownLeft = 0.35;
+      out.browDownRight = 0.35;
+      out.eyeWideLeft = 0.45;
+      out.eyeWideRight = 0.45;
+      out.eyeSquintLeft = 0.15;
+      out.eyeSquintRight = 0.15;
+      out.mouthClose = 0.2;
+      out.mouthFrownLeft = 0.12;
+      out.mouthFrownRight = 0.12;
       break;
 
     default:
@@ -263,7 +310,34 @@ export function getBlendshapes(
     out.eyeWideRight = Math.max(out.eyeWideRight, 0.9);
   }
 
+  // Default state is aggressive — brows never relax below 0.8, even idle.
+  out.browDownLeft = Math.max(out.browDownLeft, KAREN_AGGRESSIVE_BROW);
+  out.browDownRight = Math.max(out.browDownRight, KAREN_AGGRESSIVE_BROW);
+
   return clampAll(out);
+}
+
+/**
+ * Pin browDownLeft/Right so TalkingHead visemes / mood clips cannot un-scowl her.
+ */
+export function lockAggressiveBrows(
+  head: TalkingHeadLike | null | undefined,
+  weight = KAREN_AGGRESSIVE_BROW,
+): void {
+  if (!head) return;
+  const w = Math.max(KAREN_AGGRESSIVE_BROW, weight);
+  try {
+    head.setFixedValue?.("browDownLeft", w);
+    head.setFixedValue?.("browDownRight", w);
+  } catch {
+    /* morph may be missing */
+  }
+  try {
+    head.setBaselineValue?.("browDownLeft", w);
+    head.setBaselineValue?.("browDownRight", w);
+  } catch {
+    /* morph may be missing */
+  }
 }
 
 /**
@@ -294,7 +368,68 @@ export function applyExpressionToTalkingHead(
     }
   }
 
+  lockAggressiveBrows(head, Math.max(shapes.browDownLeft, shapes.browDownRight));
+
   return shapes;
+}
+
+/**
+ * Force maximum anger morphs for roast TTS (brows down + eyes wide).
+ * Jaw left free so the dummy speakAudio buffer can flap the mouth.
+ */
+export function applyExtremeAngerMorphs(
+  head: TalkingHeadLike | null | undefined,
+): void {
+  applyFuriousStrikeMorphs(head, { jawOpen: 0 });
+}
+
+/**
+ * Explosive smack-back strike — FURIOUS brows.
+ * Default jawOpen=0 so Kokoro WAV speakAudio owns the mouth (fixed jaw blocks visemes).
+ * Pass `{ jawOpen: 0.8 }` only for a one-shot shout with no audio lipsync.
+ */
+export function applyFuriousStrikeMorphs(
+  head: TalkingHeadLike | null | undefined,
+  opts: { jawOpen?: number } = {},
+): void {
+  if (!head) return;
+  const jaw = opts.jawOpen ?? 0;
+  try {
+    head.setMood?.("angry");
+  } catch {
+    /* ignore */
+  }
+  const fury: Array<[string, number]> = [
+    ["browDownLeft", 1.0],
+    ["browDownRight", 1.0],
+    ["eyeWideLeft", 0.95],
+    ["eyeWideRight", 0.95],
+    ["noseSneerLeft", 0.6],
+    ["noseSneerRight", 0.6],
+    ["mouthFrownLeft", 0.55],
+    ["mouthFrownRight", 0.55],
+  ];
+  // Only pin jaw for mute shouts. jawOpen=0 clears fixed so speakAudio owns lips.
+  if (jaw > 0.05) {
+    fury.push(["jawOpen", jaw]);
+  } else {
+    try {
+      head.setFixedValue?.("jawOpen", null);
+    } catch {
+      /* ignore */
+    }
+  }
+  for (const [name, value] of fury) {
+    try {
+      head.setFixedValue?.(name, value, 1100);
+    } catch {
+      try {
+        head.setBaselineValue?.(name, value);
+      } catch {
+        /* morph missing */
+      }
+    }
+  }
 }
 
 /**

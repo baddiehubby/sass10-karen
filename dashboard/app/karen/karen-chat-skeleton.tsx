@@ -4,7 +4,7 @@
 export function KarenChatSkeleton() {
   return (
     <div
-      className="relative h-[100dvh] w-screen overflow-hidden bg-black text-white"
+      className="relative karen-vh w-screen overflow-hidden bg-black text-white"
       aria-busy="true"
       aria-label="Loading Karen"
     >

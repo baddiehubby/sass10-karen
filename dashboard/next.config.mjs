@@ -38,7 +38,7 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
   // Vendored TalkingHead (Desktop/GLB/TalkingHead-main) — transpile for App Router.
-  transpilePackages: ["@met4citizen/talkinghead"],
+  transpilePackages: ["@met4citizen/talkinghead", "@pixiv/three-vrm"],
   webpack: (config) => {
     // Ensure .mjs lipsync / retargeter modules resolve from the vendored package.
     config.module.rules.push({

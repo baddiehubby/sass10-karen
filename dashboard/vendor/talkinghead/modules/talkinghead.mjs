@@ -837,8 +837,17 @@ class TalkingHead {
       this.scene = this.opt.avatarOnlyScene;
       this.camera = this.opt.avatarOnlyCamera;
     } else {
-      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      this.renderer.setPixelRatio( this.opt.modelPixelRatio * window.devicePixelRatio );
+      this.renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance",
+      });
+      // Mobile Retina can be 3× — clamp for 60fps (Karen SaaS override).
+      const dpr = Math.min(
+        (this.opt.modelPixelRatio || 1) * (window.devicePixelRatio || 1),
+        1.5,
+      );
+      this.renderer.setPixelRatio(dpr);
       this.renderer.setSize(this.nodeAvatar.clientWidth, this.nodeAvatar.clientHeight);
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1241,7 +1250,39 @@ class TalkingHead {
     // Register Meshopt decoder
     loader.setMeshoptDecoder(MeshoptDecoder);
 
+    // Native-ish VRM path — GLTFLoader + @pixiv/three-vrm plugin
+    const isVrm = String(avatar.url || '').toLowerCase().endsWith('.vrm');
+    if ( isVrm ) {
+      try {
+        const { VRMLoaderPlugin } = await import('@pixiv/three-vrm');
+        loader.register( (parser) => new VRMLoaderPlugin(parser) );
+      } catch (err) {
+        console.warn('[TalkingHead] @pixiv/three-vrm missing — VRM load may fail', err);
+      }
+    }
+
     let gltf = await loader.loadAsync( avatar.url, onprogress );
+
+    // Expose VRM instance for yaw / expression helpers
+    if ( isVrm && gltf.userData && gltf.userData.vrm ) {
+      this.vrm = gltf.userData.vrm;
+    }
+
+    /**
+     * Convenience alias used by Karen factory: head.loadVRM(url)
+     * (same pipeline as showAvatar for .vrm assets)
+     */
+    if ( typeof this.loadVRM !== 'function' ) {
+      this.loadVRM = async (url, progressCb = null) => {
+        return this.showAvatar({
+          ...(this.avatar || {}),
+          url,
+          body: (this.avatar && this.avatar.body) || 'F',
+          lipsyncLang: (this.avatar && this.avatar.lipsyncLang) || 'en',
+          avatarMute: true,
+        }, progressCb);
+      };
+    }
 
     // Pre-process glTF callback
     if ( onpreprocess && typeof onpreprocess === "function" ) {
@@ -1255,12 +1296,16 @@ class TalkingHead {
       }
     });
 
-    // Check the gltf
+    // Check the gltf (VRM humanoid bones differ — warn, don't hard-fail)
     const required = [];
     this.posePropNames.forEach( x => required.push( x.split('.')[0] ) );
     required.forEach( x => {
       if ( !gltf.scene.getObjectByName(x) ) {
-        throw new Error('Avatar object ' + x + ' not found');
+        if ( isVrm ) {
+          console.warn('[TalkingHead] VRM missing Mixamo bone "' + x + '" — continuing');
+        } else {
+          throw new Error('Avatar object ' + x + ' not found');
+        }
       }
     });
 
@@ -1317,7 +1362,11 @@ class TalkingHead {
       x.frustumCulled = false;
     });
     if ( this.morphs.length === 0 ) {
-      throw new Error('Blend shapes not found');
+      if ( isVrm ) {
+        console.warn('[TalkingHead] VRM has no morph targets — lipsync/expressions limited');
+      } else {
+        throw new Error('Blend shapes not found');
+      }
     }
 
     // Morph target keys and values
@@ -1380,6 +1429,25 @@ class TalkingHead {
     this.posePropNames.forEach( x => {
       const ids = x.split('.');
       const o = this.armature.getObjectByName(ids[0]);
+      if ( !o || o[ids[1]] === undefined ) {
+        if ( isVrm ) {
+          // Dummy Quaternion/Vector3 so animate() doesn't NPE on missing Mixamo bones
+          const dummy = ids[1] === 'position'
+            ? new THREE.Vector3()
+            : new THREE.Quaternion();
+          this.poseAvatar.props[x] = dummy;
+          if ( !this.poseBase.props.hasOwnProperty(x) ) {
+            this.poseBase.props[x] = dummy.clone();
+          }
+          if ( !this.poseTarget.props.hasOwnProperty(x) ) {
+            this.poseTarget.props[x] = dummy.clone();
+          }
+          this.poseTarget.props[x].t = this.animClock;
+          this.poseTarget.props[x].d = 2000;
+          return;
+        }
+        throw new Error('Avatar pose object ' + x + ' not found');
+      }
       this.poseAvatar.props[x] = o[ids[1]];
       if ( this.poseBase.props.hasOwnProperty(x) ) {
         this.poseAvatar.props[x].copy( this.poseBase.props[x] );
@@ -1397,12 +1465,37 @@ class TalkingHead {
       this.poseTarget.props[x].d = 2000;
     });
 
-    // Reset IK bone positions
+    // Reset IK bone positions (skip missing bones — common on VRM)
     this.ikMesh.traverse( x => {
       if (x.isBone) {
-        x.position.copy( this.armature.getObjectByName(x.name).position );
+        const src = this.armature.getObjectByName(x.name);
+        if ( src ) x.position.copy( src.position );
       }
     });
+
+    // Map VRM humanoid → Mixamo-ish names so later look-ups resolve
+    if ( isVrm && this.vrm && this.vrm.humanoid ) {
+      try {
+        const map = {
+          hips: 'Hips', spine: 'Spine', chest: 'Spine1', upperChest: 'Spine2',
+          neck: 'Neck', head: 'Head',
+          leftUpperArm: 'LeftArm', leftLowerArm: 'LeftForeArm', leftHand: 'LeftHand',
+          rightUpperArm: 'RightArm', rightLowerArm: 'RightForeArm', rightHand: 'RightHand',
+          leftUpperLeg: 'LeftUpLeg', leftLowerLeg: 'LeftLeg', leftFoot: 'LeftFoot', leftToes: 'LeftToeBase',
+          rightUpperLeg: 'RightUpLeg', rightLowerLeg: 'RightLeg', rightFoot: 'RightFoot', rightToes: 'RightToeBase',
+          leftEye: 'LeftEye', rightEye: 'RightEye',
+        };
+        for ( const [vrmName, mixamo] of Object.entries(map) ) {
+          const node = this.vrm.humanoid.getNormalizedBoneNode(vrmName)
+            || this.vrm.humanoid.getRawBoneNode?.(vrmName);
+          if ( node && !this.armature.getObjectByName(mixamo) ) {
+            node.name = mixamo;
+          }
+        }
+      } catch (err) {
+        console.warn('[TalkingHead] VRM humanoid bone alias failed', err);
+      }
+    }
 
     if ( this.isAvatarOnly ) {
       if ( this.scene ) {
@@ -1416,7 +1509,8 @@ class TalkingHead {
       this.scene.add( this.lightAmbient );
       this.scene.add( this.lightDirect );
       this.scene.add( this.lightSpot );
-      this.lightSpot.target = this.armature.getObjectByName('Head');
+      const headBone = this.armature.getObjectByName('Head');
+      if ( headBone ) this.lightSpot.target = headBone;
     }
 
     // Setup Dynamic Bones
@@ -1440,10 +1534,17 @@ class TalkingHead {
     this.objectHead = this.armature.getObjectByName('Head');
     this.objectNeck = this.armature.getObjectByName('Neck');
 
-    // Estimate avatar height based on eye level
+    // Estimate avatar height based on eye level (VRM fallback ≈ 1.6m)
     const plEye = new THREE.Vector3();
-    this.objectLeftEye.getWorldPosition(plEye);
-    this.avatarHeight = plEye.y + 0.2;
+    if ( this.objectLeftEye ) {
+      this.objectLeftEye.getWorldPosition(plEye);
+      this.avatarHeight = plEye.y + 0.2;
+    } else if ( this.objectHead ) {
+      this.objectHead.getWorldPosition(plEye);
+      this.avatarHeight = plEye.y + 0.15;
+    } else {
+      this.avatarHeight = isVrm ? 1.6 : 1.7;
+    }
 
     // Skeleton helper, FOR TESTING ONLY
     if ( this.avatar.skeletonHelper ) {
@@ -2416,6 +2517,11 @@ class TalkingHead {
     }
     dt = dt / this.animSlowdownRate;
     this.animClock += dt;
+
+    // Keep VRM spring bones / lookAt / expression manager alive
+    if ( this.vrm && typeof this.vrm.update === 'function' ) {
+      try { this.vrm.update( dt / 1000 ); } catch ( _e ) { /* ignore */ }
+    }
 
     let i,j,l,k,vol=0;
 

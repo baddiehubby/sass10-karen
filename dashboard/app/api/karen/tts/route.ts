@@ -63,7 +63,16 @@ async function synthesizeOpenAI(text: string, mood?: string): Promise<Response |
     },
     body: JSON.stringify({
       model: process.env.KAREN_TTS_MODEL || "tts-1",
-      voice: process.env.KAREN_TTS_VOICE || "nova",
+      // Force female OpenAI voices only (nova/shimmer/alloy — never echo/onyx/fable).
+      voice: (() => {
+        const raw = (process.env.KAREN_TTS_VOICE || "nova").toLowerCase();
+        const female = new Set(["nova", "shimmer", "alloy", "coral", "sage"]);
+        if (!female.has(raw)) {
+          console.warn("[karen/tts] non-female OpenAI voice — forcing nova", raw);
+          return "nova";
+        }
+        return raw;
+      })(),
       input: text,
       speed: speedForMood(mood),
       response_format: "mp3",

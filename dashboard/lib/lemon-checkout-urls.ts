@@ -48,3 +48,27 @@ export function getLemonCheckoutRedirectUrls(tier: PaidCheckoutTier): LemonCheck
   const receiptUrl = assertCanonicalCheckoutUrl(`${base}/dashboard/settings`, base);
   return { successUrl, cancelUrl, receiptUrl };
 }
+
+/**
+ * Redirect URLs for Karen VIP ($19/mo) subscription checkout.
+ * Success lands on the Accountability dashboard.
+ */
+export function getKarenVipCheckoutUrls(): LemonCheckoutRedirectUrls {
+  const base =
+    process.env.NODE_ENV === "production" ? PRODUCTION_SITE_URL : getAppBaseUrl();
+  const successUrl = assertCanonicalCheckoutUrl(
+    `${base}/karen/dashboard?karen=vip`,
+    base,
+  );
+  const cancelUrl = assertCanonicalCheckoutUrl(
+    `${base}/karen/result?checkout=cancelled`,
+    base,
+  );
+  const receiptUrl = assertCanonicalCheckoutUrl(`${base}/karen/dashboard`, base);
+  return { successUrl, cancelUrl, receiptUrl };
+}
+
+/** @deprecated Alias — VIP is a subscription, not a one-time unlock. */
+export function getKarenUnlockCheckoutUrls(): LemonCheckoutRedirectUrls {
+  return getKarenVipCheckoutUrls();
+}

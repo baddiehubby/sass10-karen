@@ -54,20 +54,6 @@ export function ConsentModal({ blocking = true }: ConsentModalProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ consents, complete: true }),
       });
-      // #region agent log
-      fetch("http://127.0.0.1:7611/ingest/87ee683e-41c7-4485-9b1b-9c00188d4aac", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f590a1" },
-        body: JSON.stringify({
-          sessionId: "f590a1",
-          hypothesisId: "A",
-          location: "ConsentModal.tsx:consent-post",
-          message: "consent API response",
-          data: { ok: res.ok, status: res.status, mode },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       if (!res.ok) {
         toast.error("Could not save your choices");
         return;
@@ -91,27 +77,6 @@ export function ConsentModal({ blocking = true }: ConsentModalProps) {
       const onboardingDone = Boolean(
         (updated?.user as { onboardingCompleted?: boolean } | undefined)?.onboardingCompleted,
       );
-      // #region agent log
-      fetch("http://127.0.0.1:7611/ingest/87ee683e-41c7-4485-9b1b-9c00188d4aac", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f590a1" },
-        body: JSON.stringify({
-          sessionId: "f590a1",
-          hypothesisId: "C",
-          location: "ConsentModal.tsx:session-update",
-          message: "session update after consent",
-          data: {
-            hasSession: Boolean(updated),
-            eidataConsentCompleted: Boolean(
-              (updated?.user as { eidataConsentCompleted?: boolean } | undefined)?.eidataConsentCompleted,
-            ),
-            onboardingCompleted: onboardingDone,
-            nextRoute: onboardingDone ? "/dashboard" : "/onboarding",
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       router.push(onboardingDone ? "/dashboard" : "/onboarding");
       router.refresh();
     } finally {

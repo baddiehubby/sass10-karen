@@ -30,6 +30,8 @@ model User {
   karenChatDay String?
   /// Lemon customer portal URL from Karen VIP subscription webhooks.
   karenCustomerPortalUrl String?
+  /// Karen Accountability Loop JSON mirror of localStorage (`{ day, goals, checkInCompletedDay }`).
+  karenAccountabilityJson String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 

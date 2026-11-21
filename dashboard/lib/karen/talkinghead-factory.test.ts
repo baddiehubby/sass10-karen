@@ -2,10 +2,32 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  KAREN_CAMERA_LOOK_UP,
+  KAREN_HEMI_INTENSITY,
+  KAREN_KEY_INTENSITY,
   KAREN_MAX_PIXEL_RATIO,
+  KAREN_PORTRAIT_CAM,
+  KAREN_RIM_INTENSITY,
+  KAREN_TONE_EXPOSURE,
   karenClampedPixelRatio,
   karenModelPixelRatioOption,
 } from "./talkinghead-factory";
+
+describe("talkinghead-factory — interrogation lighting", () => {
+  it("uses soft key + red rim with crushed ACES exposure (no ghost wash)", () => {
+    assert.equal(KAREN_KEY_INTENSITY, 0.5);
+    assert.equal(KAREN_HEMI_INTENSITY, 0);
+    assert.equal(KAREN_RIM_INTENSITY, 2.0);
+    assert.equal(KAREN_TONE_EXPOSURE, 0.8);
+  });
+
+  it("places the camera below the look-at for a dominant angle", () => {
+    assert.equal(KAREN_PORTRAIT_CAM.position.y, 1.3);
+    assert.equal(KAREN_PORTRAIT_CAM.lookAt.y, 1.5);
+    assert.ok(KAREN_PORTRAIT_CAM.position.y < KAREN_PORTRAIT_CAM.lookAt.y);
+    assert.equal(KAREN_CAMERA_LOOK_UP, 0.2);
+  });
+});
 
 describe("talkinghead-factory — pixel ratio clamp", () => {
   it("clamps DPR to max 1.5", () => {

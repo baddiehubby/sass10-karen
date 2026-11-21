@@ -16,7 +16,10 @@ export function SiteHeader() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/40 backdrop-blur-xl">
+    <header
+      data-site-header=""
+      className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/40 backdrop-blur-xl"
+    >
       <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="text-sm font-semibold tracking-[0.2em] text-indigo-200">
           {brandName}

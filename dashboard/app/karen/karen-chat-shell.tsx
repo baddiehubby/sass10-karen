@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { KarenChatSkeleton } from "./karen-chat-skeleton";
 
@@ -24,10 +25,12 @@ export function KarenChatShell({
   isSignedIn = false,
 }: KarenChatShellProps) {
   return (
-    <KarenChatClient
-      initialIsPremium={initialIsPremium}
-      initialChatCount={initialChatCount}
-      isSignedIn={isSignedIn}
-    />
+    <Suspense fallback={<KarenChatSkeleton />}>
+      <KarenChatClient
+        initialIsPremium={initialIsPremium}
+        initialChatCount={initialChatCount}
+        isSignedIn={isSignedIn}
+      />
+    </Suspense>
   );
 }

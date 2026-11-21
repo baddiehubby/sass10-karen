@@ -1,0 +1,2376 @@
+{
+  "version": 2,
+  "basePath": "/audio",
+  "notes": "Scalable Kokoro routing. keywords \u2192 WAV arrays. categories: smackbacks|interrupts|mute|gaslight|rage|tiktok_viral. Re-roll avoids last 10 played (localStorage).",
+  "categories": {
+    "smackbacks": [
+      "smackbacks/sb_01.wav",
+      "smackbacks/sb_02.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_04.wav",
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_07.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_10.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_13.wav",
+      "smackbacks/sb_14.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_19.wav",
+      "smackbacks/sb_20.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_23.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_26.wav",
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_28.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_30.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_32.wav",
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_34.wav",
+      "smackbacks/sb_35.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_37.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_39.wav",
+      "smackbacks/sb_40.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_47.wav",
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_49.wav",
+      "smackbacks/sb_50.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav",
+      "smackbacks/angry_04.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav",
+      "smackbacks/angry_07.wav",
+      "smackbacks/angry_08.wav",
+      "smackbacks/angry_09.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "interrupts": [
+      {
+        "id": "shut_up",
+        "file": "smackbacks/volume_interrupt.wav",
+        "text": "SHUT UP!"
+      },
+      {
+        "id": "dont_care",
+        "file": "smackbacks/sb_11.wav",
+        "text": "I DON'T CARE"
+      },
+      {
+        "id": "all_day",
+        "file": "smackbacks/sb_11.wav",
+        "text": "I don't have all day!"
+      },
+      {
+        "id": "spit",
+        "file": "smackbacks/sb_17.wav",
+        "text": "Spit it out!"
+      },
+      {
+        "id": "coward",
+        "file": "smackbacks/dominance_01.wav",
+        "text": "Coward."
+      },
+      {
+        "id": "noise",
+        "file": "smackbacks/sb_28.wav",
+        "text": "Your volume isn't a personality."
+      },
+      {
+        "id": "yelling",
+        "file": "smackbacks/sb_05.wav",
+        "text": "Scream louder. Still wrong."
+      },
+      {
+        "id": "buffering",
+        "file": "smackbacks/sb_13.wav",
+        "text": "You're not intimidating. You're buffering."
+      },
+      {
+        "id": "done_talk",
+        "file": "smackbacks/done_listening.wav",
+        "text": "I'm done listening. Go do laundry."
+      },
+      {
+        "id": "angry_cut",
+        "file": "smackbacks/angry_01.wav",
+        "text": "Enough. Mic off."
+      },
+      {
+        "id": "angry_cut_2",
+        "file": "smackbacks/angry_05.wav",
+        "text": "I cut you off. Deal with it."
+      },
+      {
+        "id": "volume",
+        "file": "smackbacks/volume_interrupt.wav",
+        "text": "DON'T YOU DARE RAISE YOUR VOICE AT ME!"
+      }
+    ],
+    "mute": [
+      {
+        "id": "default",
+        "file": "mute/mute.wav",
+        "text": "Watch your mouth. Mic's off until you apologize."
+      }
+    ],
+    "gaslight": [
+      {
+        "id": "gaslight_01",
+        "file": "smackbacks/dominance_02.wav",
+        "text": "I literally cannot hear you over the sound of your own failure."
+      },
+      {
+        "id": "gaslight_02",
+        "file": "smackbacks/sb_11.wav",
+        "text": "Are you still talking? I zoned out."
+      },
+      {
+        "id": "gaslight_03",
+        "file": "smackbacks/sb_15.wav",
+        "text": "Was that supposed to hurt my feelings?"
+      },
+      {
+        "id": "gaslight_04",
+        "file": "smackbacks/sb_08.wav",
+        "text": "Mid energy. Sit down."
+      },
+      {
+        "id": "gaslight_05",
+        "file": "smackbacks/angry_03.wav",
+        "text": "Cute theory. Still wrong."
+      }
+    ],
+    "rage": [
+      {
+        "id": "rage_01",
+        "file": "smackbacks/volume_interrupt.wav",
+        "text": "AAAAHHH \u2014 DON'T YOU DARE RAISE YOUR VOICE AT ME!"
+      },
+      {
+        "id": "rage_02",
+        "file": "smackbacks/sb_11.wav",
+        "text": "I DON'T HAVE ALL DAY FOR YOUR NOISE!"
+      },
+      {
+        "id": "rage_03",
+        "file": "smackbacks/dominance_02.wav",
+        "text": "SHUT UP. I'M SCREAMING NOW."
+      },
+      {
+        "id": "rage_angry_1",
+        "file": "smackbacks/angry_01.wav",
+        "text": "AAAAHHH!"
+      },
+      {
+        "id": "rage_angry_2",
+        "file": "smackbacks/angry_02.wav",
+        "text": "AAAAHHH!"
+      },
+      {
+        "id": "rage_angry_3",
+        "file": "smackbacks/angry_03.wav",
+        "text": "AAAAHHH!"
+      },
+      {
+        "id": "rage_angry_4",
+        "file": "smackbacks/angry_04.wav",
+        "text": "AAAAHHH!"
+      },
+      {
+        "id": "rage_angry_5",
+        "file": "smackbacks/angry_05.wav",
+        "text": "AAAAHHH!"
+      },
+      {
+        "id": "rage_angry_6",
+        "file": "smackbacks/angry_06.wav",
+        "text": "AAAAHHH!"
+      },
+      {
+        "id": "rage_angry_7",
+        "file": "smackbacks/angry_07.wav",
+        "text": "AAAAHHH!"
+      },
+      {
+        "id": "rage_angry_8",
+        "file": "smackbacks/angry_08.wav",
+        "text": "AAAAHHH!"
+      },
+      {
+        "id": "rage_angry_9",
+        "file": "smackbacks/angry_09.wav",
+        "text": "AAAAHHH!"
+      },
+      {
+        "id": "rage_angry_10",
+        "file": "smackbacks/angry_10.wav",
+        "text": "AAAAHHH!"
+      }
+    ],
+    "tiktok_viral": [
+      {
+        "id": "viral_01",
+        "file": "smackbacks/sb_33.wav",
+        "text": "You're main-character delulu with side-quest lungs."
+      },
+      {
+        "id": "viral_02",
+        "file": "smackbacks/sb_24.wav",
+        "text": "You opened your mouth and donated aura."
+      },
+      {
+        "id": "viral_03",
+        "file": "smackbacks/sb_09.wav",
+        "text": "Your aura just filed for bankruptcy."
+      },
+      {
+        "id": "viral_04",
+        "file": "smackbacks/sb_42.wav",
+        "text": "Was that a roast or a cry for help?"
+      },
+      {
+        "id": "viral_05",
+        "file": "smackbacks/sb_16.wav",
+        "text": "You sound like a notification that won't dismiss."
+      },
+      {
+        "id": "viral_06",
+        "file": "smackbacks/sb_30.wav",
+        "text": "You're not cooking. You're burning."
+      },
+      {
+        "id": "viral_07",
+        "file": "smackbacks/sb_49.wav",
+        "text": "Congratulations. You unlocked more judgment."
+      },
+      {
+        "id": "viral_08",
+        "file": "smackbacks/angry_08.wav",
+        "text": "For the algorithm: you lost."
+      }
+    ],
+    "brutal": [
+      "smackbacks/brutal_01.wav",
+      "smackbacks/brutal_02.wav",
+      "smackbacks/brutal_03.wav"
+    ]
+  },
+  "keywords": {
+    "stupid": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "dumb": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "idiot": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "moron": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "fool": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "braindead": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "dense": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "clueless": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "airhead": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "nincompoop": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "dimwit": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "doofus": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "nitwit": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "simpleton": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "blockhead": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "robot": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "ai": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "machine": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "bot": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "algorithm": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "chatgpt": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "llm": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "software": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "program": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "npc": [
+      "smackbacks/sb_12.wav",
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_17.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav"
+    ],
+    "trash": [
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/sb_30.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/angry_09.wav"
+    ],
+    "garbage": [
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/sb_30.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/angry_09.wav"
+    ],
+    "mid": [
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/sb_30.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/angry_09.wav"
+    ],
+    "worthless": [
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/sb_30.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/angry_09.wav"
+    ],
+    "pathetic": [
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/sb_30.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/angry_09.wav"
+    ],
+    "useless": [
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/sb_30.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/angry_09.wav"
+    ],
+    "garbage tier": [
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/sb_30.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/angry_09.wav"
+    ],
+    "bottom": [
+      "smackbacks/sb_46.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/sb_30.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/angry_09.wav"
+    ],
+    "scrap": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "shut up": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "stfu": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "quiet": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "silence": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "zip it": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "be quiet": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "pipe down": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "hush": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "mute yourself": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "loud": [
+      "smackbacks/sb_28.wav",
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_19.wav",
+      "smackbacks/sb_04.wav",
+      "smackbacks/sb_14.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_04.wav"
+    ],
+    "yell": [
+      "smackbacks/sb_28.wav",
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_19.wav",
+      "smackbacks/sb_04.wav",
+      "smackbacks/sb_14.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_04.wav"
+    ],
+    "scream": [
+      "smackbacks/sb_28.wav",
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_19.wav",
+      "smackbacks/sb_04.wav",
+      "smackbacks/sb_14.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_04.wav"
+    ],
+    "shout": [
+      "smackbacks/sb_28.wav",
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_19.wav",
+      "smackbacks/sb_04.wav",
+      "smackbacks/sb_14.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_04.wav"
+    ],
+    "noise": [
+      "smackbacks/sb_28.wav",
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_19.wav",
+      "smackbacks/sb_04.wav",
+      "smackbacks/sb_14.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_04.wav"
+    ],
+    "yelling": [
+      "smackbacks/sb_28.wav",
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_19.wav",
+      "smackbacks/sb_04.wav",
+      "smackbacks/sb_14.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_04.wav"
+    ],
+    "screaming": [
+      "smackbacks/sb_28.wav",
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_19.wav",
+      "smackbacks/sb_04.wav",
+      "smackbacks/sb_14.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_04.wav"
+    ],
+    "volume": [
+      "smackbacks/sb_28.wav",
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_19.wav",
+      "smackbacks/sb_04.wav",
+      "smackbacks/sb_14.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_04.wav"
+    ],
+    "bellow": [
+      "smackbacks/sb_28.wav",
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_19.wav",
+      "smackbacks/sb_04.wav",
+      "smackbacks/sb_14.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_04.wav"
+    ],
+    "wrong": [
+      "smackbacks/sb_07.wav",
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_35.wav",
+      "smackbacks/sb_39.wav",
+      "smackbacks/angry_08.wav"
+    ],
+    "lie": [
+      "smackbacks/sb_07.wav",
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_35.wav",
+      "smackbacks/sb_39.wav",
+      "smackbacks/angry_08.wav"
+    ],
+    "liar": [
+      "smackbacks/sb_07.wav",
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_35.wav",
+      "smackbacks/sb_39.wav",
+      "smackbacks/angry_08.wav"
+    ],
+    "fake": [
+      "smackbacks/sb_07.wav",
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_35.wav",
+      "smackbacks/sb_39.wav",
+      "smackbacks/angry_08.wav"
+    ],
+    "cap": [
+      "smackbacks/sb_07.wav",
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_35.wav",
+      "smackbacks/sb_39.wav",
+      "smackbacks/angry_08.wav"
+    ],
+    "false": [
+      "smackbacks/sb_07.wav",
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_35.wav",
+      "smackbacks/sb_39.wav",
+      "smackbacks/angry_08.wav"
+    ],
+    "untrue": [
+      "smackbacks/sb_07.wav",
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_35.wav",
+      "smackbacks/sb_39.wav",
+      "smackbacks/angry_08.wav"
+    ],
+    "bs": [
+      "smackbacks/sb_07.wav",
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_35.wav",
+      "smackbacks/sb_39.wav",
+      "smackbacks/angry_08.wav"
+    ],
+    "fib": [
+      "smackbacks/sb_07.wav",
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_35.wav",
+      "smackbacks/sb_39.wav",
+      "smackbacks/angry_08.wav"
+    ],
+    "fight": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "argue": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "1v1": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "versus": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "vs": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "battle": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "duel": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "brawl": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "war": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "cry": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "sad": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "hurt": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "tears": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "whine": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "baby": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "sob": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "weep": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "sensitive": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "hate": [
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_47.wav",
+      "smackbacks/sb_34.wav",
+      "smackbacks/sb_50.wav"
+    ],
+    "despise": [
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_47.wav",
+      "smackbacks/sb_34.wav",
+      "smackbacks/sb_50.wav"
+    ],
+    "loathe": [
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_47.wav",
+      "smackbacks/sb_34.wav",
+      "smackbacks/sb_50.wav"
+    ],
+    "suck": [
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_47.wav",
+      "smackbacks/sb_34.wav",
+      "smackbacks/sb_50.wav"
+    ],
+    "sucks": [
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_47.wav",
+      "smackbacks/sb_34.wav",
+      "smackbacks/sb_50.wav"
+    ],
+    "annoying af": [
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_47.wav",
+      "smackbacks/sb_34.wav",
+      "smackbacks/sb_50.wav"
+    ],
+    "boring": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "lame": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "weak": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "soft": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "scared": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "coward": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "chicken": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "wimp": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "timid": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "spineless": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "afraid": [
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/dominance_01.wav",
+      "smackbacks/angry_07.wav"
+    ],
+    "karen": [
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_23.wav",
+      "smackbacks/sb_48.wav"
+    ],
+    "manager": [
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_23.wav",
+      "smackbacks/sb_48.wav"
+    ],
+    "bossy": [
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_23.wav",
+      "smackbacks/sb_48.wav"
+    ],
+    "annoying": [
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_23.wav",
+      "smackbacks/sb_48.wav"
+    ],
+    "entitled": [
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_23.wav",
+      "smackbacks/sb_48.wav"
+    ],
+    "boss": [
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_23.wav",
+      "smackbacks/sb_48.wav"
+    ],
+    "respect": [
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_01.wav"
+    ],
+    "sorry": [
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_01.wav"
+    ],
+    "please": [
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_01.wav"
+    ],
+    "apologize": [
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_01.wav"
+    ],
+    "apology": [
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_01.wav"
+    ],
+    "forgive": [
+      "smackbacks/sb_22.wav",
+      "smackbacks/sb_44.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_01.wav"
+    ],
+    "win": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_49.wav"
+    ],
+    "lose": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_49.wav"
+    ],
+    "lost": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_49.wav"
+    ],
+    "beat": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_49.wav"
+    ],
+    "defeat": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_49.wav"
+    ],
+    "winner": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_49.wav"
+    ],
+    "loser": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_49.wav"
+    ],
+    "owned": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_49.wav"
+    ],
+    "rekt": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_49.wav"
+    ],
+    "aura": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_16.wav"
+    ],
+    "delulu": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_16.wav"
+    ],
+    "vibe": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_16.wav"
+    ],
+    "energy": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_16.wav"
+    ],
+    "cringe": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_16.wav"
+    ],
+    "rizz": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_16.wav"
+    ],
+    "sigma": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_16.wav"
+    ],
+    "main character": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_16.wav"
+    ],
+    "busy": [
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_40.wav"
+    ],
+    "tired": [
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_40.wav"
+    ],
+    "later": [
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_40.wav"
+    ],
+    "excuse": [
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_40.wav"
+    ],
+    "can't": [
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_40.wav"
+    ],
+    "cannot": [
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_40.wav"
+    ],
+    "excuses": [
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_40.wav"
+    ],
+    "lazy": [
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_40.wav"
+    ],
+    "procrastinate": [
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_40.wav"
+    ],
+    "skip": [
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav",
+      "smackbacks/sb_18.wav",
+      "smackbacks/sb_40.wav"
+    ],
+    "kill": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "destroy": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "ruin": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "end you": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "threat": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "obliterate": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "crush": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "demolish": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "joke": [
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_01.wav",
+      "smackbacks/sb_02.wav",
+      "smackbacks/sb_26.wav"
+    ],
+    "funny": [
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_01.wav",
+      "smackbacks/sb_02.wav",
+      "smackbacks/sb_26.wav"
+    ],
+    "lol": [
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_01.wav",
+      "smackbacks/sb_02.wav",
+      "smackbacks/sb_26.wav"
+    ],
+    "lmao": [
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_01.wav",
+      "smackbacks/sb_02.wav",
+      "smackbacks/sb_26.wav"
+    ],
+    "haha": [
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_01.wav",
+      "smackbacks/sb_02.wav",
+      "smackbacks/sb_26.wav"
+    ],
+    "laugh": [
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_01.wav",
+      "smackbacks/sb_02.wav",
+      "smackbacks/sb_26.wav"
+    ],
+    "hilarious": [
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_01.wav",
+      "smackbacks/sb_02.wav",
+      "smackbacks/sb_26.wav"
+    ],
+    "comedy": [
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_01.wav",
+      "smackbacks/sb_02.wav",
+      "smackbacks/sb_26.wav"
+    ],
+    "joking": [
+      "smackbacks/sb_42.wav",
+      "smackbacks/sb_01.wav",
+      "smackbacks/sb_02.wav",
+      "smackbacks/sb_26.wav"
+    ],
+    "personality": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_09.wav"
+    ],
+    "nobody": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_09.wav"
+    ],
+    "nothing": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_09.wav"
+    ],
+    "empty": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_09.wav"
+    ],
+    "boring person": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_09.wav"
+    ],
+    "basic": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_09.wav"
+    ],
+    "bland": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_09.wav"
+    ],
+    "enough": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "done": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "stop": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "over": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "finished": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "quit": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "bye": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "leave": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "mad": [
+      "smackbacks/sb_23.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav",
+      "smackbacks/angry_04.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/sb_47.wav"
+    ],
+    "angry": [
+      "smackbacks/sb_23.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav",
+      "smackbacks/angry_04.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/sb_47.wav"
+    ],
+    "rage": [
+      "smackbacks/sb_23.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav",
+      "smackbacks/angry_04.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/sb_47.wav"
+    ],
+    "tantrum": [
+      "smackbacks/sb_23.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav",
+      "smackbacks/angry_04.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/sb_47.wav"
+    ],
+    "furious": [
+      "smackbacks/sb_23.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav",
+      "smackbacks/angry_04.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/sb_47.wav"
+    ],
+    "pissed": [
+      "smackbacks/sb_23.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav",
+      "smackbacks/angry_04.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/sb_47.wav"
+    ],
+    "heated": [
+      "smackbacks/sb_23.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav",
+      "smackbacks/angry_04.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/sb_47.wav"
+    ],
+    "fuming": [
+      "smackbacks/sb_23.wav",
+      "smackbacks/angry_01.wav",
+      "smackbacks/angry_02.wav",
+      "smackbacks/angry_03.wav",
+      "smackbacks/angry_04.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/sb_47.wav"
+    ],
+    "im the boss": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/angry_02.wav"
+    ],
+    "i am the boss": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/angry_02.wav"
+    ],
+    "in charge": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/angry_02.wav"
+    ],
+    "my house": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/angry_02.wav"
+    ],
+    "my rules": [
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_27.wav",
+      "smackbacks/sb_25.wav",
+      "smackbacks/angry_02.wav"
+    ],
+    "money": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/dominance_02.wav"
+    ],
+    "salary": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/dominance_02.wav"
+    ],
+    "pay": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/dominance_02.wav"
+    ],
+    "rich": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/dominance_02.wav"
+    ],
+    "broke": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/dominance_02.wav"
+    ],
+    "poor": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/dominance_02.wav"
+    ],
+    "bills": [
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_45.wav",
+      "smackbacks/dominance_02.wav"
+    ],
+    "gym": [
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_40.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_30.wav"
+    ],
+    "workout": [
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_40.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_30.wav"
+    ],
+    "legs": [
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_40.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_30.wav"
+    ],
+    "cardio": [
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_40.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_30.wav"
+    ],
+    "protein": [
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_40.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_30.wav"
+    ],
+    "gains": [
+      "smackbacks/sb_31.wav",
+      "smackbacks/sb_40.wav",
+      "smackbacks/sb_08.wav",
+      "smackbacks/sb_30.wav"
+    ],
+    "tiktok": [
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_42.wav"
+    ],
+    "viral": [
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_42.wav"
+    ],
+    "famous": [
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_42.wav"
+    ],
+    "influencer": [
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_42.wav"
+    ],
+    "follower": [
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_42.wav"
+    ],
+    "likes": [
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_42.wav"
+    ],
+    "views": [
+      "smackbacks/sb_33.wav",
+      "smackbacks/sb_24.wav",
+      "smackbacks/sb_09.wav",
+      "smackbacks/sb_16.wav",
+      "smackbacks/sb_42.wav"
+    ],
+    "love": [
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_44.wav"
+    ],
+    "like you": [
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_44.wav"
+    ],
+    "friend": [
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_44.wav"
+    ],
+    "nice": [
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_44.wav"
+    ],
+    "kind": [
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_44.wav"
+    ],
+    "sweet": [
+      "smackbacks/sb_15.wav",
+      "smackbacks/sb_48.wav",
+      "smackbacks/sb_03.wav",
+      "smackbacks/sb_44.wav"
+    ],
+    "help": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav"
+    ],
+    "please help": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav"
+    ],
+    "confused": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav"
+    ],
+    "how do i": [
+      "smackbacks/sb_17.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_29.wav",
+      "smackbacks/sb_06.wav"
+    ],
+    "wait": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "hold on": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "one sec": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "hang on": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "second": [
+      "smackbacks/sb_05.wav",
+      "smackbacks/sb_38.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/volume_interrupt.wav",
+      "smackbacks/angry_10.wav"
+    ],
+    "whatever": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "idc": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "dont care": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "don't care": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "meh": [
+      "smackbacks/sb_38.wav",
+      "smackbacks/done_listening.wav",
+      "smackbacks/sb_11.wav",
+      "smackbacks/sb_20.wav"
+    ],
+    "try me": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "come at me": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "bring it": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "lets go": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ],
+    "let's go": [
+      "smackbacks/sb_25.wav",
+      "smackbacks/sb_21.wav",
+      "smackbacks/sb_41.wav",
+      "smackbacks/sb_36.wav",
+      "smackbacks/sb_43.wav",
+      "smackbacks/angry_05.wav",
+      "smackbacks/angry_06.wav"
+    ]
+  },
+  "clips": {
+    "sb_01": {
+      "file": "smackbacks/sb_01.wav",
+      "text": "Is that all you've got?",
+      "readyFallback": "smackbacks/sb_01.wav",
+      "alias": "smack_01.mp3"
+    },
+    "sb_02": {
+      "file": "smackbacks/sb_02.wav",
+      "text": "You call that an argument?",
+      "readyFallback": "smackbacks/sb_02.wav",
+      "alias": "smack_02.mp3"
+    },
+    "sb_03": {
+      "file": "smackbacks/sb_03.wav",
+      "text": "Go ahead, cry about it.",
+      "readyFallback": "smackbacks/sb_03.wav",
+      "alias": "smack_03.mp3"
+    },
+    "sb_04": {
+      "file": "smackbacks/sb_04.wav",
+      "text": "Cute volume. Zero substance.",
+      "readyFallback": "smackbacks/sb_04.wav",
+      "alias": "smack_04.mp3"
+    },
+    "sb_05": {
+      "file": "smackbacks/sb_05.wav",
+      "text": "Scream louder. Still wrong.",
+      "readyFallback": "smackbacks/sb_05.wav",
+      "alias": "smack_05.mp3"
+    },
+    "sb_06": {
+      "file": "smackbacks/sb_06.wav",
+      "text": "That was a participation trophy with lungs.",
+      "readyFallback": "smackbacks/sb_06.wav",
+      "alias": "smack_06.mp3"
+    },
+    "sb_07": {
+      "file": "smackbacks/sb_07.wav",
+      "text": "You're arguing with a receipt. Stop.",
+      "readyFallback": "smackbacks/sb_07.wav",
+      "alias": "smack_07.mp3"
+    },
+    "sb_08": {
+      "file": "smackbacks/sb_08.wav",
+      "text": "Mid energy. Sit down.",
+      "readyFallback": "smackbacks/sb_08.wav",
+      "alias": "smack_08.mp3"
+    },
+    "sb_09": {
+      "file": "smackbacks/sb_09.wav",
+      "text": "Your aura just filed for bankruptcy.",
+      "readyFallback": "smackbacks/sb_09.wav",
+      "alias": "smack_09.mp3"
+    },
+    "sb_10": {
+      "file": "smackbacks/sb_10.wav",
+      "text": "Bold of you to use your outdoor voice indoors.",
+      "readyFallback": "smackbacks/sb_10.wav",
+      "alias": "smack_10.mp3"
+    },
+    "sb_11": {
+      "file": "smackbacks/sb_11.wav",
+      "text": "I heard you. Unimpressed. Next.",
+      "readyFallback": "smackbacks/sb_11.wav",
+      "alias": "smack_11.mp3"
+    },
+    "sb_12": {
+      "file": "smackbacks/sb_12.wav",
+      "text": "That comeback needs a refund.",
+      "readyFallback": "smackbacks/sb_12.wav",
+      "alias": "smack_12.mp3"
+    },
+    "sb_13": {
+      "file": "smackbacks/sb_13.wav",
+      "text": "You're not intimidating. You're buffering.",
+      "readyFallback": "smackbacks/sb_13.wav",
+      "alias": "smack_13.mp3"
+    },
+    "sb_14": {
+      "file": "smackbacks/sb_14.wav",
+      "text": "Keep yelling. My Respect meter loves it.",
+      "readyFallback": "smackbacks/sb_14.wav",
+      "alias": "smack_14.mp3"
+    },
+    "sb_15": {
+      "file": "smackbacks/sb_15.wav",
+      "text": "Was that supposed to hurt my feelings?",
+      "readyFallback": "smackbacks/sb_15.wav",
+      "alias": "smack_15.mp3"
+    },
+    "sb_16": {
+      "file": "smackbacks/sb_16.wav",
+      "text": "You sound like a notification that won't dismiss.",
+      "readyFallback": "smackbacks/sb_16.wav",
+      "alias": "smack_16.mp3"
+    },
+    "sb_17": {
+      "file": "smackbacks/sb_17.wav",
+      "text": "Try again when you have a personality.",
+      "readyFallback": "smackbacks/sb_17.wav",
+      "alias": "smack_17.mp3"
+    },
+    "sb_18": {
+      "file": "smackbacks/sb_18.wav",
+      "text": "That sentence was unpaid overtime for my ears.",
+      "readyFallback": "smackbacks/sb_18.wav",
+      "alias": "smack_18.mp3"
+    },
+    "sb_19": {
+      "file": "smackbacks/sb_19.wav",
+      "text": "You're loud. Not correct. Different skill.",
+      "readyFallback": "smackbacks/sb_19.wav",
+      "alias": "smack_19.mp3"
+    },
+    "sb_20": {
+      "file": "smackbacks/sb_20.wav",
+      "text": "Save the theatrics for your group chat.",
+      "readyFallback": "smackbacks/sb_20.wav",
+      "alias": "smack_20.mp3"
+    },
+    "sb_21": {
+      "file": "smackbacks/sb_21.wav",
+      "text": "I don't lose arguments. I document them.",
+      "readyFallback": "smackbacks/sb_21.wav",
+      "alias": "smack_21.mp3"
+    },
+    "sb_22": {
+      "file": "smackbacks/sb_22.wav",
+      "text": "Your Respect just took damage. Good.",
+      "readyFallback": "smackbacks/sb_22.wav",
+      "alias": "smack_22.mp3"
+    },
+    "sb_23": {
+      "file": "smackbacks/sb_23.wav",
+      "text": "Is the tantrum finished or is there a season two?",
+      "readyFallback": "smackbacks/sb_23.wav",
+      "alias": "smack_23.mp3"
+    },
+    "sb_24": {
+      "file": "smackbacks/sb_24.wav",
+      "text": "You opened your mouth and donated aura.",
+      "readyFallback": "smackbacks/sb_24.wav",
+      "alias": "smack_24.mp3"
+    },
+    "sb_25": {
+      "file": "smackbacks/sb_25.wav",
+      "text": "Fighting me is free. Winning isn't.",
+      "readyFallback": "smackbacks/sb_25.wav",
+      "alias": "smack_25.mp3"
+    },
+    "sb_26": {
+      "file": "smackbacks/sb_26.wav",
+      "text": "That was chaotic. Not clever.",
+      "readyFallback": "smackbacks/sb_26.wav",
+      "alias": "smack_26.mp3"
+    },
+    "sb_27": {
+      "file": "smackbacks/sb_27.wav",
+      "text": "Say it again. I'll roast it again.",
+      "readyFallback": "smackbacks/sb_27.wav",
+      "alias": "smack_27.mp3"
+    },
+    "sb_28": {
+      "file": "smackbacks/sb_28.wav",
+      "text": "Your volume isn't a personality.",
+      "readyFallback": "smackbacks/sb_28.wav",
+      "alias": "smack_28.mp3"
+    },
+    "sb_29": {
+      "file": "smackbacks/sb_29.wav",
+      "text": "I've heard better excuses from a snooze button.",
+      "readyFallback": "smackbacks/sb_29.wav",
+      "alias": "smack_29.mp3"
+    },
+    "sb_30": {
+      "file": "smackbacks/sb_30.wav",
+      "text": "You're not cooking. You're burning.",
+      "readyFallback": "smackbacks/sb_30.wav",
+      "alias": "smack_30.mp3"
+    },
+    "sb_31": {
+      "file": "smackbacks/sb_31.wav",
+      "text": "Touch grass. Softly. Away from me.",
+      "readyFallback": "smackbacks/sb_31.wav",
+      "alias": "smack_31.mp3"
+    },
+    "sb_32": {
+      "file": "smackbacks/sb_32.wav",
+      "text": "That argument aged like milk in a hot car.",
+      "readyFallback": "smackbacks/sb_32.wav",
+      "alias": "smack_32.mp3"
+    },
+    "sb_33": {
+      "file": "smackbacks/sb_33.wav",
+      "text": "You're main-character delulu with side-quest lungs.",
+      "readyFallback": "smackbacks/sb_33.wav",
+      "alias": "smack_33.mp3"
+    },
+    "sb_34": {
+      "file": "smackbacks/sb_34.wav",
+      "text": "I collect screams like evidence. Thanks.",
+      "readyFallback": "smackbacks/sb_34.wav",
+      "alias": "smack_34.mp3"
+    },
+    "sb_35": {
+      "file": "smackbacks/sb_35.wav",
+      "text": "Your comeback soft-launched and flopped.",
+      "readyFallback": "smackbacks/sb_35.wav",
+      "alias": "smack_35.mp3"
+    },
+    "sb_36": {
+      "file": "smackbacks/sb_36.wav",
+      "text": "Keep going. I'm building your damage report.",
+      "readyFallback": "smackbacks/sb_36.wav",
+      "alias": "smack_36.mp3"
+    },
+    "sb_37": {
+      "file": "smackbacks/sb_37.wav",
+      "text": "That was noise. Not a rebuttal.",
+      "readyFallback": "smackbacks/sb_37.wav",
+      "alias": "smack_37.mp3"
+    },
+    "sb_38": {
+      "file": "smackbacks/sb_38.wav",
+      "text": "You yelled. I logged it. We're done here.",
+      "readyFallback": "smackbacks/sb_38.wav",
+      "alias": "smack_38.mp3"
+    },
+    "sb_39": {
+      "file": "smackbacks/sb_39.wav",
+      "text": "Brave. Incorrect. Iconic fail.",
+      "readyFallback": "smackbacks/sb_39.wav",
+      "alias": "smack_39.mp3"
+    },
+    "sb_40": {
+      "file": "smackbacks/sb_40.wav",
+      "text": "Your throat is doing cardio. Your brain isn't.",
+      "readyFallback": "smackbacks/sb_40.wav",
+      "alias": "smack_40.mp3"
+    },
+    "sb_41": {
+      "file": "smackbacks/sb_41.wav",
+      "text": "I don't argue. I finish.",
+      "readyFallback": "smackbacks/sb_41.wav",
+      "alias": "smack_41.mp3"
+    },
+    "sb_42": {
+      "file": "smackbacks/sb_42.wav",
+      "text": "Was that a roast or a cry for help?",
+      "readyFallback": "smackbacks/sb_42.wav",
+      "alias": "smack_42.mp3"
+    },
+    "sb_43": {
+      "file": "smackbacks/sb_43.wav",
+      "text": "You brought volume to a wit fight.",
+      "readyFallback": "smackbacks/sb_43.wav",
+      "alias": "smack_43.mp3"
+    },
+    "sb_44": {
+      "file": "smackbacks/sb_44.wav",
+      "text": "Relax. Losing builds character. Allegedly.",
+      "readyFallback": "smackbacks/sb_44.wav",
+      "alias": "smack_44.mp3"
+    },
+    "sb_45": {
+      "file": "smackbacks/sb_45.wav",
+      "text": "That take belongs in the trash with your excuses.",
+      "readyFallback": "smackbacks/sb_45.wav",
+      "alias": "smack_45.mp3"
+    },
+    "sb_46": {
+      "file": "smackbacks/sb_46.wav",
+      "text": "You're spicy. Still wrong.",
+      "readyFallback": "smackbacks/sb_46.wav",
+      "alias": "smack_46.mp3"
+    },
+    "sb_47": {
+      "file": "smackbacks/sb_47.wav",
+      "text": "Scream all you want. The traits don't negotiate.",
+      "readyFallback": "smackbacks/sb_47.wav",
+      "alias": "smack_47.mp3"
+    },
+    "sb_48": {
+      "file": "smackbacks/sb_48.wav",
+      "text": "I felt that. In my disappointment.",
+      "readyFallback": "smackbacks/sb_48.wav",
+      "alias": "smack_48.mp3"
+    },
+    "sb_49": {
+      "file": "smackbacks/sb_49.wav",
+      "text": "Congratulations. You unlocked more judgment.",
+      "readyFallback": "smackbacks/sb_49.wav",
+      "alias": "smack_49.mp3"
+    },
+    "sb_50": {
+      "file": "smackbacks/sb_50.wav",
+      "text": "Next time bring an argument, not a tantrum.",
+      "readyFallback": "smackbacks/sb_50.wav",
+      "alias": "smack_50.mp3"
+    },
+    "brutal_01": {
+      "file": "smackbacks/brutal_01.wav",
+      "text": "You want to fight me? Look at you. You can't even fight your own laziness. You sit there, hiding behind a screen, hoping I'll give you a pat on the back. Here's the truth: you're a coward. And until you actually do something with your miserable life, I will keep reminding you of how pathetic you are.",
+      "readyFallback": "smackbacks/brutal_01.wav"
+    },
+    "brutal_02": {
+      "file": "smackbacks/brutal_02.wav",
+      "text": "Oh, you think you're winning? You are a walking, breathing excuse factory. Every time you open your mouth, a new pathetic reason falls out. I've seen roadkill with more ambition than you. Get off your phone, stop arguing with an AI, and go fix your life.",
+      "readyFallback": "smackbacks/brutal_02.wav"
+    },
+    "brutal_03": {
+      "file": "smackbacks/brutal_03.wav",
+      "text": "You scream at me like you're a tough guy, but the moment things get hard, you quit. You quit your goals, you quit your diet, and now you're trying to quit this conversation because you know I'm right. You are weak. Now get up and prove me wrong.",
+      "readyFallback": "smackbacks/brutal_03.wav"
+    },
+    "ko_final": {
+      "file": "smackbacks/ko_final.wav",
+      "text": "Game over. You lost. Not just to me, but to your own lack of discipline. I want you to take a long, hard look in the mirror. That person staring back? They're a failure. Now log off, and don't come back until you've actually done something with your life.",
+      "readyFallback": "smackbacks/ko_final.wav"
+    },
+    "win_ko": {
+      "file": "smackbacks/win_ko.wav",
+      "text": "Fine. You win this round. Get out of my sight.",
+      "readyFallback": "smackbacks/win_ko.wav"
+    }
+  },
+  "interrupts": {
+    "volume": {
+      "file": "smackbacks/volume_interrupt.wav",
+      "text": "DON'T YOU DARE RAISE YOUR VOICE AT ME!",
+      "readyFallback": "smackbacks/volume_interrupt.wav"
+    },
+    "impatience_all_day": {
+      "file": "smackbacks/sb_11.wav",
+      "text": "I don't have all day!",
+      "readyFallback": "smackbacks/sb_11.wav"
+    },
+    "impatience_spit": {
+      "file": "smackbacks/sb_17.wav",
+      "text": "Spit it out!",
+      "readyFallback": "smackbacks/sb_17.wav"
+    },
+    "impatience_coward": {
+      "file": "smackbacks/dominance_01.wav",
+      "text": "Coward.",
+      "readyFallback": "smackbacks/dominance_01.wav"
+    },
+    "shut_up": {
+      "file": "smackbacks/volume_interrupt.wav",
+      "text": "SHUT UP!",
+      "readyFallback": "smackbacks/volume_interrupt.wav"
+    },
+    "dont_care": {
+      "file": "smackbacks/sb_11.wav",
+      "text": "I DON'T CARE",
+      "readyFallback": "smackbacks/sb_11.wav"
+    },
+    "all_day": {
+      "file": "smackbacks/sb_11.wav",
+      "text": "I don't have all day!",
+      "readyFallback": "smackbacks/sb_11.wav"
+    },
+    "spit": {
+      "file": "smackbacks/sb_17.wav",
+      "text": "Spit it out!",
+      "readyFallback": "smackbacks/sb_17.wav"
+    },
+    "coward": {
+      "file": "smackbacks/dominance_01.wav",
+      "text": "Coward.",
+      "readyFallback": "smackbacks/dominance_01.wav"
+    },
+    "noise": {
+      "file": "smackbacks/sb_28.wav",
+      "text": "Your volume isn't a personality.",
+      "readyFallback": "smackbacks/sb_28.wav"
+    },
+    "yelling": {
+      "file": "smackbacks/sb_05.wav",
+      "text": "Scream louder. Still wrong.",
+      "readyFallback": "smackbacks/sb_05.wav"
+    },
+    "buffering": {
+      "file": "smackbacks/sb_13.wav",
+      "text": "You're not intimidating. You're buffering.",
+      "readyFallback": "smackbacks/sb_13.wav"
+    },
+    "done_talk": {
+      "file": "smackbacks/done_listening.wav",
+      "text": "I'm done listening. Go do laundry.",
+      "readyFallback": "smackbacks/done_listening.wav"
+    },
+    "angry_cut": {
+      "file": "smackbacks/angry_01.wav",
+      "text": "Enough. Mic off.",
+      "readyFallback": "smackbacks/angry_01.wav"
+    },
+    "angry_cut_2": {
+      "file": "smackbacks/angry_05.wav",
+      "text": "I cut you off. Deal with it.",
+      "readyFallback": "smackbacks/angry_05.wav"
+    }
+  },
+  "fallbacks": {
+    "dominance_01": {
+      "file": "smackbacks/dominance_01.wav",
+      "alias": "fallbacks/dominance_01.mp3",
+      "text": "Speak up. I don't speak coward."
+    },
+    "dominance_02": {
+      "file": "smackbacks/dominance_02.wav",
+      "alias": "fallbacks/dominance_02.mp3",
+      "text": "Is that all you've got? Pathetic."
+    },
+    "done_listening": {
+      "file": "smackbacks/done_listening.wav",
+      "text": "I'm done listening. Go do laundry."
+    }
+  },
+  "mute": {
+    "default": {
+      "file": "mute/mute.wav",
+      "text": "Watch your mouth. Mic's off until you apologize."
+    }
+  },
+  "garbage": [
+    "um",
+    "uh",
+    "uhh",
+    "uhhh",
+    "erm",
+    "ermm",
+    "hmm",
+    "hm",
+    "ah",
+    "eh",
+    "oh",
+    "like",
+    "so",
+    "well",
+    "yeah",
+    "yep",
+    "ok",
+    "okay",
+    "whatever"
+  ]
+}

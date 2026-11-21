@@ -4,12 +4,14 @@ import { Component, Suspense, useEffect, useMemo, useRef, type ErrorInfo, type R
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Center, Environment, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { KAREN_GLB_URL } from "@/lib/karen/avatar-assets";
 import {
   getBlendshapes,
   type KarenExpressionMood,
 } from "@/src/lib/karen/expression-bridge";
 
-const MODEL_URL = "/models/karen.glb";
+/** Same Tripo bust as TalkingHead factory (`public/models/karen.glb`, versioned). */
+const MODEL_URL = KAREN_GLB_URL;
 
 export type Karen3DMood = string | null | undefined;
 

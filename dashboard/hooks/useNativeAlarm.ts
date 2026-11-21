@@ -6,12 +6,19 @@ import {
   isKarenNativePlatform,
   scheduleKarenAlarm,
 } from "@/lib/karen/native-alarm";
-import { readKarenAlarmTime } from "@/lib/karen/alarm-storage";
+import {
+  readKarenAlarmConfig,
+  saveKarenAlarmConfig,
+  type KarenAlarmRage,
+  writeKarenAlarmEnabled,
+} from "@/lib/karen/alarm-storage";
 
 export type UseNativeAlarmResult = {
   /** Current HH:mm (local) or empty. */
   time: string;
   setTime: (hhmm: string) => void;
+  rage: KarenAlarmRage;
+  setRage: (rage: KarenAlarmRage) => void;
   /** True when running inside Capacitor Android/iOS. */
   isNative: boolean;
   scheduling: boolean;
@@ -31,36 +38,40 @@ export type UseNativeAlarmResult = {
  */
 export function useNativeAlarm(initialTime = "07:00"): UseNativeAlarmResult {
   const [time, setTime] = useState(initialTime);
+  const [rage, setRage] = useState<KarenAlarmRage>("furious");
   const [scheduling, setScheduling] = useState(false);
   const [lastDetail, setLastDetail] = useState<string | null>(null);
   const [isNative, setIsNative] = useState(false);
 
   useEffect(() => {
     setIsNative(isKarenNativePlatform());
-    const saved = readKarenAlarmTime();
-    if (saved) setTime(saved);
+    const cfg = readKarenAlarmConfig();
+    if (cfg.time) setTime(cfg.time);
+    setRage(cfg.rage);
   }, []);
 
   const schedule = useCallback(async () => {
     setScheduling(true);
     try {
+      saveKarenAlarmConfig({ time, rage, enabled: true });
       const result = await scheduleKarenAlarm(time);
       setLastDetail(result.detail);
       return result.ok;
     } finally {
       setScheduling(false);
     }
-  }, [time]);
+  }, [rage, time]);
 
   const cancel = useCallback(async () => {
     setScheduling(true);
     try {
       await cancelKarenNativeAlarm();
+      writeKarenAlarmEnabled(false);
       setLastDetail("Alarm cleared.");
     } finally {
       setScheduling(false);
     }
   }, []);
 
-  return { time, setTime, isNative, scheduling, lastDetail, schedule, cancel };
+  return { time, setTime, rage, setRage, isNative, scheduling, lastDetail, schedule, cancel };
 }

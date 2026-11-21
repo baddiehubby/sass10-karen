@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Crown } from "lucide-react";
 import { createKarenVipCheckout } from "@/app/karen/actions";
 import {
+  KAREN_UNLOCK_CTA,
   KAREN_VIP_MODAL_TITLE,
   KAREN_VIP_PRICE_LABEL,
 } from "@/lib/karen/vip";
@@ -14,8 +15,7 @@ type KarenPaywallOverlayProps = {
 };
 
 /**
- * Glassmorphic paywall over the avatar after the free 3-message demo.
- * Upgrade → Lemon Squeezy checkout server action.
+ * Glassmorphic paywall — $19/mo Karen VIP via Lemon Squeezy.
  */
 export function KarenPaywallOverlay({ active }: KarenPaywallOverlayProps) {
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +28,10 @@ export function KarenPaywallOverlay({ active }: KarenPaywallOverlayProps) {
     startTransition(async () => {
       const result = await createKarenVipCheckout();
       if (!result.ok) {
+        if (result.needsAuth) {
+          window.location.href = `/login?callbackUrl=${encodeURIComponent("/karen")}`;
+          return;
+        }
         setError(result.error);
         return;
       }
@@ -42,7 +46,6 @@ export function KarenPaywallOverlay({ active }: KarenPaywallOverlayProps) {
       aria-modal="true"
       aria-labelledby="karen-paywall-title"
     >
-      {/* Fully blur the 3D canvas */}
       <div
         className="absolute inset-0 bg-zinc-950/60 backdrop-blur-3xl"
         aria-hidden
@@ -53,7 +56,7 @@ export function KarenPaywallOverlay({ active }: KarenPaywallOverlayProps) {
           <Crown className="h-5 w-5" />
         </div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-rose-300">
-          Savage Karen · VIP
+          Karen VIP · {KAREN_VIP_PRICE_LABEL}
         </p>
         <h2
           id="karen-paywall-title"
@@ -62,10 +65,7 @@ export function KarenPaywallOverlay({ active }: KarenPaywallOverlayProps) {
           {KAREN_VIP_MODAL_TITLE}
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-rose-50/90">
-          Unlock Savage Karen for $19/month.
-        </p>
-        <p className="mt-3 text-xs text-zinc-300/90">
-          Unlimited messages · Sarcasm 10 · Cancel anytime
+          Unlock Savage Karen for {KAREN_VIP_PRICE_LABEL}.
         </p>
         <p className="mt-2 text-sm font-semibold text-rose-100">{KAREN_VIP_PRICE_LABEL}</p>
 
@@ -77,7 +77,7 @@ export function KarenPaywallOverlay({ active }: KarenPaywallOverlayProps) {
           onClick={upgrade}
           className="mt-5 w-full rounded-xl bg-gradient-to-r from-[#ff2d55] via-rose-600 to-pink-600 px-4 py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-[0_0_32px_rgba(255,45,85,0.55)] disabled:opacity-50"
         >
-          {pending ? "Opening Lemon Squeezy…" : "Unlock Savage Karen — $19/mo"}
+          {pending ? "Opening Lemon Squeezy…" : KAREN_UNLOCK_CTA}
         </button>
       </div>
     </div>

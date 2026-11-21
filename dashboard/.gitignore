@@ -67,6 +67,12 @@ dashboard/public/widget/livingface-widget.js
 *.sqlite
 *.sqlite3
 
+# Python TTS venvs / caches (Kokoro, Maya1)
+/scripts/kokoro_venv/
+/scripts/maya_tts/
+**/__pycache__/
+*.pyc
+
 # OS / IDE / temp
 .DS_Store
 Thumbs.db

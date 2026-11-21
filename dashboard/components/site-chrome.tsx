@@ -36,9 +36,10 @@ export function SiteChrome({ children, widgetScriptUrl, apiBase }: SiteChromePro
     !karen &&
     pathname !== "/pwa";
 
-  // Karen VIP owns its own full-screen layout — no Buddie header/footer/widget.
+  // Karen VIP owns its own full-screen layout — no Buddie header/footer/widget/sidebar.
+  // Defense in depth: root layout also skips SiteChrome when `x-karen-shell` is set.
   if (karen) {
-    return <>{children}</>;
+    return <div data-karen-chrome-bypass="">{children}</div>;
   }
 
   return (

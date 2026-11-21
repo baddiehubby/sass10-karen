@@ -154,6 +154,67 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
+/* ─── Karen Morning Roast (7:00 AM local notification) ─── */
+const KAREN_MORNING_CFG = "karen-morning-roast-cfg";
+const KAREN_MORNING_LAST = "karen-morning-roast-last";
+let karenMorningTimer = null;
+
+async function fireKarenMorningRoastIfDue() {
+  const cfg = await idbGet(KAREN_MORNING_CFG);
+  if (!cfg || !cfg.enabled) return;
+
+  const now = new Date();
+  const hour = typeof cfg.hour === "number" ? cfg.hour : 7;
+  const minute = typeof cfg.minute === "number" ? cfg.minute : 0;
+  if (now.getHours() !== hour || now.getMinutes() !== minute) return;
+
+  const stamp = now.toDateString();
+  const last = await idbGet(KAREN_MORNING_LAST);
+  if (last === stamp) return;
+  await idbSet(KAREN_MORNING_LAST, stamp);
+
+  const body =
+    cfg.body || "Wake up. Your dreams are dying while you sleep.";
+  const url = cfg.url || "/karen/dashboard?morningRoast=1";
+
+  await self.registration.showNotification("Karen — Morning Roast", {
+    body,
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: "karen-morning-roast",
+    renotify: true,
+    data: { url, karenMorningRoast: true },
+  });
+
+  const clientList = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+  clientList.forEach((client) => {
+    client.postMessage({ type: "KAREN_MORNING_ROAST_FIRE", url });
+  });
+}
+
+function armKarenMorningTimer() {
+  if (karenMorningTimer) clearInterval(karenMorningTimer);
+  karenMorningTimer = setInterval(() => {
+    void fireKarenMorningRoastIfDue();
+  }, 20_000);
+  void fireKarenMorningRoastIfDue();
+}
+
+function clearKarenMorningTimer() {
+  if (karenMorningTimer) {
+    clearInterval(karenMorningTimer);
+    karenMorningTimer = null;
+  }
+}
+
+// Re-arm after SW wakes (best-effort while the worker is alive).
+void idbGet(KAREN_MORNING_CFG).then((cfg) => {
+  if (cfg && cfg.enabled) armKarenMorningTimer();
+});
+
 self.addEventListener("message", (event) => {
   const data = event.data || {};
   if (data.type === "BUDDY_SET_LICENSE_KEY" && data.licenseKey) {
@@ -173,5 +234,27 @@ self.addEventListener("message", (event) => {
   }
   if (data.type === "BUDDY_FORCE_CHECK_IN") {
     event.waitUntil(performCheckIn());
+  }
+  if (data.type === "KAREN_MORNING_ROAST_ENABLE") {
+    event.waitUntil(
+      (async () => {
+        await idbSet(KAREN_MORNING_CFG, {
+          enabled: true,
+          hour: data.hour ?? 7,
+          minute: data.minute ?? 0,
+          body: data.body || "Wake up. Your dreams are dying while you sleep.",
+          url: data.url || "/karen/dashboard?morningRoast=1",
+        });
+        armKarenMorningTimer();
+      })(),
+    );
+  }
+  if (data.type === "KAREN_MORNING_ROAST_DISABLE") {
+    event.waitUntil(
+      (async () => {
+        await idbSet(KAREN_MORNING_CFG, { enabled: false });
+        clearKarenMorningTimer();
+      })(),
+    );
   }
 });

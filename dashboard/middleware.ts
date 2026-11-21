@@ -62,13 +62,13 @@ function applySecurityHeaders(res: NextResponse, opts?: { document?: boolean }) 
       "Content-Security-Policy",
       [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect.facebook.net https://analytics.tiktok.com https://*.vercel-scripts.com https://va.vercel-scripts.com",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob: https:",
         "media-src 'self' blob: data:",
         "worker-src 'self' blob:",
         "font-src 'self' data:",
-        "connect-src 'self' blob: https://www.buddieai.com https://*.lemonsqueezy.com https://*.sentry.io https://*.ingest.sentry.io",
+        "connect-src 'self' blob: https://www.buddieai.com https://*.lemonsqueezy.com https://*.sentry.io https://*.ingest.sentry.io https://www.facebook.com https://*.facebook.com https://connect.facebook.net https://analytics.tiktok.com https://*.tiktok.com https://*.ttlivecdn.com https://vitals.vercel-insights.com https://*.vercel-insights.com",
         "frame-src 'self' https://*.lemonsqueezy.com",
         "frame-ancestors 'none'",
         "base-uri 'self'",
@@ -261,9 +261,22 @@ export async function middleware(req: NextRequest) {
 
   // Karen VIP is a standalone full-screen experience — never force to
   // dashboard/home. Auth for chat/TTS is enforced inside API routes.
+  // Stamp x-karen-shell so root layout can skip Buddie SiteChrome entirely.
   if (pathname === "/karen" || pathname.startsWith("/karen/")) {
-    const res = nextWithTenant(req, requestId);
+    const hostName = req.headers.get("host") || req.nextUrl.hostname;
+    const tenant = getTenant(hostName);
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set(TENANT_HEADER, tenant);
+    requestHeaders.set("x-request-id", requestId);
+    requestHeaders.set("x-karen-shell", "1");
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
+    applyTenantContext(req, res);
     applySecurityHeaders(res, { document: true });
+    // Beg-for-forgiveness uses SpeechRecognition / mic on /karen only.
+    res.headers.set(
+      "Permissions-Policy",
+      "camera=(), microphone=(self), geolocation=()",
+    );
     res.headers.set("Cache-Control", "private, no-store");
     return stamp(res);
   }

@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { asString, normalizeLemonCustomData, userIdFromCustom } from "@/lib/lemon-webhook-utils";
+import {
+  asIdString,
+  asString,
+  normalizeLemonCustomData,
+  userIdFromCustom,
+} from "@/lib/lemon-webhook-utils";
+import { classifyKarenLemonEvent, isGuestLemonUserId } from "@/lib/karen/lemon-webhook-decision";
 import { isKarenVipVariant } from "@/lib/karen/vip";
 import { verifyLemonSignature } from "@/lib/lemonsqueezy";
 import { prisma } from "@/lib/prisma";
@@ -24,39 +30,60 @@ type LemonWebhookBody = {
       custom?: unknown;
       renews_at?: string | null;
       ends_at?: string | null;
+      first_order_item?: {
+        variant_id?: number | string;
+        product_id?: number | string;
+      };
     };
   };
 };
 
-const ACTIVATE_EVENTS = new Set([
-  "subscription_created",
-  "subscription_resumed",
-  "subscription_unpaused",
-  "subscription_payment_success",
-]);
-
-const REVOKE_EVENTS = new Set([
-  "subscription_cancelled",
-  "subscription_expired",
-  "subscription_payment_failed",
-  "subscription_paused",
-]);
+function resolveVariantId(
+  attrs:
+    | (LemonWebhookBody["data"] extends infer D
+        ? D extends { attributes?: infer A }
+          ? A
+          : never
+        : never)
+    | undefined,
+): string | null {
+  if (!attrs) return null;
+  // Lemon sends these ids as JSON numbers — asString() would silently drop them.
+  const direct = asIdString((attrs as { variant_id?: unknown }).variant_id);
+  if (direct) return direct;
+  const item = (attrs as { first_order_item?: { variant_id?: unknown } }).first_order_item;
+  return asIdString(item?.variant_id) || null;
+}
 
 /**
- * Karen VIP Lemon Squeezy webhooks.
- * Verifies HMAC signature, then toggles User.isPremium for VIP variant events.
- * Does not replace the Buddy billing webhook at /api/lemonsqueezy/webhook.
+ * Karen VIP ($19/mo) — Lemon Squeezy webhooks.
+ * subscription_* → toggles User.isPremium for the VIP variant.
+ * Does not replace Buddy billing at /api/lemonsqueezy/webhook.
  *
  * Lemon dashboard → Webhooks → URL:
  *   https://<your-domain>/api/webhooks/lemonsqueezy
- * Events: subscription_created, subscription_cancelled, subscription_expired
- * (+ payment_success / resumed recommended).
+ * Events: subscription_created, subscription_payment_success,
+ *   subscription_cancelled, subscription_expired, subscription_updated
  */
 export async function POST(req: Request) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-signature") ?? req.headers.get("X-Signature");
 
-  // Verify purchase webhook is reaching us (safe — no secrets / full payload).
+  // Early parse so Vercel logs always show event + user for $19 payment QA.
+  let earlyEventName: string | undefined;
+  let earlyUserId: string | undefined;
+  try {
+    const early = JSON.parse(rawBody) as LemonWebhookBody;
+    earlyEventName = asString(early.meta?.event_name) || undefined;
+    const earlyCustom = normalizeLemonCustomData(
+      early.meta?.custom_data ?? early.data?.attributes?.custom,
+    );
+    earlyUserId = userIdFromCustom(earlyCustom) || undefined;
+  } catch {
+    /* logged below if JSON is truly invalid */
+  }
+  console.log("WEBHOOK RECEIVED:", earlyEventName, earlyUserId);
+
   console.log("[karen/lemon-webhook] request received", {
     hasSignature: Boolean(signature),
     bodyBytes: rawBody.length,
@@ -77,31 +104,32 @@ export async function POST(req: Request) {
 
   const eventName = asString(payload.meta?.event_name).toLowerCase();
   const attrs = payload.data?.attributes;
-  const variantId = attrs?.variant_id;
+  const variantId = resolveVariantId(attrs);
   const status = asString(attrs?.status).toLowerCase();
   const custom = normalizeLemonCustomData(payload.meta?.custom_data ?? attrs?.custom);
   const userId = userIdFromCustom(custom);
   const portalUrl = asString(attrs?.urls?.customer_portal) || null;
-  const customerId = asString(attrs?.customer_id) || null;
-  const subscriptionId = asString(payload.data?.id) || null;
+  const customerId = asIdString(attrs?.customer_id) || null;
 
   console.log("[karen/lemon-webhook] firing", {
     eventName,
     status: status || null,
-    variantId: variantId != null ? String(variantId) : null,
-    subscriptionId,
+    variantId,
     userIdPrefix: userId ? `${userId.slice(0, 8)}…` : null,
     isKarenVipVariant: isKarenVipVariant(variantId),
   });
 
   if (!isKarenVipVariant(variantId)) {
-    console.log("[karen/lemon-webhook] ignored — not Karen VIP variant");
-    return NextResponse.json({ ok: true, ignored: true, reason: "not_karen_vip_variant" });
+    console.log("[karen/lemon-webhook] ignored — not Karen unlock variant");
+    return NextResponse.json({ ok: true, ignored: true, reason: "not_karen_unlock_variant" });
   }
 
-  if (!userId || userId.length < 8) {
-    console.warn("[karen/lemon-webhook] ignored — missing custom_data.user_id");
-    return NextResponse.json({ ok: true, ignored: true, reason: "missing_user_id" });
+  // Guest checkouts store a random guest_id as user_id — only update Prisma for real users.
+  if (isGuestLemonUserId(userId)) {
+    console.log("[karen/lemon-webhook] guest purchase — client unlocks via redirect", {
+      eventName,
+    });
+    return NextResponse.json({ ok: true, guest: true, event: eventName });
   }
 
   const user = await prisma.user.findUnique({
@@ -115,8 +143,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, ignored: true, reason: "unknown_user" });
   }
 
-  // Activate VIP
-  if (ACTIVATE_EVENTS.has(eventName)) {
+  const decision = classifyKarenLemonEvent(eventName, status);
+
+  if (decision === "activate") {
+    // order_created can arrive as pending — still unlock; refunds revoke later.
     await prisma.user.update({
       where: { id: userId },
       data: {
@@ -125,56 +155,23 @@ export async function POST(req: Request) {
         ...(portalUrl ? { karenCustomerPortalUrl: portalUrl } : {}),
       },
     });
-    console.log("[karen/lemon-webhook] VIP activated", {
+    console.log("[karen/lemon-webhook] unlock activated", {
       eventName,
       userIdPrefix: `${userId.slice(0, 8)}…`,
     });
     return NextResponse.json({ ok: true, isPremium: true, event: eventName });
   }
 
-  // Revoke VIP — cancelled / expired / payment failed / paused
-  if (REVOKE_EVENTS.has(eventName)) {
+  if (decision === "revoke") {
     await prisma.user.update({
       where: { id: userId },
       data: { isPremium: false },
     });
-    console.log("[karen/lemon-webhook] VIP revoked", {
+    console.log("[karen/lemon-webhook] unlock revoked", {
       eventName,
       userIdPrefix: `${userId.slice(0, 8)}…`,
     });
     return NextResponse.json({ ok: true, isPremium: false, event: eventName });
-  }
-
-  // Keep portal / customer ids fresh on updates without flipping entitlement
-  // unless status clearly says the sub is dead.
-  if (eventName === "subscription_updated") {
-    const dead =
-      status === "expired" ||
-      status === "cancelled" ||
-      status === "unpaid" ||
-      status === "paused";
-    const active =
-      status === "active" || status === "on_trial" || status === "paid";
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(dead ? { isPremium: false } : {}),
-        ...(active ? { isPremium: true } : {}),
-        ...(customerId ? { lemonSqueezyCustomerId: customerId } : {}),
-        ...(portalUrl ? { karenCustomerPortalUrl: portalUrl } : {}),
-      },
-    });
-    console.log("[karen/lemon-webhook] subscription_updated applied", {
-      status: status || null,
-      isPremium: dead ? false : active ? true : "unchanged",
-      userIdPrefix: `${userId.slice(0, 8)}…`,
-    });
-    return NextResponse.json({
-      ok: true,
-      event: eventName,
-      isPremium: dead ? false : active ? true : undefined,
-    });
   }
 
   console.log("[karen/lemon-webhook] unhandled event", { eventName });

@@ -40,6 +40,13 @@ declare module "@met4citizen/talkinghead" {
       avatar: TalkingHeadAvatar,
       onprogress?: ((ev: ProgressEvent) => void) | null,
     ): Promise<void>;
+    /** VRM convenience alias (Karen patch / factory polyfill). */
+    loadVRM?(
+      url: string,
+      onprogress?: ((ev: ProgressEvent) => void) | null,
+    ): Promise<void>;
+    /** Populated when a VRM is loaded via @pixiv/three-vrm. */
+    vrm?: { scene?: import("three").Object3D; [key: string]: unknown } | null;
     setView(
       view: "full" | "mid" | "upper" | "head",
       opt?: Record<string, number> | null,

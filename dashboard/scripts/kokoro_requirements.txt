@@ -1,0 +1,6 @@
+# Kokoro-82M local TTS (Apache-2.0) — free for commercial use
+kokoro>=0.9.4
+soundfile>=0.12
+misaki[en]>=0.9.4
+huggingface_hub>=0.20
+torch>=2.2

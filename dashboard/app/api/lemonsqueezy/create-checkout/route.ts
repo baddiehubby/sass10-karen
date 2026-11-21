@@ -30,20 +30,6 @@ export async function POST(req: Request) {
 
   const variantId = getLemonVariantIdByTier(tier, { trial });
   const storeId = await resolveLemonStoreId();
-  // #region agent log
-  fetch("http://127.0.0.1:7611/ingest/87ee683e-41c7-4485-9b1b-9c00188d4aac", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f590a1" },
-    body: JSON.stringify({
-      sessionId: "f590a1",
-      hypothesisId: "E",
-      location: "create-checkout/route.ts:resolve",
-      message: "checkout variant resolution",
-      data: { tier, hasVariantId: Boolean(variantId), hasStoreId: Boolean(storeId) },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   if (!variantId || !storeId) {
     const missing = !variantId ? missingVariantEnvForTier(tier) : "LEMONSQUEEZY_STORE_ID / API key";
     return NextResponse.json(

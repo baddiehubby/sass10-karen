@@ -1,0 +1,49 @@
+{
+  "ambushTraps": [
+    {
+      "id": "fail_loop",
+      "prompt": "Why do you think you keep failing?",
+      "hint": "Be honest. Karen already knows."
+    },
+    {
+      "id": "secret_fear",
+      "prompt": "What is the one thing you are most afraid of people finding out about you?",
+      "hint": "Type it. She is waiting."
+    },
+    {
+      "id": "self_sabotage_loop",
+      "prompt": "Why are you still doing this to yourself?",
+      "hint": "No shortcuts. Full sentence."
+    },
+    {
+      "id": "excuse_today",
+      "prompt": "What excuse are you going to give me today?",
+      "hint": "Write the real one."
+    },
+    {
+      "id": "who_disappointed",
+      "prompt": "Who have you disappointed the most this month — and why?",
+      "hint": "Names. Details. No fluff."
+    },
+    {
+      "id": "avoiding_now",
+      "prompt": "What are you avoiding right now that you promised yourself you'd finish?",
+      "hint": "Don't protect yourself."
+    },
+    {
+      "id": "if_honest",
+      "prompt": "If you were being completely honest, what would you admit you're too weak to change?",
+      "hint": "Long answer. No one-word outs."
+    },
+    {
+      "id": "prove_worth",
+      "prompt": "Tell me why you deserve another chance — and why I should believe you this time.",
+      "hint": "Convince her. In writing."
+    },
+    {
+      "id": "pattern_admit",
+      "prompt": "Describe the last time you quit on yourself. What did you tell yourself so you could walk away?",
+      "hint": "The story you use. All of it."
+    }
+  ]
+}

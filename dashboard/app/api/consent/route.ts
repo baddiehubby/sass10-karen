@@ -50,41 +50,8 @@ export async function POST(req: Request) {
   const consents = await setUserConsentsBulk(session.user.id, updates);
 
   if (parsed.data.complete) {
-    try {
-      await markEidataConsentCompleted(session.user.id);
-    } catch (err) {
-      // #region agent log
-      fetch("http://127.0.0.1:7611/ingest/87ee683e-41c7-4485-9b1b-9c00188d4aac", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f590a1" },
-        body: JSON.stringify({
-          sessionId: "f590a1",
-          hypothesisId: "F",
-          location: "consent/route.ts:mark-complete",
-          message: "markEidataConsentCompleted failed",
-          data: { error: err instanceof Error ? err.message : "unknown" },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      throw err;
-    }
+    await markEidataConsentCompleted(session.user.id);
   }
-
-  // #region agent log
-  fetch("http://127.0.0.1:7611/ingest/87ee683e-41c7-4485-9b1b-9c00188d4aac", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f590a1" },
-    body: JSON.stringify({
-      sessionId: "f590a1",
-      hypothesisId: "F",
-      location: "consent/route.ts:success",
-      message: "consent saved",
-      data: { complete: Boolean(parsed.data.complete), consentCount: consents.length },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
 
   return NextResponse.json({ ok: true, consents });
 }

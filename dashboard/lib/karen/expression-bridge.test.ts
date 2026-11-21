@@ -47,12 +47,18 @@ describe("expression-bridge — TalkingHead mood map", () => {
     assert.ok(s.bodyRotateZ > 0);
   });
 
-  it("PROUD relaxes brows with a slight smile", () => {
+  it("PROUD keeps the 0.8 scowl with a slight smile", () => {
     const s = getBlendshapes("PROUD", false, 0);
     assertAllInRange(s);
-    assert.equal(s.browDownLeft, 0);
-    assert.equal(s.browDownRight, 0);
+    assert.equal(s.browDownLeft, 0.8);
+    assert.equal(s.browDownRight, 0.8);
     assert.ok(s.mouthSmileLeft > 0.3 && s.mouthSmileLeft < 0.55);
+  });
+
+  it("idle / unknown mood still locks brows at 0.8", () => {
+    const s = getBlendshapes("SWEET", false, 0);
+    assert.equal(s.browDownLeft, 0.8);
+    assert.equal(s.browDownRight, 0.8);
   });
 
   it("applies setMood + blendshape baselines on TalkingHead", () => {

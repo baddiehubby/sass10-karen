@@ -70,39 +70,9 @@ export function DashboardPersistentPresence() {
   }, []);
 
   if (hasPrimaryOrb(pathname)) {
-    // #region agent log
-    fetch("http://127.0.0.1:7611/ingest/87ee683e-41c7-4485-9b1b-9c00188d4aac", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f590a1" },
-      body: JSON.stringify({
-        sessionId: "f590a1",
-        runId: "presence-verify",
-        hypothesisId: "P1",
-        location: "dashboard-persistent-presence.tsx:hide",
-        message: "floating presence hidden — primary orb route",
-        data: { pathname },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     return null;
   }
 
-  // #region agent log
-  fetch("http://127.0.0.1:7611/ingest/87ee683e-41c7-4485-9b1b-9c00188d4aac", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f590a1" },
-    body: JSON.stringify({
-      sessionId: "f590a1",
-      runId: "presence-verify",
-      hypothesisId: "P1",
-      location: "dashboard-persistent-presence.tsx:show",
-      message: "floating presence visible",
-      data: { pathname, mood: liveMood },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
 
   return (
     <div

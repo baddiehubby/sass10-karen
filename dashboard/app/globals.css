@@ -70,6 +70,102 @@ body.app-gradient {
     linear-gradient(180deg, #020617 0%, #0f172a 42%, #020617 100%);
 }
 
+/* Karen standalone — kill Buddie chrome / gradient if anything still mounts. */
+html.karen-lock,
+html.karen-lock body,
+body.karen-fullscreen,
+body[data-karen-shell="1"] {
+  background: #000 !important;
+  background-image: none !important;
+  overflow: hidden !important;
+}
+
+/* Premium interrogation HUD type + film grain */
+.karen-hud {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  text-shadow:
+    0 0 12px rgba(255, 45, 85, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.9),
+    0 0 1px rgba(0, 0, 0, 1);
+}
+
+.karen-hud-quiet {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+
+.karen-film-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  animation: karen-grain-shift 0.45s steps(4) infinite;
+}
+
+@keyframes karen-grain-shift {
+  0% {
+    background-position: 0 0;
+  }
+  25% {
+    background-position: 40px -20px;
+  }
+  50% {
+    background-position: -30px 50px;
+  }
+  75% {
+    background-position: 20px 30px;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+html.karen-lock [data-site-header],
+html.karen-lock footer,
+body[data-karen-shell="1"] [data-site-header],
+body[data-karen-shell="1"] footer {
+  display: none !important;
+}
+
+/*
+ * Karen = installed-app feel on phones.
+ *
+ * .karen-vh — the real visible height. NEVER pair dvh with min-h-[100vh]:
+ * on mobile 100vh is the LARGE viewport (URL bar hidden) and wins, pushing the
+ * bottom of the screen (mic + typed input) under the browser chrome / keyboard.
+ *   1. 100vh      → ancient browsers
+ *   2. 100dvh     → tracks the URL bar
+ *   3. --karen-vvh → set by KarenBodyLock from window.visualViewport so the
+ *                    layout also shrinks above the on-screen keyboard (iOS ignores
+ *                    interactive-widget, so dvh alone never reacts to it there).
+ */
+.karen-vh {
+  height: 100vh;
+  height: 100dvh;
+  height: var(--karen-vvh, 100dvh);
+}
+
+html.karen-lock,
+html.karen-lock body,
+body[data-karen-shell="1"] {
+  overscroll-behavior: none; /* no rubber-band / pull-to-refresh while screaming */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* No accidental text highlight / long-press callout anywhere on the stage… */
+body[data-karen-shell="1"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* …but inputs MUST stay editable (iOS Safari can't type into user-select:none). */
+body[data-karen-shell="1"] input,
+body[data-karen-shell="1"] textarea,
+body[data-karen-shell="1"] [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 html {
   scroll-behavior: smooth;
 }

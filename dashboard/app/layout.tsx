@@ -1,23 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import dynamic from "next/dynamic";
 import { headers } from "next/headers";
 import { Suspense } from "react";
 import { AnalyticsPixels } from "@/components/analytics-pixels";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { KarenAlarmWatcherLoader } from "@/components/karen/karen-alarm-watcher-loader";
 import { AppSessionProvider } from "@/components/session-provider";
 import { SiteChrome } from "@/components/site-chrome";
 import { Toaster } from "react-hot-toast";
 import { getAppBaseUrl } from "@/lib/site-url";
 import { getWidgetScriptUrl } from "@/lib/widget-cdn";
 import "./globals.css";
-
-/** Capacitor + Karen voice — client-only so SSR/prerender never pulls native/TTS chunks. */
-const KarenAlarmWatcher = dynamic(
-  () =>
-    import("@/components/karen/karen-alarm-watcher").then((m) => m.KarenAlarmWatcher),
-  { ssr: false },
-);
 
 const sans = Inter({
   variable: "--font-geist-sans",
@@ -128,7 +121,7 @@ export default async function RootLayout({
         <AppSessionProvider>
           {isKarenShell ? (
             <>
-              <KarenAlarmWatcher />
+              <KarenAlarmWatcherLoader />
               {children}
               <InstallPrompt />
             </>
@@ -148,7 +141,7 @@ export default async function RootLayout({
                 </div>
               </div>
               <Toaster position="top-right" />
-              <KarenAlarmWatcher />
+              <KarenAlarmWatcherLoader />
               <noscript>
                 <div className="mx-auto max-w-lg px-6 py-16 text-center text-sm text-slate-200">
                   Buddie needs JavaScript for the companion orb and check-ins. Please enable it to

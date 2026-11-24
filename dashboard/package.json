@@ -9,7 +9,7 @@
     "pack:extension:zip": "npm run build:extension && node scripts/pack-extension-zip.mjs",
     "prebuild": "node scripts/ensure-pro-variant.mjs && npm run build:widget && node scripts/copy-widget.mjs",
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "postbuild": "next-sitemap",
     "start": "next start",
     "lint": "next lint",

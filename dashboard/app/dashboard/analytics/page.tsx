@@ -4,6 +4,8 @@ import { AnalyticsDashboard } from "@/components/analytics-dashboard";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 const PAID = new Set(["pro", "premium", "agency"]);
 
 export default async function AnalyticsPage() {

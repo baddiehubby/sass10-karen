@@ -4,6 +4,8 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { AlertsFeed } from "@/components/alerts-feed";
 
+export const dynamic = "force-dynamic";
+
 export default async function AlertsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");

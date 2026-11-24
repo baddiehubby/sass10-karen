@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { RegisterForm } from "@/components/register-form";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Register",
   description: "Create your Buddie AI account and start secure checkout.",

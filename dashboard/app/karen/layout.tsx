@@ -3,6 +3,9 @@ import type { Metadata, Viewport } from "next";
 import { ComedyDisclaimerGate } from "@/components/karen/comedy-disclaimer-gate";
 import { KarenBodyLock } from "@/components/karen/karen-body-lock";
 
+/** 3D / localStorage / client game — skip static pre-render (Vercel hang). */
+export const dynamic = "force-dynamic";
+
 /**
  * Standalone Karen shell — no Buddie sidebar, header, footer, or branding chrome.
  * Root `SiteChrome` is skipped for /karen (middleware `x-karen-shell` + SiteChrome guard).

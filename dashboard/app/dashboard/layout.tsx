@@ -5,6 +5,9 @@ import { DashboardMinimalNav } from "@/components/dashboard-minimal-nav";
 import { IntelligenceWarmup } from "@/components/intelligence-warmup";
 import { DashboardPersistentPresence } from "@/components/dashboard-persistent-presence";
 
+/** Session + Prisma rooms — never statically pre-render on Vercel. */
+export const dynamic = "force-dynamic";
+
 const display = Fraunces({
   subsets: ["latin"],
   variable: "--font-buddie-display",

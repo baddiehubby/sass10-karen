@@ -2,14 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { compileMDX } from "next-mdx-remote/rsc";
-import { getAllPosts, getPostBySlug } from "@/lib/blog";
+import { getPostBySlug } from "@/lib/blog";
 
 type Params = { slug: string };
 
-export async function generateStaticParams(): Promise<Params[]> {
-  const posts = await getAllPosts();
-  return posts.map((post) => ({ slug: post.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   try {
